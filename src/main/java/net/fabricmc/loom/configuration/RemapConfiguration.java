@@ -83,13 +83,6 @@ public class RemapConfiguration {
 			((Jar) jarTask).manifest(manifest -> {
 				manifest.attributes(ImmutableMap.of("MixinConfigs", String.join(",", extension.getMixinConfigs())));
 			});
-
-			Property<Boolean> convertAws = extension.getForge().getConvertAccessWideners();
-			convertAws.finalizeValue();
-
-			if (convertAws.get()) {
-				Aw2At.setup(project, remapJarTask);
-			}
 		}
 
 		if (isDefaultRemap) {
@@ -98,6 +91,16 @@ public class RemapConfiguration {
 			remapJarTask.getRemapAccessWidener().set(true);
 
 			project.getArtifacts().add("archives", remapJarTask);
+
+			if (extension.isForge()) {
+				Property<Boolean> convertAws = extension.getForge().getConvertAccessWideners();
+				convertAws.finalizeValue();
+
+				if (convertAws.get()) {
+					Aw2At.setup(project, remapJarTask);
+					remapJarTask.getRemapAccessWidener().set(false);
+				}
+			}
 		}
 
 		remapJarTask.dependsOn(jarTask);

@@ -38,7 +38,6 @@ import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.ModifierChange;
 import org.cadixdev.bombe.type.signature.MethodSignature;
 import org.gradle.api.Project;
-import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 
@@ -59,7 +58,7 @@ public final class Aw2At {
 			// Find the relative AW file name
 			String awName = null;
 			Path awPath = extension.getAccessWidenerPath().get().getAsFile().toPath();
-			SourceSetContainer sourceSets = project.getConvention().getByType(JavaPluginConvention.class).getSourceSets();
+			SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
 			SourceSet main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 			boolean found = false;
 

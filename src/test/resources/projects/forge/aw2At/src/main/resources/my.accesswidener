@@ -1,0 +1,3 @@
+accessWidener v1 named
+accessible method net/minecraft/world/level/GameRules$BooleanValue create (Z)Lnet/minecraft/world/GameRules$Type;
+extendable method net/minecraft/world/level/block/IronBarsBlock attchsTo (Lnet/minecraft/world/level/block/state/BlockState;Z)Z
