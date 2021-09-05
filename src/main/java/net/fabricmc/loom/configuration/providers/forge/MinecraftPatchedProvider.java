@@ -373,8 +373,8 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		}
 	}
 
-	private static void visitMojmap(MappingVisitor visitor, LoomGradleExtension extension) {
-		GradleMappingContext context = new GradleMappingContext(extension.getForgeProvider().getProject(), "tmp-mojmap");
+	private static void visitMojmap(MappingVisitor visitor, Project project) {
+		GradleMappingContext context = new GradleMappingContext(project, "tmp-mojmap");
 
 		try {
 			FileUtils.deleteDirectory(context.workingDirectory("/"));
@@ -391,12 +391,12 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		}
 	}
 
-	public static Path getMojmapTsrg(LoomGradleExtension extension) throws IOException {
+	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {
 		Path path = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
 
 		if (Files.notExists(path)) {
 			try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-				Tsrg2Utils.writeTsrg(visitor -> visitMojmap(visitor, extension),
+				Tsrg2Utils.writeTsrg(visitor -> visitMojmap(visitor, project),
 						MappingNamespace.NAMED.stringValue(), false, writer);
 			}
 		}
@@ -404,12 +404,12 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		return path;
 	}
 
-	public static Path getMojmapTsrg2(LoomGradleExtension extension) throws IOException {
+	public static Path getMojmapTsrg2(Project project, LoomGradleExtension extension) throws IOException {
 		Path path = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
 
 		if (Files.notExists(path)) {
 			try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-				Tsrg2Utils.writeTsrg2(visitor -> visitMojmap(visitor, extension), writer);
+				Tsrg2Utils.writeTsrg2(visitor -> visitMojmap(visitor, project), writer);
 			}
 		}
 
@@ -426,7 +426,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 					"--left",
 					getExtension().getMcpConfigProvider().getMappings().toAbsolutePath().toString(),
 					"--right",
-					getMojmapTsrg(getExtension()).toAbsolutePath().toString(),
+					getMojmapTsrg(getProject(), getExtension()).toAbsolutePath().toString(),
 					"--classes",
 					"--output",
 					out.toAbsolutePath().toString()

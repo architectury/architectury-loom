@@ -231,7 +231,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 	protected Path getMojmapSrgFileIfPossible() {
 		try {
 			LoomGradleExtension extension = getExtension();
-			return MinecraftPatchedProvider.getMojmapTsrg2(extension);
+			return MinecraftPatchedProvider.getMojmapTsrg2(getProject(), extension);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
