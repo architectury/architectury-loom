@@ -24,15 +24,13 @@
 
 package net.fabricmc.loom.task;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
+import java.io.Writer;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -98,6 +96,7 @@ import net.fabricmc.loom.configuration.JarManifestConfiguration;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerJarProcessor;
 import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.TinyRemapperMappingsHelper;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
@@ -470,29 +469,37 @@ public class RemapJarTask extends Jar {
 		AccessTransformSet at = AccessTransformSet.create();
 		File jar = getArchiveFile().get().getAsFile();
 
-		if (ZipUtil.containsEntry(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH)) {
-			throw new FileAlreadyExistsException("Jar " + jar + " already contains an access transformer - cannot convert AWs!");
-		}
+		try (FileSystemUtil.FileSystemDelegate fileSystem = FileSystemUtil.getJarFileSystem(jar, false)) {
+			FileSystem fs = fileSystem.get();
+			Path atPath = fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
-		for (String awPath : atAccessWideners) {
-			byte[] contents = ZipUtil.unpackEntry(jar, awPath);
-
-			if (contents == null) {
-				throw new NoSuchFileException("Could not find AW '" + awPath + "' to convert into AT!");
+			if (Files.exists(atPath)) {
+				throw new FileAlreadyExistsException("Jar " + jar + " already contains an access transformer - cannot convert AWs!");
 			}
 
-			at.merge(Aw2At.toAccessTransformSet(new ByteArrayInputStream(contents)));
-			ZipUtil.removeEntry(jar, awPath);
+			for (String aw : atAccessWideners) {
+				Path awPath = fs.getPath(aw);
+
+				if (Files.notExists(awPath)) {
+					throw new NoSuchFileException("Could not find AW '" + aw + "' to convert into AT!");
+				}
+
+				try (InputStream in = Files.newInputStream(awPath)) {
+					at.merge(Aw2At.toAccessTransformSet(in));
+				}
+
+				Files.delete(awPath);
+			}
+
+			LoomGradleExtension extension = LoomGradleExtension.get(getProject());
+			TinyTree mappings = extension.shouldGenerateSrgTiny() ? extension.getMappingsProvider().getMappingsWithSrg() : extension.getMappingsProvider().getMappings();
+			TinyMappingsReader reader = new TinyMappingsReader(mappings, fromM.get(), toM.get());
+			at = at.remap(reader.read());
+
+			try (Writer writer = Files.newBufferedWriter(atPath)) {
+				AccessTransformFormats.FML.write(writer, at);
+			}
 		}
-
-		LoomGradleExtension extension = LoomGradleExtension.get(getProject());
-		TinyTree mappings = extension.shouldGenerateSrgTiny() ? extension.getMappingsProvider().getMappingsWithSrg() : extension.getMappingsProvider().getMappings();
-		TinyMappingsReader reader = new TinyMappingsReader(mappings, fromM.get(), toM.get());
-		at = at.remap(reader.read());
-
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		AccessTransformFormats.FML.write(new OutputStreamWriter(out), at);
-		ZipUtil.addEntry(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH, out.toByteArray());
 	}
 
 	@InputFile
