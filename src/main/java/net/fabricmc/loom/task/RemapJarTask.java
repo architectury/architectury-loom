@@ -102,6 +102,7 @@ import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.TinyRemapperMappingsHelper;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.aw2at.Aw2At;
+import net.fabricmc.lorenztiny.TinyMappingsReader;
 import net.fabricmc.mapping.tree.ClassDef;
 import net.fabricmc.mapping.tree.FieldDef;
 import net.fabricmc.mapping.tree.MethodDef;
@@ -483,6 +484,11 @@ public class RemapJarTask extends Jar {
 			at.merge(Aw2At.toAccessTransformSet(new ByteArrayInputStream(contents)));
 			ZipUtil.removeEntry(jar, awPath);
 		}
+
+		LoomGradleExtension extension = LoomGradleExtension.get(getProject());
+		TinyTree mappings = extension.shouldGenerateSrgTiny() ? extension.getMappingsProvider().getMappingsWithSrg() : extension.getMappingsProvider().getMappings();
+		TinyMappingsReader reader = new TinyMappingsReader(mappings, fromM.get(), toM.get());
+		at = at.remap(reader.read());
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		AccessTransformFormats.FML.write(new OutputStreamWriter(out), at);
