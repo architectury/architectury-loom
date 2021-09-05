@@ -134,7 +134,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 			SourceSet main = getProject().getConvention().findPlugin(JavaPluginConvention.class).getSourceSets().getByName("main");
 
 			for (File srcDir : main.getResources().getSrcDirs()) {
-				File projectAt = new File(srcDir, "META-INF/accesstransformer.cfg");
+				File projectAt = new File(srcDir, Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
 				if (projectAt.exists()) {
 					this.projectAts.add(projectAt);
@@ -427,7 +427,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 
 		for (File jar : ImmutableList.of(getForgeJar(), getForgeUserdevJar(), minecraftMergedPatchedSrgJar)) {
 			try (FileSystemUtil.FileSystemDelegate fs = FileSystemUtil.getJarFileSystem(jar, false)) {
-				Path atPath = fs.get().getPath("META-INF/accesstransformer.cfg");
+				Path atPath = fs.get().getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
 				if (Files.exists(atPath)) {
 					File tmpFile = File.createTempFile("at-conf", ".cfg");

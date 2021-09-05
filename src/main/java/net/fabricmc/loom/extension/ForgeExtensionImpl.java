@@ -22,31 +22,30 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.util;
+package net.fabricmc.loom.extension;
 
-import java.util.Locale;
-
-import org.gradle.api.GradleException;
 import org.gradle.api.Project;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.LoomGradleExtensionAPI;
+import net.fabricmc.loom.api.ForgeExtensionAPI;
 
-public enum ModPlatform {
-	FABRIC,
-	FORGE;
+public class ForgeExtensionImpl implements ForgeExtensionAPI {
+	private final Property<Boolean> convertAccessWideners;
+	private final SetProperty<String> extraAccessWideners;
 
-	public static void assertPlatform(Project project, ModPlatform platform) {
-		assertPlatform(LoomGradleExtension.get(project), platform);
+	public ForgeExtensionImpl(Project project) {
+		convertAccessWideners = project.getObjects().property(Boolean.class).convention(true);
+		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
 	}
 
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform) {
-		extension.getPlatform().finalizeValue();
+	@Override
+	public Property<Boolean> getConvertAccessWideners() {
+		return convertAccessWideners;
+	}
 
-		if (extension.getPlatform().get() != platform) {
-			String msg = "Loom is not running on %s.%nYou can switch to it by adding 'loom.platform = %s' to your gradle.properties";
-			String name = platform.name().toLowerCase(Locale.ROOT);
-			throw new GradleException(String.format(msg, name, name));
-		}
+	@Override
+	public SetProperty<String> getExtraAccessWideners() {
+		return extraAccessWideners;
 	}
 }

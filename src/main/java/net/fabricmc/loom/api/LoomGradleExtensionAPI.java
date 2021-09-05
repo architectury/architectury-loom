@@ -244,4 +244,12 @@ public interface LoomGradleExtensionAPI {
 	void setUseFabricMixin(boolean useFabricMixin);
 
 	List<Consumer<RunConfig>> getSettingsPostEdit();
+
+	/**
+	 * {@return the Forge extension}
+	 * @throws UnsupportedOperationException if running on another platform
+	 */
+	ForgeExtensionAPI getForge();
+
+	void forge(Action<ForgeExtensionAPI> action);
 }

@@ -143,10 +143,11 @@ public class Constants {
 		}
 	}
 
-	public static final class ForgeUserDev {
+	public static final class Forge {
 		public static final String LAUNCH_TESTING = "net.minecraftforge.userdev.LaunchTesting";
+		public static final String ACCESS_TRANSFORMER_PATH = "META-INF/accesstransformer.cfg";
 
-		private ForgeUserDev() {
+		private Forge() {
 		}
 	}
 }

@@ -40,6 +40,7 @@ import java.util.function.UnaryOperator;
 import com.google.common.collect.ImmutableMap;
 import org.gradle.api.logging.Logger;
 
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.mapping.tree.TinyTree;
 
@@ -51,7 +52,7 @@ import net.fabricmc.mapping.tree.TinyTree;
 public final class AtRemapper {
 	public static void remap(Logger logger, Path jar, TinyTree mappings) throws IOException {
 		try (FileSystem fs = FileSystems.newFileSystem(URI.create("jar:" + jar.toUri()), ImmutableMap.of("create", false))) {
-			Path atPath = fs.getPath("META-INF/accesstransformer.cfg");
+			Path atPath = fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
 			if (Files.exists(atPath)) {
 				String atContent = Files.readString(atPath);

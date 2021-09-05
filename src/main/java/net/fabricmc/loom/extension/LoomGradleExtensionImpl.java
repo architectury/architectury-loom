@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import com.google.common.base.Suppliers;
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.mercury.Mercury;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -41,15 +42,18 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.ConfigurableFileCollection;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.ForgeExtensionAPI;
 import net.fabricmc.loom.configuration.InstallerData;
 import net.fabricmc.loom.configuration.LoomDependencyManager;
 import net.fabricmc.loom.configuration.processors.JarProcessorManager;
+import net.fabricmc.loom.util.ModPlatform;
 
 public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implements LoomGradleExtension {
 	private final Project project;
 	private final MixinApExtension mixinApExtension;
 	private final LoomFiles loomFiles;
 	private final ConfigurableFileCollection unmappedMods;
+	private final Supplier<ForgeExtensionAPI> forgeExtension;
 
 	private final Set<File> mixinMappings = Collections.synchronizedSet(new HashSet<>());
 	private final MappingSet[] srcMappingCache = new MappingSet[2];
@@ -67,6 +71,7 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.mixinApExtension = project.getObjects().newInstance(MixinApExtensionImpl.class, project);
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
+		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project) : null);
 	}
 
 	@Override
@@ -174,5 +179,11 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	@Override
 	protected String getMinecraftVersion() {
 		return getMinecraftProvider().minecraftVersion();
+	}
+
+	@Override
+	public ForgeExtensionAPI getForge() {
+		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		return forgeExtension.get();
 	}
 }

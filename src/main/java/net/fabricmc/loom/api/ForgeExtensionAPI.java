@@ -22,31 +22,30 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.util;
+package net.fabricmc.loom.api;
 
-import java.util.Locale;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 
-import org.gradle.api.GradleException;
-import org.gradle.api.Project;
+/**
+ * This is the forge extension api available exposed to build scripts.
+ */
+// TODO: Move other forge-related configuration here
+public interface ForgeExtensionAPI {
+	/**
+	 * If true, {@linkplain LoomGradleExtensionAPI#getAccessWidenerPath() the project access widener file}
+	 * will be remapped to an access transformer file if set.
+	 *
+	 * @return the property
+	 */
+	Property<Boolean> getConvertAccessWideners();
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.LoomGradleExtensionAPI;
-
-public enum ModPlatform {
-	FABRIC,
-	FORGE;
-
-	public static void assertPlatform(Project project, ModPlatform platform) {
-		assertPlatform(LoomGradleExtension.get(project), platform);
-	}
-
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform) {
-		extension.getPlatform().finalizeValue();
-
-		if (extension.getPlatform().get() != platform) {
-			String msg = "Loom is not running on %s.%nYou can switch to it by adding 'loom.platform = %s' to your gradle.properties";
-			String name = platform.name().toLowerCase(Locale.ROOT);
-			throw new GradleException(String.format(msg, name, name));
-		}
-	}
+	/**
+	 * A set of additional access widener files that will be converted to access transformers
+	 * {@linkplain #getConvertAccessWideners() if enabled}. The files are specified as paths in jar files
+	 * (e.g. {@code path/to/my_aw.accesswidener}).
+	 *
+	 * @return the property
+	 */
+	SetProperty<String> getExtraAccessWideners();
 }

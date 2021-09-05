@@ -24,17 +24,22 @@
 
 package net.fabricmc.loom.task;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -61,12 +66,18 @@ import dev.architectury.refmapremapper.remapper.SimpleReferenceRemapper;
 import dev.architectury.tinyremapper.IMappingProvider;
 import dev.architectury.tinyremapper.TinyRemapper;
 import dev.architectury.tinyremapper.TinyUtils;
+
+import net.fabricmc.loom.util.aw2at.Aw2At;
+
+import org.cadixdev.at.AccessTransformSet;
+import org.cadixdev.at.io.AccessTransformFormats;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -109,6 +120,7 @@ public class RemapJarTask extends Jar {
 	private final List<Action<TinyRemapper.Builder>> remapOptions = new ArrayList<>();
 	private final Property<String> fromM;
 	private final Property<String> toM;
+	private final SetProperty<String> atAccessWideners;
 	public JarRemapper jarRemapper;
 	private FileCollection classpath;
 	private final Set<Object> nestedPaths = new LinkedHashSet<>();
@@ -121,6 +133,7 @@ public class RemapJarTask extends Jar {
 		remapAccessWidener = getProject().getObjects().property(Boolean.class);
 		fromM = getProject().getObjects().property(String.class);
 		toM = getProject().getObjects().property(String.class);
+		atAccessWideners = getProject().getObjects().setProperty(String.class).empty();
 		fromM.set("named");
 		toM.set(SourceRemapper.intermediary(getProject()));
 		// false by default, I have no idea why I have to do it for this property and not the other one
@@ -142,6 +155,8 @@ public class RemapJarTask extends Jar {
 		if (singleRemap) {
 			jarRemapper.remap(getProject());
 		}
+
+		convertAwToAt();
 	}
 
 	private ReferenceRemapper createReferenceRemapper(LoomGradleExtension extension, String from, String to) throws IOException {
@@ -442,6 +457,40 @@ public class RemapJarTask extends Jar {
 				.toArray(Path[]::new);
 	}
 
+	private void convertAwToAt() throws IOException {
+		if (!this.atAccessWideners.isPresent()) {
+			return;
+		}
+
+		Set<String> atAccessWideners = this.atAccessWideners.get();
+
+		if (atAccessWideners.isEmpty()) {
+			return;
+		}
+
+		AccessTransformSet at = AccessTransformSet.create();
+		File jar = getArchiveFile().get().getAsFile();
+
+		if (ZipUtil.containsEntry(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH)) {
+			throw new FileAlreadyExistsException("Jar " + jar + " already contains an access transformer - cannot convert AWs!");
+		}
+
+		for (String awPath : atAccessWideners) {
+			byte[] contents = ZipUtil.unpackEntry(jar, awPath);
+
+			if (contents == null) {
+				throw new NoSuchFileException("Could not find AW '" + awPath + "' to convert into AT!");
+			}
+
+			at.merge(Aw2At.toAccessTransformSet(new ByteArrayInputStream(contents)));
+			ZipUtil.removeEntry(jar, awPath);
+		}
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		AccessTransformFormats.FML.write(new OutputStreamWriter(out), at);
+		ZipUtil.addEntry(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH, out.toByteArray());
+	}
+
 	@InputFile
 	public RegularFileProperty getInput() {
 		return input;
@@ -460,6 +509,14 @@ public class RemapJarTask extends Jar {
 	@Input
 	public Property<Boolean> getRemapAccessWidener() {
 		return remapAccessWidener;
+	}
+
+	/**
+	 * {@return the access wideners that will be converted to ATs for Forge purposes}
+	 */
+	@Input
+	public SetProperty<String> getAtAccessWideners() {
+		return atAccessWideners;
 	}
 
 	public void remapOptions(Action<TinyRemapper.Builder> action) {

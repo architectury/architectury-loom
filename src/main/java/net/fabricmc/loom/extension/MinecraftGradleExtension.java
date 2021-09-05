@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import net.fabricmc.loom.api.ForgeExtensionAPI;
+
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.artifacts.Dependency;
@@ -260,5 +262,17 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	public List<Consumer<RunConfig>> getSettingsPostEdit() {
 		reportDeprecation();
 		return parent.getSettingsPostEdit();
+	}
+
+	@Override
+	public ForgeExtensionAPI getForge() {
+		reportDeprecation();
+		return parent.getForge();
+	}
+
+	@Override
+	public void forge(Action<ForgeExtensionAPI> action) {
+		reportDeprecation();
+		parent.forge(action);
 	}
 }
