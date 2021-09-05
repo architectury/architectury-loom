@@ -164,7 +164,7 @@ public class ModProcessor {
 
 		remapper.readClassPathAsync(mc);
 
-		if (extension.isForge()) {
+		if (extension.isForgeAndNotOfficial()) {
 			remapper.readClassPathAsync(mappedProvider.getForgeSrgJar().toPath());
 		}
 

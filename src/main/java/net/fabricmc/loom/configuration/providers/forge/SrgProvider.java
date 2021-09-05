@@ -64,7 +64,8 @@ public class SrgProvider extends DependencyProvider {
 	}
 
 	private void init(String version) {
-		srg = new File(getDirectories().getUserCache(), "srg-" + version + ".tsrg");
+		File dir = getMinecraftProvider().dir("srg/" + version);
+		srg = new File(dir, "srg.tsrg");
 	}
 
 	public File getSrg() {

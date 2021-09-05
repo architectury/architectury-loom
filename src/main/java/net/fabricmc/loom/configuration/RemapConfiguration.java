@@ -156,10 +156,10 @@ public class RemapConfiguration {
 
 			RemapSourcesJarTask remapSourcesJarTask = (RemapSourcesJarTask) project.getTasks().findByName(remapSourcesJarTaskName);
 			Preconditions.checkNotNull(remapSourcesJarTask, "Could not find " + remapSourcesJarTaskName + " in " + project.getName());
-			remapSourcesJarTask.setOutput(sourcesTask.getArchivePath());
+			remapSourcesJarTask.getOutput().set(sourcesTask.getArchiveFile());
 			String sourcesTaskClassifer = sourcesTask.getArchiveClassifier().get();
 			sourcesTask.getArchiveClassifier().set(sourcesTaskClassifer == null ? "dev" : sourcesTaskClassifer + "-dev");
-			remapSourcesJarTask.setInput(sourcesTask.getArchivePath());
+			remapSourcesJarTask.getInput().set(sourcesTask.getArchiveFile());
 			remapSourcesJarTask.dependsOn(sourcesTask);
 
 			if (isDefaultRemap) {

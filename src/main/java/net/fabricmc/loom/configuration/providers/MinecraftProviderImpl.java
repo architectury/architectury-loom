@@ -44,6 +44,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.ManifestVersion;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftLibraryProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.MirrorUtil;
 import net.fabricmc.loom.util.DownloadUtil;
 import net.fabricmc.loom.util.HashedDownloadUtil;
 import net.fabricmc.stitch.merge.JarMerger;
@@ -54,13 +55,14 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 	private MinecraftVersionMeta versionInfo;
 	private MinecraftLibraryProvider libraryProvider;
 
+	private File workingDir;
 	private File minecraftJson;
 	public File minecraftClientJar;
 	public File minecraftServerJar;
 	private File minecraftMergedJar;
 	private File versionManifestJson;
 	private File experimentalVersionsJson;
-	private String jarSuffix = "";
+	private String jarPrefix = "";
 
 	public MinecraftProviderImpl(Project project) {
 		super(project);
@@ -118,10 +120,12 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 	}
 
 	private void initFiles() {
-		minecraftJson = new File(getDirectories().getUserCache(), "minecraft-" + minecraftVersion + "-info.json");
-		minecraftClientJar = new File(getDirectories().getUserCache(), "minecraft-" + minecraftVersion + "-client.jar");
-		minecraftServerJar = new File(getDirectories().getUserCache(), "minecraft-" + minecraftVersion + "-server.jar");
-		minecraftMergedJar = new File(getDirectories().getUserCache(), "minecraft-" + minecraftVersion + "-merged.jar");
+		workingDir = new File(getDirectories().getUserCache(), minecraftVersion);
+		workingDir.mkdirs();
+		minecraftJson = file("minecraft-info.json");
+		minecraftClientJar = file("minecraft-client.jar");
+		minecraftServerJar = file("minecraft-server.jar");
+		minecraftMergedJar = file("minecraft-merged.jar");
 		versionManifestJson = new File(getDirectories().getUserCache(), "version_manifest.json");
 		experimentalVersionsJson = new File(getDirectories().getUserCache(), "experimental_version_manifest.json");
 	}
@@ -151,7 +155,7 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 			}
 		} else {
 			getProject().getLogger().debug("Downloading version manifests");
-			DownloadUtil.downloadIfChanged(new URL(Constants.VERSION_MANIFESTS), versionManifestJson, getProject().getLogger());
+			DownloadUtil.downloadIfChanged(new URL(MirrorUtil.getVersionManifests(getProject())), versionManifestJson, getProject().getLogger());
 		}
 
 		String versionManifest = Files.asCharSource(versionManifestJson, StandardCharsets.UTF_8).read();
@@ -210,7 +214,7 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 				return Optional.empty();
 			}
 		} else {
-			DownloadUtil.downloadIfChanged(new URL(Constants.EXPERIMENTAL_VERSIONS), experimentalVersionsJson, getProject().getLogger());
+			DownloadUtil.downloadIfChanged(new URL(MirrorUtil.getExperimentalVersions(getProject())), experimentalVersionsJson, getProject().getLogger());
 		}
 
 		String expVersionManifest = Files.asCharSource(experimentalVersionsJson, StandardCharsets.UTF_8).read();
@@ -275,6 +279,37 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 	}
 
 	@Override
+	public File workingDir() {
+		return workingDir;
+	}
+
+	@Override
+	public boolean hasCustomNatives() {
+		return getProject().getProperties().get("fabric.loom.natives.dir") != null;
+	}
+
+	@Override
+	public File nativesDir() {
+		if (hasCustomNatives()) {
+			return new File((String) getProject().property("fabric.loom.natives.dir"));
+		}
+
+		return dir("natives");
+	}
+
+	@Override
+	public File dir(String path) {
+		File dir = file(path);
+		dir.mkdirs();
+		return dir;
+	}
+
+	@Override
+	public File file(String path) {
+		return new File(workingDir(), path);
+	}
+
+	@Override
 	public String minecraftVersion() {
 		return minecraftVersion;
 	}
@@ -288,12 +323,12 @@ public class MinecraftProviderImpl extends DependencyProvider implements Minecra
 		return libraryProvider;
 	}
 
-	public String getJarSuffix() {
-		return jarSuffix;
+	public String getJarPrefix() {
+		return jarPrefix;
 	}
 
-	public void setJarSuffix(String jarSuffix) {
-		this.jarSuffix = jarSuffix;
+	public void setJarPrefix(String jarSuffix) {
+		this.jarPrefix = jarSuffix;
 	}
 
 	@Override

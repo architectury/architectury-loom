@@ -46,13 +46,13 @@ public class SetupIntelijRunConfigs {
 		}
 
 		try {
-			generate(project);
+			generate(project, false);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to generate run configs", e);
 		}
 	}
 
-	private static void generate(Project project) throws IOException {
+	public static void generate(Project project, boolean override) throws IOException {
 		Project rootProject = project.getRootProject();
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
@@ -81,6 +81,10 @@ public class SetupIntelijRunConfigs {
 
 			File runConfigs = new File(runConfigsDir, name + projectPath + ".xml");
 			String runConfigXml = config.fromDummy("idea_run_config_template.xml");
+
+			if (runConfigs.exists() && override) {
+				runConfigs.delete();
+			}
 
 			if (!runConfigs.exists()) {
 				FileUtils.writeStringToFile(runConfigs, runConfigXml, StandardCharsets.UTF_8);

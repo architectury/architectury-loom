@@ -109,11 +109,6 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
         }
 
         @Override
-        File workingDirectory() {
-            return tempDir
-        }
-
-        @Override
         File workingDirectory(String name) {
             return new File(tempDir, name)
         }

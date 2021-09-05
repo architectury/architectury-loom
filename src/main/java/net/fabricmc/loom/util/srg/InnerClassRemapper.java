@@ -27,11 +27,14 @@ package net.fabricmc.loom.util.srg;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import dev.architectury.tinyremapper.IMappingProvider;
 
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -40,22 +43,16 @@ import net.fabricmc.mapping.tree.ClassDef;
 import net.fabricmc.mapping.tree.TinyTree;
 
 public class InnerClassRemapper {
-	public static IMappingProvider of(Path fromJar, TinyTree mappingsWithSrg, String from, String to) throws IOException {
+	public static IMappingProvider of(Set<String> fromClassNames, TinyTree mappingsWithSrg, String from, String to) throws IOException {
 		return sink -> {
-			remapInnerClass(fromJar, mappingsWithSrg, from, to, sink::acceptClass);
+			remapInnerClass(fromClassNames, mappingsWithSrg, from, to, sink::acceptClass);
 		};
 	}
 
-	private static void remapInnerClass(Path fromJar, TinyTree mappingsWithSrg, String from, String to, BiConsumer<String, String> action) {
-		try (FileSystemDelegate system = FileSystemUtil.getJarFileSystem(fromJar, false)) {
-			Map<String, String> availableClasses = mappingsWithSrg.getClasses().stream()
-					.collect(Collectors.groupingBy(classDef -> classDef.getName(from),
-							Collectors.<ClassDef, String>reducing(
-									null,
-									classDef -> classDef.getName(to),
-									(first, last) -> last
-							))
-					);
+	public static Set<String> readClassNames(Path jar) {
+		Set<String> set = new HashSet<>();
+
+		try (FileSystemDelegate system = FileSystemUtil.getJarFileSystem(jar, false)) {
 			Iterator<Path> iterator = Files.walk(system.get().getPath("/")).iterator();
 
 			while (iterator.hasNext()) {
@@ -65,21 +62,42 @@ public class InnerClassRemapper {
 
 				if (!Files.isDirectory(path) && name.contains("$") && name.endsWith(".class")) {
 					String className = name.substring(0, name.length() - 6);
-
-					if (!availableClasses.containsKey(className)) {
-						String parentName = className.substring(0, className.indexOf('$'));
-						String childName = className.substring(className.indexOf('$') + 1);
-						String remappedParentName = availableClasses.getOrDefault(parentName, parentName);
-						String remappedName = remappedParentName + "$" + childName;
-
-						if (!className.equals(remappedName)) {
-							action.accept(className, remappedName);
-						}
-					}
+					set.add(className);
 				}
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		}
+
+		return set;
+	}
+
+	private static void remapInnerClass(Set<String> classNames, TinyTree mappingsWithSrg, String from, String to, BiConsumer<String, String> action) {
+		BiMap<String, String> availableClasses = HashBiMap.create(mappingsWithSrg.getClasses().stream()
+				.collect(Collectors.groupingBy(classDef -> classDef.getName(from),
+						Collectors.<ClassDef, String>reducing(
+								null,
+								classDef -> classDef.getName(to),
+								(first, last) -> last
+						))
+				));
+
+		for (String className : classNames) {
+			if (!availableClasses.containsKey(className)) {
+				String parentName = className.substring(0, className.indexOf('$'));
+				String childName = className.substring(className.indexOf('$') + 1);
+				String remappedParentName = availableClasses.getOrDefault(parentName, parentName);
+				String remappedName = remappedParentName + "$" + childName;
+
+				if (!className.equals(remappedName)) {
+					if (availableClasses.containsValue(remappedName)) {
+						// https://github.com/MinecraftForge/MinecraftForge/blob/b027a92dd287d6810a9fdae4d4b1e1432d7dc9cc/patches/minecraft/net/minecraft/Util.java.patch#L8
+						action.accept(className, remappedName + "_UNBREAK");
+					} else {
+						action.accept(className, remappedName);
+					}
+				}
+			}
 		}
 	}
 }

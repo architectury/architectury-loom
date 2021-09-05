@@ -24,7 +24,14 @@
 
 package net.fabricmc.loom.util;
 
+import java.io.File;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.file.FileCollection;
 
 /**
@@ -41,8 +48,40 @@ public final class DependencyDownloader {
 	 * @return the resolved files
 	 */
 	public static FileCollection download(Project project, String dependencyNotation) {
-		var dependency = project.getDependencies().create(dependencyNotation);
-		var config = project.getConfigurations().detachedConfiguration(dependency);
-		return config.fileCollection(dep -> true);
+		return download(project, dependencyNotation, true, false);
+	}
+
+	public static FileCollection download(Project project, String dependencyNotation, boolean transitive, boolean resolve) {
+		Dependency dependency = project.getDependencies().create(dependencyNotation);
+
+		if (dependency instanceof ModuleDependency) {
+			((ModuleDependency) dependency).setTransitive(transitive);
+		}
+
+		Configuration config = project.getConfigurations().detachedConfiguration(dependency);
+		config.setTransitive(transitive);
+		FileCollection files = config.fileCollection(dep -> true);
+
+		if (resolve) {
+			files = project.files(files.getFiles());
+		}
+
+		return files;
+	}
+
+	private static Set<File> resolve(Configuration configuration, boolean transitive) {
+		Configuration copy = configuration.copy();
+		copy.setTransitive(transitive);
+		Set<File> files = new LinkedHashSet<>(copy.resolve());
+
+		for (Configuration extendsForm : configuration.getExtendsFrom()) {
+			files.addAll(resolve(extendsForm, transitive));
+		}
+
+		return files;
+	}
+
+	public static Set<File> resolveFiles(Configuration configuration, boolean transitive) {
+		return resolve(configuration, transitive);
 	}
 }

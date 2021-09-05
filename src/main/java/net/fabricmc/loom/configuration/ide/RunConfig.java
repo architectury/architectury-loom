@@ -24,21 +24,15 @@
 
 package net.fabricmc.loom.configuration.ide;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -131,24 +125,7 @@ public class RunConfig {
 		runConfig.programArgs = "";
 
 		runConfig.mainClass = "net.fabricmc.devlaunchinjector.Main";
-		runConfig.vmArgs = "-XX:+ShowCodeDetailsInExceptionMessages -Dfabric.dli.config=" + encodeEscaped(extension.getFiles().getDevLauncherConfig().getAbsolutePath()) + " -Dfabric.dli.env=" + environment.toLowerCase();
-
-		if (extension.isForge()) {
-			List<String> modClasses = new ArrayList<>();
-
-			for (Supplier<SourceSet> sourceSetSupplier : extension.getForgeLocalMods()) {
-				SourceSet sourceSet = sourceSetSupplier.get();
-				String sourceSetName = sourceSet.getName() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 7);
-
-				Stream.concat(
-						Stream.of(sourceSet.getOutput().getResourcesDir().getAbsolutePath()),
-						StreamSupport.stream(sourceSet.getOutput().getClassesDirs().spliterator(), false)
-								.map(File::getAbsolutePath)
-				).map(s -> sourceSetName + "%%" + s).collect(Collectors.toCollection(() -> modClasses));
-			}
-
-			runConfig.envVariables.put("MOD_CLASSES", String.join(File.pathSeparator, modClasses));
-		}
+		runConfig.vmArgs = "-Dfabric.dli.config=" + encodeEscaped(extension.getFiles().getDevLauncherConfig().getAbsolutePath()) + " -Dfabric.dli.env=" + environment.toLowerCase();
 	}
 
 	// Turns camelCase/PascalCase into Capital Case
@@ -162,6 +139,7 @@ public class RunConfig {
 	}
 
 	public static RunConfig runConfig(Project project, RunConfigSettings settings) {
+		settings.evaluateNow();
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		String name = settings.getName();
 
@@ -195,6 +173,7 @@ public class RunConfig {
 		}
 
 		RunConfig runConfig = new RunConfig();
+		runConfig.envVariables.putAll(settings.envVariables);
 		runConfig.configName = configName;
 		populate(project, extension, runConfig, environment);
 		runConfig.ideaModuleName = getIdeaModuleName(project, sourceSet);

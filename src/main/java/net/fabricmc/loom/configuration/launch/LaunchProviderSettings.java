@@ -33,11 +33,13 @@ import java.util.Map;
 
 import org.gradle.api.Named;
 import org.gradle.api.Project;
+import org.jetbrains.annotations.ApiStatus;
 
 public class LaunchProviderSettings implements Named {
 	private final String name;
 	private List<Map.Entry<String, String>> properties = new ArrayList<>();
 	private List<String> arguments = new ArrayList<>();
+	private List<Runnable> evaluateLater = new ArrayList<>();
 
 	public LaunchProviderSettings(Project project, String name) {
 		this.name = name;
@@ -46,6 +48,20 @@ public class LaunchProviderSettings implements Named {
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@ApiStatus.Internal
+	public void evaluateLater(Runnable runnable) {
+		this.evaluateLater.add(runnable);
+	}
+
+	@ApiStatus.Internal
+	public void evaluateNow() {
+		for (Runnable runnable : this.evaluateLater) {
+			runnable.run();
+		}
+
+		this.evaluateLater.clear();
 	}
 
 	public void arg(String argument) {

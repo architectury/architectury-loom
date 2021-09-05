@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
+import java.io.File;
 import java.util.function.Consumer;
 
 import org.gradle.api.Project;
@@ -33,6 +34,8 @@ import net.fabricmc.loom.util.Constants;
 
 public class ForgeProvider extends DependencyProvider {
 	private ForgeVersion version = new ForgeVersion(null);
+	private File globalCache;
+	private File projectCache;
 
 	public ForgeProvider(Project project) {
 		super(project);
@@ -49,16 +52,37 @@ public class ForgeProvider extends DependencyProvider {
 		return version;
 	}
 
+	public File getGlobalCache() {
+		if (globalCache == null) {
+			globalCache = getMinecraftProvider().dir("forge/" + version.getCombined());
+			globalCache.mkdirs();
+		}
+
+		return globalCache;
+	}
+
+	public File getProjectCache() {
+		if (projectCache == null) {
+			projectCache = new File(getDirectories().getProjectPersistentCache(), "forge/" + getExtension().getForgeProvider().getVersion().getCombined());
+			projectCache.mkdirs();
+		}
+
+		return projectCache;
+	}
+
 	@Override
 	public String getTargetConfig() {
 		return Constants.Configurations.FORGE;
 	}
 
 	public static final class ForgeVersion {
+		private final String combined;
 		private final String minecraftVersion;
 		private final String forgeVersion;
 
 		public ForgeVersion(String combined) {
+			this.combined = combined;
+
 			if (combined == null) {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = "NO_VERSION";
@@ -74,6 +98,10 @@ public class ForgeProvider extends DependencyProvider {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = combined;
 			}
+		}
+
+		public String getCombined() {
+			return combined;
 		}
 
 		public String getMinecraftVersion() {

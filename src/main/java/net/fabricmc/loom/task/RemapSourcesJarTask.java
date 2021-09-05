@@ -24,8 +24,8 @@
 
 package net.fabricmc.loom.task;
 
-import java.io.File;
-
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
@@ -35,29 +35,30 @@ import org.gradle.api.tasks.TaskAction;
 import net.fabricmc.loom.util.SourceRemapper;
 
 public class RemapSourcesJarTask extends AbstractLoomTask {
-	private Object input;
-	private Object output;
-	private String from = "named";
-	private String direction;
+	private final RegularFileProperty input = getProject().getObjects().fileProperty();
+	private final RegularFileProperty output = getProject().getObjects().fileProperty().convention(input);
+	private final Property<String> sourceNamespace;
+	private final Property<String> targetNamespace;
 	private SourceRemapper sourceRemapper = null;
-	private boolean preserveFileTimestamps = true;
-	private boolean reproducibleFileOrder = false;
+	private final Property<Boolean> preserveFileTimestamps = getProject().getObjects().property(Boolean.class).convention(true);
+	private final Property<Boolean> reproducibleFileOrder = getProject().getObjects().property(Boolean.class).convention(false);
 
 	public RemapSourcesJarTask() {
-		this.direction = SourceRemapper.intermediary(getProject());
+		this.sourceNamespace = getProject().getObjects().property(String.class).convention("named");
+		this.targetNamespace = getProject().getObjects().property(String.class).convention(SourceRemapper.intermediary(getProject()));
 	}
 
 	@TaskAction
 	public void remap() throws Exception {
 		if (sourceRemapper == null) {
-			if (from.equals(direction)) {
-				SourceRemapper.remapSources(getProject(), getInput(), getOutput(),
-						direction.equals("named") ? SourceRemapper.intermediary(getProject()) : "named", direction, reproducibleFileOrder, preserveFileTimestamps);
+			if (sourceNamespace.get().equals(targetNamespace.get())) {
+				SourceRemapper.remapSources(getProject(), getInput().get().getAsFile(), getOutput().get().getAsFile(),
+						targetNamespace.get().equals("named") ? SourceRemapper.intermediary(getProject()) : "named", targetNamespace.get(), reproducibleFileOrder.get(), preserveFileTimestamps.get());
 			} else {
-				SourceRemapper.remapSources(getProject(), getInput(), getOutput(), from, direction, reproducibleFileOrder, preserveFileTimestamps);
+				SourceRemapper.remapSources(getProject(), getInput().get().getAsFile(), getOutput().get().getAsFile(), sourceNamespace.get(), targetNamespace.get(), reproducibleFileOrder.get(), preserveFileTimestamps.get());
 			}
 		} else {
-			sourceRemapper.scheduleRemapSources(getInput(), getOutput(), reproducibleFileOrder, preserveFileTimestamps);
+			sourceRemapper.scheduleRemapSources(input.get().getAsFile(), output.get().getAsFile(), reproducibleFileOrder.get(), preserveFileTimestamps.get());
 		}
 	}
 
@@ -72,56 +73,32 @@ public class RemapSourcesJarTask extends AbstractLoomTask {
 	}
 
 	@InputFile
-	public File getInput() {
-		return getProject().file(input);
+	public RegularFileProperty getInput() {
+		return input;
 	}
 
 	@OutputFile
-	public File getOutput() {
-		return getProject().file(output == null ? input : output);
+	public RegularFileProperty getOutput() {
+		return output;
 	}
 
 	@Input
-	public String getSourceNamespace() {
-		return from;
+	public Property<String> getSourceNamespace() {
+		return sourceNamespace;
 	}
 
 	@Input
-	public String getTargetNamespace() {
-		return direction;
-	}
-
-	public void setInput(Object input) {
-		this.input = input;
-	}
-
-	public void setOutput(Object output) {
-		this.output = output;
-	}
-
-	public void setSourceNamespace(String value) {
-		this.from = value;
-	}
-
-	public void setTargetNamespace(String value) {
-		this.direction = value;
+	public Property<String> getTargetNamespace() {
+		return targetNamespace;
 	}
 
 	@Input
-	public boolean isPreserveFileTimestamps() {
+	public Property<Boolean> getPreserveFileTimestamps() {
 		return preserveFileTimestamps;
 	}
 
-	public void setPreserveFileTimestamps(boolean preserveFileTimestamps) {
-		this.preserveFileTimestamps = preserveFileTimestamps;
-	}
-
 	@Input
-	public boolean isReproducibleFileOrder() {
+	public Property<Boolean> getReproducibleFileOrder() {
 		return reproducibleFileOrder;
-	}
-
-	public void setReproducibleFileOrder(boolean reproducibleFileOrder) {
-		this.reproducibleFileOrder = reproducibleFileOrder;
 	}
 }

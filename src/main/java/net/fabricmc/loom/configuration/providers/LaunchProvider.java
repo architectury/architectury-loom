@@ -59,32 +59,22 @@ public class LaunchProvider extends DependencyProvider {
 				.property("fabric.remapClasspathFile", getRemapClasspathFile().getAbsolutePath())
 				.property("log4j.configurationFile", getAllLog4JConfigFiles())
 
-				.property("client", "java.library.path", getDirectories().getNativesDirectory(getExtension().getMinecraftProvider()).getAbsolutePath())
-				.property("client", "org.lwjgl.librarypath", getDirectories().getNativesDirectory(getExtension().getMinecraftProvider()).getAbsolutePath())
+				.property("client", "java.library.path", getExtension().getMinecraftProvider().nativesDir().getAbsolutePath())
+				.property("client", "org.lwjgl.librarypath", getExtension().getMinecraftProvider().nativesDir().getAbsolutePath());
 
-				.argument("client", "--assetIndex")
-				.argument("client", getExtension().getMinecraftProvider().getVersionInfo().assetIndex().fabricId(getExtension().getMinecraftProvider().minecraftVersion()))
-				.argument("client", "--assetsDir")
-				.argument("client", new File(getDirectories().getUserCache(), "assets").getAbsolutePath());
+		if (!getExtension().isForge()) {
+			launchConfig
+					.argument("client", "--assetIndex")
+					.argument("client", getExtension().getMinecraftProvider().getVersionInfo().assetIndex().fabricId(getExtension().getMinecraftProvider().minecraftVersion()))
+					.argument("client", "--assetsDir")
+					.argument("client", new File(getDirectories().getUserCache(), "assets").getAbsolutePath());
+		}
 
 		if (getExtension().isForge()) {
 			launchConfig
 					// Should match YarnNamingService.PATH_TO_MAPPINGS in forge-runtime
 					.property("fabric.yarnWithSrg.path", getExtension().getMappingsProvider().tinyMappingsWithSrg.toAbsolutePath().toString())
 
-					.argument("--fml.mcVersion")
-					.argument(getExtension().getMinecraftProvider().minecraftVersion())
-					.argument("--fml.forgeVersion")
-					.argument(getExtension().getForgeProvider().getVersion().getForgeVersion())
-
-					.argument("client", "--launchTarget")
-					.argument("client", "fmluserdevclient")
-
-					.argument("server", "--launchTarget")
-					.argument("server", "fmluserdevserver")
-
-					.argument("data", "--launchTarget")
-					.argument("data", "fmluserdevdata")
 					.argument("data", "--all")
 					.argument("data", "--mod")
 					.argument("data", String.join(",", getExtension().getDataGenMods()))
@@ -94,9 +84,9 @@ public class LaunchProvider extends DependencyProvider {
 					.property("mixin.env.remapRefMap", "true");
 
 			if (getExtension().isUseFabricMixin()) {
-				launchConfig.property("mixin.forgeloom.inject.mappings.srg-named", getExtension().getMappingsProvider().mixinTinyMappingsWithSrg.getAbsolutePath());
+				launchConfig.property("mixin.forgeloom.inject.mappings.srg-named", getExtension().getMappingsProvider().mixinTinyMappingsWithSrg.toAbsolutePath().toString());
 			} else {
-				launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingsProvider().srgToNamedSrg.getAbsolutePath());
+				launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString());
 			}
 
 			List<String> mixinConfigs = getExtension().getMixinConfigs();
@@ -109,7 +99,18 @@ public class LaunchProvider extends DependencyProvider {
 			}
 		}
 
+		addDependency(Constants.Dependencies.DEV_LAUNCH_INJECTOR + Constants.Dependencies.Versions.DEV_LAUNCH_INJECTOR, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
+		addDependency(Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
+		addDependency(Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
+
+		if (getExtension().isForge()) {
+			addDependency(Constants.Dependencies.FORGE_RUNTIME + Constants.Dependencies.Versions.FORGE_RUNTIME, Constants.Configurations.FORGE_EXTRA);
+			addDependency(Constants.Dependencies.JAVAX_ANNOTATIONS + Constants.Dependencies.Versions.JAVAX_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
+		}
+
 		for (LaunchProviderSettings settings : getExtension().getLaunchConfigs()) {
+			settings.evaluateNow();
+
 			for (String argument : settings.getArguments()) {
 				launchConfig.argument(settings.getName(), argument);
 			}
@@ -128,16 +129,6 @@ public class LaunchProvider extends DependencyProvider {
 
 		writeLog4jConfig();
 		FileUtils.writeStringToFile(getDirectories().getDevLauncherConfig(), launchConfig.asString(), StandardCharsets.UTF_8);
-
-		addDependency(Constants.Dependencies.DEV_LAUNCH_INJECTOR + Constants.Dependencies.Versions.DEV_LAUNCH_INJECTOR, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
-		addDependency(Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
-		addDependency(Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
-
-		if (getExtension().isForge()) {
-			addDependency(Constants.Dependencies.FORGE_RUNTIME + Constants.Dependencies.Versions.FORGE_RUNTIME, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
-			addDependency(Constants.Dependencies.FORGE_RUNTIME + Constants.Dependencies.Versions.FORGE_RUNTIME, JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME);
-			addDependency(Constants.Dependencies.JAVAX_ANNOTATIONS + Constants.Dependencies.Versions.JAVAX_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
-		}
 
 		postPopulationScheduler.accept(this::writeRemapClassPath);
 	}
@@ -178,7 +169,7 @@ public class LaunchProvider extends DependencyProvider {
 
 		remapClasspath.add(getExtension().getMinecraftMappedProvider().getIntermediaryJar());
 
-		if (getExtension().isForge()) {
+		if (getExtension().isForgeAndNotOfficial()) {
 			remapClasspath.add(getExtension().getMinecraftMappedProvider().getForgeIntermediaryJar());
 		}
 

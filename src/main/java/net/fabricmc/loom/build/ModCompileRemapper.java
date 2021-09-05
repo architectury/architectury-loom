@@ -152,6 +152,11 @@ public class ModCompileRemapper {
 					project.getLogger().info(":adding " + info.toString() + " into " + info.targetConfig.getName());
 					project.getDependencies().add(info.targetConfig.getName(), info.getRemappedNotation());
 				}
+
+				// Report deprecation warnings
+				if (entry.replacedWith() != null && !modDependencies.isEmpty()) {
+					extension.getDeprecationHelper().replaceWithInLoom0_11(entry.sourceConfiguration(), entry.replacedWith());
+				}
 			});
 		}
 	}

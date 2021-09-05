@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -32,19 +33,46 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.transform.InputArtifact;
+import org.gradle.api.artifacts.transform.TransformAction;
+import org.gradle.api.artifacts.transform.TransformOutputs;
+import org.gradle.api.artifacts.transform.TransformParameters;
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
+import org.gradle.api.attributes.Attribute;
+import org.gradle.api.file.FileSystemLocation;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.SourceSet;
 
 import net.fabricmc.loom.configuration.DependencyProvider;
+import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.DependencyDownloader;
+import net.fabricmc.loom.util.FileSystemUtil;
 
 public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
+	private JsonObject json;
+	private Consumer<Runnable> postPopulationScheduler;
 
 	public ForgeUserdevProvider(Project project) {
 		super(project);
@@ -52,12 +80,20 @@ public class ForgeUserdevProvider extends DependencyProvider {
 
 	@Override
 	public void provide(DependencyInfo dependency, Consumer<Runnable> postPopulationScheduler) throws Exception {
-		userdevJar = new File(getDirectories().getProjectPersistentCache(), "forge-" + dependency.getDependency().getVersion() + "-userdev.jar");
+		this.postPopulationScheduler = postPopulationScheduler;
+		Attribute<Boolean> transformed = Attribute.of("architectury-loom-forge-dependencies-transformed", Boolean.class);
 
-		Path configJson = getDirectories()
-				.getProjectPersistentCache()
-				.toPath()
-				.resolve("forge-config-" + dependency.getDependency().getVersion() + ".json");
+		getProject().getDependencies().registerTransform(RemoveNameProvider.class, spec -> {
+			spec.getFrom().attribute(transformed, false);
+			spec.getTo().attribute(transformed, true);
+		});
+
+		for (ArtifactTypeDefinition type : getProject().getDependencies().getArtifactTypes()) {
+			type.getAttributes().attribute(transformed, false);
+		}
+
+		userdevJar = new File(getExtension().getForgeProvider().getGlobalCache(), "forge-userdev.jar");
+		Path configJson = getExtension().getForgeProvider().getGlobalCache().toPath().resolve("forge-config.json");
 
 		if (!userdevJar.exists() || Files.notExists(configJson) || isRefreshDeps()) {
 			File resolved = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge userdev"));
@@ -68,8 +104,6 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			}
 		}
 
-		JsonObject json;
-
 		try (Reader reader = Files.newBufferedReader(configJson)) {
 			json = new Gson().fromJson(reader, JsonObject.class);
 		}
@@ -79,19 +113,201 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
 
 		for (JsonElement lib : json.get("libraries").getAsJsonArray()) {
+			Dependency dep = null;
+
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
 				if (getExtension().isUseFabricMixin()) {
-					addDependency("net.fabricmc:sponge-mixin:0.8.2+build.24", Constants.Configurations.FORGE_DEPENDENCIES);
-					continue;
+					dep = addDependency("net.fabricmc:sponge-mixin:0.8.2+build.24", Constants.Configurations.FORGE_DEPENDENCIES);
 				}
 			}
 
-			addDependency(lib.getAsString(), Constants.Configurations.FORGE_DEPENDENCIES);
+			if (dep == null) {
+				dep = addDependency(lib.getAsString(), Constants.Configurations.FORGE_DEPENDENCIES);
+			}
+
+			if (lib.getAsString().split(":").length < 4) {
+				((ModuleDependency) dep).attributes(attributes -> {
+					attributes.attribute(transformed, true);
+				});
+			}
 		}
 
 		// TODO: Read launch configs from the JSON too
 		// TODO: Should I copy the patches from here as well?
 		//       That'd require me to run the "MCP environment" fully up to merging.
+		for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("runs").entrySet()) {
+			LaunchProviderSettings launchSettings = getExtension().getLaunchConfigs().findByName(entry.getKey());
+			RunConfigSettings settings = getExtension().getRunConfigs().findByName(entry.getKey());
+			JsonObject value = entry.getValue().getAsJsonObject();
+
+			if (launchSettings != null) {
+				launchSettings.evaluateLater(() -> {
+					if (value.has("args")) {
+						launchSettings.arg(StreamSupport.stream(value.getAsJsonArray("args").spliterator(), false)
+								.map(JsonElement::getAsString)
+								.map(this::processTemplates)
+								.collect(Collectors.toList()));
+					}
+
+					if (value.has("props")) {
+						for (Map.Entry<String, JsonElement> props : value.getAsJsonObject("props").entrySet()) {
+							String string = processTemplates(props.getValue().getAsString());
+
+							launchSettings.property(props.getKey(), string);
+						}
+					}
+				});
+			}
+
+			if (settings != null) {
+				settings.evaluateLater(() -> {
+					settings.defaultMainClass(value.getAsJsonPrimitive("main").getAsString());
+					settings.vmArgs(StreamSupport.stream(value.getAsJsonArray("jvmArgs").spliterator(), false)
+							.map(JsonElement::getAsString)
+							.map(this::processTemplates)
+							.collect(Collectors.toList()));
+					for (Map.Entry<String, JsonElement> env : value.getAsJsonObject("env").entrySet()) {
+						String string = processTemplates(env.getValue().getAsString());
+
+						settings.envVariables.put(env.getKey(), string);
+					}
+				});
+			}
+		}
+	}
+
+	public abstract static class RemoveNameProvider implements TransformAction<TransformParameters.None> {
+		@InputArtifact
+		public abstract Provider<FileSystemLocation> getInput();
+
+		@Override
+		public void transform(TransformOutputs outputs) {
+			try {
+				File input = getInput().get().getAsFile();
+				//architectury-loom-forge-dependencies-transformed
+				File output = outputs.file(input.getName() + "-alfd-transformed.jar");
+				Files.copy(input.toPath(), output.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+				try (FileSystemUtil.FileSystemDelegate fs = FileSystemUtil.getJarFileSystem(output, false)) {
+					Path path = fs.get().getPath("META-INF/services/cpw.mods.modlauncher.api.INameMappingService");
+					Files.deleteIfExists(path);
+				}
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	public String processTemplates(String string) {
+		if (string.startsWith("{")) {
+			String key = string.substring(1, string.length() - 1);
+
+			// TODO: Look into ways to not hardcode
+			if (key.equals("runtime_classpath")) {
+				string = runtimeClasspath().stream()
+						.map(File::getAbsolutePath)
+						.collect(Collectors.joining(File.pathSeparator));
+			} else if (key.equals("minecraft_classpath")) {
+				string = minecraftClasspath().stream()
+						.map(File::getAbsolutePath)
+						.collect(Collectors.joining(File.pathSeparator));
+			} else if (key.equals("runtime_classpath_file")) {
+				Path path = getDirectories().getProjectPersistentCache().toPath().resolve("forge_runtime_classpath.txt");
+
+				postPopulationScheduler.accept(() -> {
+					try {
+						Files.writeString(path, runtimeClasspath().stream()
+										.map(File::getAbsolutePath)
+										.collect(Collectors.joining("\n")),
+								StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				});
+
+				string = path.toAbsolutePath().toString();
+			} else if (key.equals("minecraft_classpath_file")) {
+				Path path = getDirectories().getProjectPersistentCache().toPath().resolve("forge_minecraft_classpath.txt");
+
+				postPopulationScheduler.accept(() -> {
+					try {
+						Files.writeString(path, minecraftClasspath().stream()
+										.map(File::getAbsolutePath)
+										.collect(Collectors.joining("\n")),
+								StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				});
+
+				string = path.toAbsolutePath().toString();
+			} else if (key.equals("asset_index")) {
+				string = getExtension().getMinecraftProvider().getVersionInfo().assetIndex().fabricId(getExtension().getMinecraftProvider().minecraftVersion());
+			} else if (key.equals("assets_root")) {
+				string = new File(getDirectories().getUserCache(), "assets").getAbsolutePath();
+			} else if (key.equals("natives")) {
+				string = getMinecraftProvider().nativesDir().getAbsolutePath();
+			} else if (key.equals("source_roots")) {
+				List<String> modClasses = new ArrayList<>();
+
+				for (Supplier<SourceSet> sourceSetSupplier : getExtension().getForgeLocalMods()) {
+					SourceSet sourceSet = sourceSetSupplier.get();
+					String sourceSetName = sourceSet.getName() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 7);
+
+					Stream.concat(
+							Stream.of(sourceSet.getOutput().getResourcesDir().getAbsolutePath()),
+							StreamSupport.stream(sourceSet.getOutput().getClassesDirs().spliterator(), false)
+									.map(File::getAbsolutePath)
+					).map(s -> sourceSetName + "%%" + s).collect(Collectors.toCollection(() -> modClasses));
+				}
+
+				string = String.join(File.pathSeparator, modClasses);
+			} else if (key.equals("mcp_mappings")) {
+				string = "loom.stub";
+			} else if (json.has(key)) {
+				JsonElement element = json.get(key);
+
+				if (element.isJsonArray()) {
+					string = StreamSupport.stream(element.getAsJsonArray().spliterator(), false)
+							.map(JsonElement::getAsString)
+							.flatMap(str -> {
+								if (str.contains(":")) {
+									return DependencyDownloader.download(getProject(), str, false, false).getFiles().stream()
+											.map(File::getAbsolutePath)
+											.filter(dep -> !dep.contains("bootstraplauncher")); // TODO: Hack
+								}
+
+								return Stream.of(str);
+							})
+							.collect(Collectors.joining(File.pathSeparator));
+				} else {
+					string = element.toString();
+				}
+			} else {
+				getProject().getLogger().warn("Unrecognized template! " + string);
+			}
+		}
+
+		return string;
+	}
+
+	private Set<File> runtimeClasspath() {
+		// Should we actually include the runtime classpath here? Forge doesn't seem to be using this property anyways
+		Set<File> mcLibs = DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_DEPENDENCIES), true);
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_EXTRA), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_NAMED), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_NAMED), false));
+		return mcLibs;
+	}
+
+	private Set<File> minecraftClasspath() {
+		Set<File> mcLibs = DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_DEPENDENCIES), true);
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_EXTRA), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_NAMED), false));
+		mcLibs.addAll(DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_NAMED), false));
+		return mcLibs;
 	}
 
 	public File getUserdevJar() {

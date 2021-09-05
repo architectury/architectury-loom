@@ -86,7 +86,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 
 	@Override
 	public void provide(DependencyInfo dependency, Consumer<Runnable> postPopulationScheduler) throws Exception {
-		if (!getExtension().getMappingsProvider().tinyMappings.exists()) {
+		if (Files.notExists(getExtension().getMappingsProvider().tinyMappings)) {
 			throw new RuntimeException("mappings file not found");
 		}
 
@@ -101,7 +101,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 			needToRemap = true;
 		}
 
-		if (getExtension().isForge() && (!getForgeMappedJar().exists() || !getForgeIntermediaryJar().exists() || !getForgeSrgJar().exists() || isRefreshDeps() || isForgeAtDirty)) {
+		if (getExtension().isForgeAndNotOfficial() && (!getForgeMappedJar().exists() || !getForgeIntermediaryJar().exists() || !getForgeSrgJar().exists() || isRefreshDeps() || isForgeAtDirty)) {
 			needToRemap = true;
 		}
 
@@ -120,7 +120,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 				minecraftSrgJar.delete();
 			}
 
-			if (getExtension().isForge()) {
+			if (getExtension().isForgeAndNotOfficial()) {
 				if (getForgeMappedJar().exists()) {
 					getForgeMappedJar().delete();
 				}
@@ -158,16 +158,16 @@ public class MinecraftMappedProvider extends DependencyProvider {
 
 		addDependencies(dependency, postPopulationScheduler);
 
-		if (getExtension().isForge()) {
-			getProject().getRepositories().flatDir(repository -> repository.dir(new File(getJarDirectory(getDirectories().getUserCache(), "mapped"), "forge")));
-
+		if (getExtension().isForgeAndNotOfficial()) {
 			getProject().getDependencies().add(Constants.Configurations.FORGE_NAMED,
-					getProject().getDependencies().module("net.minecraftforge-loom:forge:" + getJarVersionString("mapped")));
+					getProject().getDependencies().module("net.minecraftforge-loom:forge-mapped:" + getMinecraftProvider().minecraftVersion() + "/" + getExtension().getMappingsProvider().mappingsIdentifier() + "/forge"));
+		}
 
+		if (getExtension().isForge()) {
 			getProject().afterEvaluate(project -> {
 				if (!OperatingSystem.isCIBuild()) {
 					try {
-						ForgeSourcesRemapper.addBaseForgeSources(project);
+						ForgeSourcesRemapper.addBaseForgeSources(project, getExtension().isForgeAndOfficial());
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -241,13 +241,13 @@ public class MinecraftMappedProvider extends DependencyProvider {
 		forgeAssets.toFile().deleteOnExit();
 
 		Info vanilla = new Info(vanillaAssets, input, outputMapped, outputIntermediary, outputSrg);
-		Info forge = getExtension().isForge() ? new Info(forgeAssets, inputForge, forgeOutputMapped, forgeOutputIntermediary, forgeOutputSrg) : null;
+		Info forge = getExtension().isForgeAndNotOfficial() ? new Info(forgeAssets, inputForge, forgeOutputMapped, forgeOutputIntermediary, forgeOutputSrg) : null;
 
 		TinyRemapper remapper = remapperArray[0] = buildRemapper();
 
 		assetsOut(input, vanillaAssets);
 
-		if (getExtension().isForge()) {
+		if (getExtension().isForgeAndNotOfficial()) {
 			assetsOut(inputForge, forgeAssets);
 		}
 
@@ -271,6 +271,8 @@ public class MinecraftMappedProvider extends DependencyProvider {
 	}
 
 	public void remap(TinyRemapper remapper, Info vanilla, @Nullable Info forge, String fromM) throws IOException {
+		Set<String> classNames = getExtension().isForge() ? InnerClassRemapper.readClassNames(vanilla.input) : null;
+
 		for (String toM : getExtension().isForge() ? Arrays.asList("intermediary", "srg", "named") : Arrays.asList("intermediary", "named")) {
 			Path output = "named".equals(toM) ? vanilla.outputMapped : "srg".equals(toM) ? vanilla.outputSrg : vanilla.outputIntermediary;
 			Path outputForge = forge == null ? null : "named".equals(toM) ? forge.outputMapped : "srg".equals(toM) ? forge.outputSrg : forge.outputIntermediary;
@@ -285,7 +287,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 				remapper.readInputs(forgeTag, forge.input);
 			}
 
-			remapper.replaceMappings(getMappings(vanilla.input, fromM, toM));
+			remapper.replaceMappings(getMappings(classNames, fromM, toM));
 			OutputRemappingHandler.remap(remapper, vanilla.assets, output, null, vanillaTag);
 
 			if (forge != null) {
@@ -325,13 +327,13 @@ public class MinecraftMappedProvider extends DependencyProvider {
 		return builder.build();
 	}
 
-	public Set<IMappingProvider> getMappings(@Nullable Path fromJar, String fromM, String toM) throws IOException {
+	public Set<IMappingProvider> getMappings(@Nullable Set<String> fromClassNames, String fromM, String toM) throws IOException {
 		Set<IMappingProvider> providers = new HashSet<>();
 		providers.add(TinyRemapperMappingsHelper.create(getExtension().isForge() ? getExtension().getMappingsProvider().getMappingsWithSrg() : getExtension().getMappingsProvider().getMappings(), fromM, toM, true));
 
 		if (getExtension().isForge()) {
-			if (fromJar != null) {
-				providers.add(InnerClassRemapper.of(fromJar, getExtension().getMappingsProvider().getMappingsWithSrg(), fromM, toM));
+			if (fromClassNames != null) {
+				providers.add(InnerClassRemapper.of(fromClassNames, getExtension().getMappingsProvider().getMappingsWithSrg(), fromM, toM));
 			}
 		} else {
 			providers.add(out -> JSR_TO_JETBRAINS.forEach(out::acceptClass));
@@ -347,21 +349,26 @@ public class MinecraftMappedProvider extends DependencyProvider {
 
 	protected void addDependencies(DependencyInfo dependency, Consumer<Runnable> postPopulationScheduler) {
 		getProject().getDependencies().add(Constants.Configurations.MINECRAFT_NAMED,
-				getProject().getDependencies().module("net.minecraft:minecraft:" + getJarVersionString("mapped")));
+				getProject().getDependencies().module("net.minecraft:" + minecraftProvider.getJarPrefix() + "minecraft-mapped:" + getMinecraftProvider().minecraftVersion() + "/" + getExtension().getMappingsProvider().mappingsIdentifier()));
 	}
 
 	public void initFiles(MinecraftProviderImpl minecraftProvider, MappingsProviderImpl mappingsProvider) {
 		this.minecraftProvider = minecraftProvider;
-		minecraftIntermediaryJar = new File(getDirectories().getUserCache(), "minecraft-" + getJarVersionString("intermediary") + ".jar");
-		minecraftSrgJar = !getExtension().isForge() ? null : new File(getDirectories().getUserCache(), "minecraft-" + getJarVersionString("srg") + ".jar");
-		minecraftMappedJar = new File(getJarDirectory(getDirectories().getUserCache(), "mapped"), "minecraft-" + getJarVersionString("mapped") + ".jar");
+		minecraftIntermediaryJar = new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "minecraft-intermediary.jar");
+		minecraftSrgJar = !getExtension().isForge() ? null : new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "minecraft-srg.jar");
+		minecraftMappedJar = new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), minecraftProvider.getJarPrefix() + "minecraft-mapped.jar");
 		inputJar = getExtension().isForge() ? mappingsProvider.patchedProvider.getMergedJar() : minecraftProvider.getMergedJar();
 
-		if (getExtension().isForge()) {
+		if (getExtension().isForgeAndNotOfficial()) {
 			inputForgeJar = mappingsProvider.patchedProvider.getForgeMergedJar();
-			forgeIntermediaryJar = new File(getDirectories().getUserCache(), "forge-" + getJarVersionString("intermediary") + ".jar");
-			forgeSrgJar = new File(getDirectories().getUserCache(), "forge-" + getJarVersionString("srg") + ".jar");
-			forgeMappedJar = new File(getJarDirectory(getDirectories().getUserCache(), "mapped"), "forge/forge-" + getJarVersionString("mapped") + ".jar");
+			forgeIntermediaryJar = new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "forge/forge-intermediary.jar");
+			forgeSrgJar = new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "forge/forge-srg.jar");
+			forgeMappedJar = new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "forge/forge-mapped.jar");
+		} else {
+			inputForgeJar = null;
+			forgeIntermediaryJar = null;
+			forgeSrgJar = null;
+			forgeMappedJar = null;
 		}
 	}
 
@@ -370,7 +377,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 	}
 
 	protected String getJarVersionString(String type) {
-		return String.format("%s-%s-%s-%s%s", minecraftProvider.minecraftVersion(), type, getExtension().getMappingsProvider().mappingsName, getExtension().getMappingsProvider().mappingsVersion, minecraftProvider.getJarSuffix());
+		return String.format("%s-%s%s", type, getExtension().getMappingsProvider().mappingsIdentifier(), minecraftProvider.getJarPrefix());
 	}
 
 	public File getIntermediaryJar() {
@@ -398,7 +405,7 @@ public class MinecraftMappedProvider extends DependencyProvider {
 	}
 
 	public File getUnpickedJar() {
-		return new File(getJarDirectory(getDirectories().getUserCache(), "mapped"), "minecraft-" + getJarVersionString("unpicked") + ".jar");
+		return new File(getExtension().getMappingsProvider().mappingsWorkingDir().toFile(), "minecraft-unpicked.jar");
 	}
 
 	@Override

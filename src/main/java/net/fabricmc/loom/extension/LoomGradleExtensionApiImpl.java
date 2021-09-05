@@ -167,7 +167,7 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		LayeredMappingSpecBuilder builder = new LayeredMappingSpecBuilder(this);
 		action.execute(builder);
 		LayeredMappingSpec builtSpec = builder.build();
-		return new LayeredMappingsDependency(new GradleMappingContext(getProject()), builtSpec);
+		return new LayeredMappingsDependency(new GradleMappingContext(getProject(), builtSpec.getVersion().replace("+", "_").replace(".", "_")), builtSpec, builtSpec.getVersion());
 	}
 
 	protected abstract String getMinecraftVersion();
@@ -363,6 +363,16 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 
 		@Override
 		public MixinApExtension getMixin() {
+			throw new RuntimeException("Yeah... something is really wrong");
+		}
+
+		@Override
+		public boolean isForgeAndOfficial() {
+			throw new RuntimeException("Yeah... something is really wrong");
+		}
+
+		@Override
+		public boolean isForgeAndNotOfficial() {
 			throw new RuntimeException("Yeah... something is really wrong");
 		}
 

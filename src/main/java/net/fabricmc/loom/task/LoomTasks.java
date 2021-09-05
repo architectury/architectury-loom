@@ -25,6 +25,8 @@
 package net.fabricmc.loom.task;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import com.google.common.base.Preconditions;
 import org.gradle.api.Project;
@@ -33,6 +35,7 @@ import org.gradle.api.tasks.TaskContainer;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.decompilers.LoomDecompiler;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.configuration.ide.SetupIntelijRunConfigs;
 import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
 import net.fabricmc.loom.decompilers.fernflower.FabricFernFlowerDecompiler;
 import net.fabricmc.loom.util.Constants;
@@ -85,6 +88,19 @@ public final class LoomTasks {
 			t.setDescription("Generates VSCode launch configurations.");
 			t.dependsOn("downloadAssets");
 			t.setGroup(Constants.TaskGroup.IDE);
+		});
+
+		tasks.register("genIntelliJRuns", AbstractLoomTask.class, t -> {
+			t.setDescription("Generates IntelliJ IDEA launch configurations.");
+			t.dependsOn("downloadAssets");
+			t.setGroup("ide");
+			t.doLast(task -> {
+				try {
+					SetupIntelijRunConfigs.generate(task.getProject(), true);
+				} catch (IOException e) {
+					throw new UncheckedIOException(e);
+				}
+			});
 		});
 	}
 

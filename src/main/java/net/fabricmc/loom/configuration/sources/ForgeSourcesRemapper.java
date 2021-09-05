@@ -58,8 +58,8 @@ import net.fabricmc.loom.util.ThreadingUtils;
 import net.fabricmc.lorenztiny.TinyMappingsReader;
 
 public class ForgeSourcesRemapper {
-	public static void addBaseForgeSources(Project project) throws IOException {
-		Path sourcesJar = GenerateSourcesTask.getMappedJarFileWithSuffix(project, "-sources.jar", true).toPath();
+	public static void addBaseForgeSources(Project project, boolean isOfficial) throws IOException {
+		Path sourcesJar = GenerateSourcesTask.getMappedJarFileWithSuffix(project, "-sources.jar", !isOfficial).toPath();
 
 		if (!Files.exists(sourcesJar)) {
 			addForgeSources(project, sourcesJar);
@@ -185,7 +185,11 @@ public class ForgeSourcesRemapper {
 
 		// Distinct and add the srg jar at the top, so it gets prioritized
 		mercury.getClassPath().add(0, extension.getMinecraftMappedProvider().getSrgJar().toPath());
-		mercury.getClassPath().add(0, extension.getMinecraftMappedProvider().getForgeSrgJar().toPath());
+
+		if (extension.isForgeAndNotOfficial()) {
+			mercury.getClassPath().add(0, extension.getMinecraftMappedProvider().getForgeSrgJar().toPath());
+		}
+
 		List<Path> newClassPath = mercury.getClassPath().stream()
 				.distinct()
 				.filter(Files::isRegularFile)

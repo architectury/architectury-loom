@@ -38,6 +38,7 @@ public class Constants {
 	public static final String RESOURCES_BASE = "https://resources.download.minecraft.net/";
 	public static final String VERSION_MANIFESTS = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 	public static final String EXPERIMENTAL_VERSIONS = "https://maven.fabricmc.net/net/minecraft/experimental_versions.json";
+	public static final String FABRIC_REPOSITORY = "https://maven.fabricmc.net/";
 
 	public static final String SYSTEM_ARCH = System.getProperty("os.arch").equals("64") ? "64" : "32";
 
@@ -46,8 +47,10 @@ public class Constants {
 	public static final List<RemappedConfigurationEntry> MOD_COMPILE_ENTRIES = ImmutableList.of(
 			new RemappedConfigurationEntry("modApi", JavaPlugin.API_CONFIGURATION_NAME, true, "compile"),
 			new RemappedConfigurationEntry("modImplementation", JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, true, "runtime"),
-			new RemappedConfigurationEntry("modRuntime", JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME, false, ""),
-			new RemappedConfigurationEntry("modCompileOnly", JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, true, "")
+			new RemappedConfigurationEntry("modRuntime", JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME, false, "", "modRuntimeOnly"),
+			new RemappedConfigurationEntry("modCompileOnly", JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, true, ""),
+			new RemappedConfigurationEntry("modCompileOnlyApi", JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, true, "compile"),
+			new RemappedConfigurationEntry("modRuntimeOnly", JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME, false, "runtime")
 	);
 
 	private Constants() {
@@ -76,6 +79,7 @@ public class Constants {
 		public static final String FORGE_UNIVERSAL = "forgeUniversal";
 		public static final String FORGE_DEPENDENCIES = "forgeDependencies";
 		public static final String FORGE_NAMED = "forgeNamed";
+		public static final String FORGE_EXTRA = "forgeExtra";
 		public static final String MAPPING_CONSTANTS = "mappingsConstants";
 		public static final String UNPICK_CLASSPATH = "unpick";
 
@@ -92,9 +96,10 @@ public class Constants {
 		public static final String TERMINAL_CONSOLE_APPENDER = "net.minecrell:terminalconsoleappender:";
 		public static final String JETBRAINS_ANNOTATIONS = "org.jetbrains:annotations:";
 		public static final String JAVAX_ANNOTATIONS = "com.google.code.findbugs:jsr305:"; // I hate that I have to add these.
-		public static final String FORGE_RUNTIME = "dev.architectury:architectury-loom-forge-runtime:";
+		public static final String FORGE_RUNTIME = "dev.architectury:architectury-loom-runtime:";
 		public static final String ACCESS_TRANSFORMERS = "net.minecraftforge:accesstransformers:";
 		public static final String SPECIAL_SOURCE = "net.md-5:SpecialSource:";
+		public static final String VIGNETTE = "net.minecraftforge.lex:vignette:";
 
 		private Dependencies() {
 		}
@@ -108,9 +113,10 @@ public class Constants {
 			public static final String TERMINAL_CONSOLE_APPENDER = "1.2.0";
 			public static final String JETBRAINS_ANNOTATIONS = "19.0.0";
 			public static final String JAVAX_ANNOTATIONS = "3.0.2";
-			public static final String FORGE_RUNTIME = "$LOOM_VERSION"; // replaced with current version at build time
-			public static final String ACCESS_TRANSFORMERS = "2.2.0";
+			public static final String FORGE_RUNTIME = "1.0.1";
+			public static final String ACCESS_TRANSFORMERS = "3.0.1";
 			public static final String SPECIAL_SOURCE = "1.8.3";
+			public static final String VIGNETTE = "0.2.0.10";
 
 			private Versions() {
 			}

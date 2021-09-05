@@ -140,7 +140,7 @@ public class LoomDependencyManager {
 
 		SourceRemapper sourceRemapper = new SourceRemapper(project, true);
 		String platformSuffix = extension.isForge() ? "_forge" : "";
-		String mappingsKey = mappingsProvider.getMappingsKey() + platformSuffix;
+		String mappingsIdentifier = mappingsProvider.mappingsIdentifier() + platformSuffix;
 
 		if (extension.getInstallerData() == null && !extension.isForge()) {
 			//If we've not found the installer JSON we've probably skipped remapping Fabric loader, let's go looking
@@ -169,7 +169,7 @@ public class LoomDependencyManager {
 			}
 		}
 
-		ModCompileRemapper.remapDependencies(project, mappingsKey, extension, sourceRemapper);
+		ModCompileRemapper.remapDependencies(project, mappingsIdentifier, extension, sourceRemapper);
 
 		long start = System.currentTimeMillis();
 

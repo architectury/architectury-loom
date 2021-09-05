@@ -28,6 +28,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -36,6 +37,7 @@ import org.gradle.api.Named;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
+import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.Constants;
@@ -96,6 +98,8 @@ public final class RunConfigSettings implements Named {
 
 	private final Project project;
 	private final LoomGradleExtension extension;
+	public final Map<String, String> envVariables = new HashMap<>();
+	private List<Runnable> evaluateLater = new ArrayList<>();
 
 	public RunConfigSettings(Project project, String baseName) {
 		this.baseName = baseName;
@@ -105,6 +109,20 @@ public final class RunConfigSettings implements Named {
 
 		source("main");
 		runDir("run");
+	}
+
+	@ApiStatus.Internal
+	public void evaluateLater(Runnable runnable) {
+		this.evaluateLater.add(runnable);
+	}
+
+	@ApiStatus.Internal
+	public void evaluateNow() {
+		for (Runnable runnable : this.evaluateLater) {
+			runnable.run();
+		}
+
+		this.evaluateLater.clear();
 	}
 
 	public Project getProject() {

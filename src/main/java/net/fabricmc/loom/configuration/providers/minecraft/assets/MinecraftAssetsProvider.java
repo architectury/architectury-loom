@@ -45,7 +45,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.providers.MinecraftProviderImpl;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
-import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.MirrorUtil;
 import net.fabricmc.loom.util.HashedDownloadUtil;
 
 public class MinecraftAssetsProvider {
@@ -136,7 +136,7 @@ public class MinecraftAssetsProvider {
 						project.getLogger().debug(":downloading asset " + assetName);
 
 						try {
-							HashedDownloadUtil.downloadIfInvalid(new URL(Constants.RESOURCES_BASE + sha1.substring(0, 2) + "/" + sha1), file, sha1, project.getLogger(), true, false);
+							HashedDownloadUtil.downloadIfInvalid(new URL(MirrorUtil.getResourcesBase(project) + sha1.substring(0, 2) + "/" + sha1), file, sha1, project.getLogger(), true, false);
 						} catch (IOException e) {
 							throw new RuntimeException("Failed to download: " + assetName, e);
 						}

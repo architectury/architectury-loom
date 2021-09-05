@@ -162,6 +162,18 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	}
 
 	@Override
+	public boolean isForgeAndOfficial() {
+		reportDeprecation();
+		return parent.isForgeAndOfficial();
+	}
+
+	@Override
+	public boolean isForgeAndNotOfficial() {
+		reportDeprecation();
+		return parent.isForgeAndNotOfficial();
+	}
+
+	@Override
 	public boolean supportsInclude() {
 		reportDeprecation();
 		return parent.supportsInclude();

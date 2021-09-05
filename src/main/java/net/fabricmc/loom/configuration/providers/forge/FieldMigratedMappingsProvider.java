@@ -102,31 +102,26 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 	}
 
 	@Override
+	protected String createMappingsIdentifier(String mappingsName, String version, String classifier) {
+		return super.createMappingsIdentifier(mappingsName, version, classifier) + "-forge-" + getExtension().getForgeProvider().getVersion().getCombined();
+	}
+
+	@Override
 	public void manipulateMappings(Path mappingsJar) throws IOException {
 		LoomGradleExtension extension = getExtension();
-		Path mappingsFolder = getMappedVersionedDir(removeSuffix).resolve("forge/" + extension.getPatchProvider().forgeVersion);
-		this.rawTinyMappings = tinyMappings.toPath();
+		this.rawTinyMappings = tinyMappings;
 		this.rawTinyMappingsWithSrg = tinyMappingsWithSrg;
 		String mappingsJarName = mappingsJar.getFileName().toString();
 
 		if (getExtension().shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || isRefreshDeps()) {
 				// Merge tiny mappings with srg
-				SrgMerger.mergeSrg(getExtension().getSrgProvider().getSrg().toPath(), rawTinyMappings, rawTinyMappingsWithSrg, true);
+				SrgMerger.mergeSrg(this::getMojmapSrgFileIfPossible, getRawSrgFile(), rawTinyMappings, rawTinyMappingsWithSrg, true);
 			}
 		}
 
-		try {
-			Files.createDirectories(mappingsFolder);
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-
-		tinyMappings = mappingsFolder.resolve("mappings.tiny").toFile();
-		tinyMappingsJar = mappingsFolder.resolve("mappings.jar").toFile();
-		tinyMappingsWithSrg = mappingsFolder.resolve("mappings-srg.tiny");
-		mixinTinyMappingsWithSrg = mappingsFolder.resolve("mixin-srg.tiny").toFile();
-		srgToNamedSrg = mappingsFolder.resolve("srg-to-named.srg").toFile();
+		tinyMappings = mappingsWorkingDir().resolve("mappings-updated.tiny");
+		tinyMappingsWithSrg = mappingsWorkingDir().resolve("mappings-srg-updated.tiny");
 
 		try {
 			updateFieldMigration();
@@ -143,10 +138,10 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 				map.put(entry.getKey().owner + "#" + entry.getKey().field, entry.getValue());
 			});
 			Files.writeString(migratedFieldsCache, new Gson().toJson(map));
-			Files.deleteIfExists(tinyMappings.toPath());
+			Files.deleteIfExists(tinyMappings);
 		}
 
-		if (!Files.exists(tinyMappings.toPath())) {
+		if (!Files.exists(tinyMappings)) {
 			Table<String, String, String> fieldDescriptorMap = HashBasedTable.create();
 
 			for (Map.Entry<FieldMember, String> entry : migratedFields) {
@@ -173,7 +168,7 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 				}
 			}
 
-			Files.writeString(tinyMappings.toPath(), MappingsUtils.serializeToString(mappings), StandardOpenOption.CREATE);
+			Files.writeString(tinyMappings, MappingsUtils.serializeToString(mappings), StandardOpenOption.CREATE);
 		}
 	}
 

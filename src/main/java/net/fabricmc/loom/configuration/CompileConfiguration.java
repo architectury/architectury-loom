@@ -83,8 +83,9 @@ public final class CompileConfiguration {
 			extension.createLazyConfiguration(Constants.Configurations.FORGE_USERDEV).configure(configuration -> configuration.setTransitive(false));
 			extension.createLazyConfiguration(Constants.Configurations.FORGE_INSTALLER).configure(configuration -> configuration.setTransitive(false));
 			extension.createLazyConfiguration(Constants.Configurations.FORGE_UNIVERSAL).configure(configuration -> configuration.setTransitive(false));
-			extension.createLazyConfiguration(Constants.Configurations.FORGE_DEPENDENCIES).configure(configuration -> configuration.setTransitive(false));
+			extension.createLazyConfiguration(Constants.Configurations.FORGE_DEPENDENCIES);
 			extension.createLazyConfiguration(Constants.Configurations.FORGE_NAMED).configure(configuration -> configuration.setTransitive(false));
+			extension.createLazyConfiguration(Constants.Configurations.FORGE_EXTRA).configure(configuration -> configuration.setTransitive(false));
 			extension.createLazyConfiguration(Constants.Configurations.MCP_CONFIG).configure(configuration -> configuration.setTransitive(false));
 
 			extendsFrom(Constants.Configurations.MINECRAFT_DEPENDENCIES, Constants.Configurations.FORGE_DEPENDENCIES, project);
@@ -93,6 +94,10 @@ public final class CompileConfiguration {
 			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED, project);
 			extendsFrom(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED, project);
 			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED, project);
+			extendsFrom(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA, project);
+			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA, project);
+			extendsFrom(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA, project);
+			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA, project);
 		}
 
 		if (extension.supportsInclude()) {
