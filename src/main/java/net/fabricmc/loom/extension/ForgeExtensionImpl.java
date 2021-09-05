@@ -38,7 +38,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 
 	@Inject
 	public ForgeExtensionImpl(Project project) {
-		convertAccessWideners = project.getObjects().property(Boolean.class).convention(true);
+		convertAccessWideners = project.getObjects().property(Boolean.class).convention(false);
 		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
 	}
 
