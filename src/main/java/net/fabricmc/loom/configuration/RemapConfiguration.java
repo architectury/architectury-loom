@@ -33,6 +33,7 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.UnknownTaskException;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 import org.gradle.api.tasks.bundling.Jar;
 import org.jetbrains.annotations.ApiStatus;
@@ -45,6 +46,7 @@ import net.fabricmc.loom.task.RemapAllSourcesTask;
 import net.fabricmc.loom.task.RemapJarTask;
 import net.fabricmc.loom.task.RemapSourcesJarTask;
 import net.fabricmc.loom.util.SourceRemapper;
+import net.fabricmc.loom.util.aw2at.Aw2At;
 
 public class RemapConfiguration {
 	private static final String DEFAULT_JAR_TASK_NAME = JavaPlugin.JAR_TASK_NAME;
@@ -81,6 +83,13 @@ public class RemapConfiguration {
 			((Jar) jarTask).manifest(manifest -> {
 				manifest.attributes(ImmutableMap.of("MixinConfigs", String.join(",", extension.getMixinConfigs())));
 			});
+
+			Property<Boolean> convertAws = extension.getForge().getConvertAccessWideners();
+			convertAws.finalizeValue();
+
+			if (convertAws.get()) {
+				Aw2At.setup(project, remapJarTask);
+			}
 		}
 
 		if (isDefaultRemap) {
