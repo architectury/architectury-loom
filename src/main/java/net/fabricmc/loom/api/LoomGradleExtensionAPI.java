@@ -246,7 +246,11 @@ public interface LoomGradleExtensionAPI {
 	List<Consumer<RunConfig>> getSettingsPostEdit();
 
 	/**
-	 * {@return the Forge extension}
+	 * Gets the Forge extension used to configure Forge details.
+	 * Note that (for now) some Forge configuration is instead in this interface -
+	 * this is due to change in the future.
+	 *
+	 * @return the Forge extension
 	 * @throws UnsupportedOperationException if running on another platform
 	 */
 	ForgeExtensionAPI getForge();

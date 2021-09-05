@@ -66,9 +66,6 @@ import dev.architectury.refmapremapper.remapper.SimpleReferenceRemapper;
 import dev.architectury.tinyremapper.IMappingProvider;
 import dev.architectury.tinyremapper.TinyRemapper;
 import dev.architectury.tinyremapper.TinyUtils;
-
-import net.fabricmc.loom.util.aw2at.Aw2At;
-
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.gradle.api.Action;
@@ -104,6 +101,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.TinyRemapperMappingsHelper;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
+import net.fabricmc.loom.util.aw2at.Aw2At;
 import net.fabricmc.mapping.tree.ClassDef;
 import net.fabricmc.mapping.tree.FieldDef;
 import net.fabricmc.mapping.tree.MethodDef;
@@ -512,7 +510,12 @@ public class RemapJarTask extends Jar {
 	}
 
 	/**
-	 * {@return the access wideners that will be converted to ATs for Forge purposes}
+	 * Gets the jar paths to the access wideners that will be converted to ATs for Forge runtime.
+	 * If you specify multiple files, they will be merged into one.
+	 *
+	 * <p>The specified files will be converted and removed from the final jar.
+	 *
+	 * @return the property containing access widener paths in the final jar
 	 */
 	@Input
 	public SetProperty<String> getAtAccessWideners() {

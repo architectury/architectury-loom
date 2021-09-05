@@ -110,14 +110,14 @@ public final class Aw2At {
 
 	private static AccessTransform toAt(AccessWidenerReader.AccessType access) {
 		return switch (access) {
-			// FIXME: This behaviour doesn't match what the actual AW does for methods.
-			//   - accessible makes the method final if it was private
-			//   - extendable makes the method protected if it was (package-)private
-			//   Neither of these can be achieved with Forge ATs without using bytecode analysis.
-			//   However, this might be good enough for us. (The effects only apply in prod.)
-			case ACCESSIBLE -> AccessTransform.of(AccessChange.PUBLIC);
-			case EXTENDABLE -> AccessTransform.of(AccessChange.PUBLIC, ModifierChange.REMOVE);
-			case MUTABLE -> AccessTransform.of(ModifierChange.REMOVE);
+		// FIXME: This behaviour doesn't match what the actual AW does for methods.
+		//   - accessible makes the method final if it was private
+		//   - extendable makes the method protected if it was (package-)private
+		//   Neither of these can be achieved with Forge ATs without using bytecode analysis.
+		//   However, this might be good enough for us. (The effects only apply in prod.)
+		case ACCESSIBLE -> AccessTransform.of(AccessChange.PUBLIC);
+		case EXTENDABLE -> AccessTransform.of(AccessChange.PUBLIC, ModifierChange.REMOVE);
+		case MUTABLE -> AccessTransform.of(ModifierChange.REMOVE);
 		};
 	}
 }
