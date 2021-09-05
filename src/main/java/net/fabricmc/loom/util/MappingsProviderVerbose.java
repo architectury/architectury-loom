@@ -2,7 +2,6 @@ package net.fabricmc.loom.util;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;

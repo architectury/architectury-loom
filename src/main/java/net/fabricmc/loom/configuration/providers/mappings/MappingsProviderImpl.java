@@ -116,6 +116,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 		if (getExtension().shouldGenerateSrgTiny()) {
 			return MappingsCache.INSTANCE.get(tinyMappingsWithSrg);
 		}
+
 		throw new UnsupportedOperationException("Not running with Forge support / Tiny srg support.");
 	}
 
@@ -453,7 +454,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 					"intermediary", "official");
 		} catch (Exception e) {
 			throw new RuntimeException("Could not merge mappings from " + intermediaryMappings.toString()
-			                           + " with mappings from " + yarnMappings, e);
+					+ " with mappings from " + yarnMappings, e);
 		}
 	}
 
