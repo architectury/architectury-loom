@@ -1,0 +1,3 @@
+accessWidener v1 named
+accessible method net/minecraft/world/GameRules$BooleanRule create (Z)Lnet/minecraft/world/GameRules$Type;
+extendable method net/minecraft/block/PaneBlock connectsTo (Lnet/minecraft/block/BlockState;Z)Z
