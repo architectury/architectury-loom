@@ -40,7 +40,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 
 		then:
 			result.task(":build").outcome == SUCCESS
-			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle)
+			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
     }
 
 	def "legacy build (mojmap)"() { // old 1.16 srg names
@@ -52,7 +52,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 
 		then:
 			result.task(":build").outcome == SUCCESS
-			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle)
+			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
 	}
 
 	def "legacy build (yarn)"() { // old 1.16 srg names
@@ -64,7 +64,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 
 		then:
 			result.task(":build").outcome == SUCCESS
-			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle)
+			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
 	}
 
 	private static String expected(GradleProject gradle) {
