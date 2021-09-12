@@ -27,9 +27,6 @@ package net.fabricmc.loom.util.aw2at;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
 import org.cadixdev.at.AccessChange;
@@ -82,27 +79,25 @@ public final class Aw2At {
 		remapJar.getAtAccessWideners().addAll(extension.getForge().getExtraAccessWideners());
 	}
 
-	public static AccessTransformSet toAccessTransformSet(InputStream in) throws IOException {
+	public static AccessTransformSet toAccessTransformSet(BufferedReader reader) throws IOException {
 		AccessTransformSet atSet = AccessTransformSet.create();
 
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-			new AccessWidenerReader(new AccessWidenerReader.Visitor() {
-				@Override
-				public void visitClass(String name, AccessWidenerReader.AccessType access) {
-					atSet.getOrCreateClass(name).merge(toAt(access));
-				}
+		new AccessWidenerReader(new AccessWidenerReader.Visitor() {
+			@Override
+			public void visitClass(String name, AccessWidenerReader.AccessType access) {
+				atSet.getOrCreateClass(name).merge(toAt(access));
+			}
 
-				@Override
-				public void visitMethod(String owner, String name, String descriptor, AccessWidenerReader.AccessType access) {
-					atSet.getOrCreateClass(owner).mergeMethod(MethodSignature.of(name, descriptor), toAt(access));
-				}
+			@Override
+			public void visitMethod(String owner, String name, String descriptor, AccessWidenerReader.AccessType access) {
+				atSet.getOrCreateClass(owner).mergeMethod(MethodSignature.of(name, descriptor), toAt(access));
+			}
 
-				@Override
-				public void visitField(String owner, String name, String descriptor, AccessWidenerReader.AccessType access) {
-					atSet.getOrCreateClass(owner).mergeField(name, toAt(access));
-				}
-			}).read(reader);
-		}
+			@Override
+			public void visitField(String owner, String name, String descriptor, AccessWidenerReader.AccessType access) {
+				atSet.getOrCreateClass(owner).mergeField(name, toAt(access));
+			}
+		}).read(reader);
 
 		return atSet;
 	}
