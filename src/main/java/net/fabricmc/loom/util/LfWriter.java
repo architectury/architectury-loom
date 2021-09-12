@@ -22,40 +22,22 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.test.integration.forge
+package net.fabricmc.loom.util;
 
-import net.fabricmc.loom.test.util.GradleProjectTestTrait
-import spock.lang.Specification
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.Writer;
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-
-class Aw2AtTest extends Specification implements GradleProjectTestTrait {
-    def "build"() { // 1.17+ uses a new srg naming pattern
-		setup:
-			def gradle = gradleProject(project: "forge/aw2At", version: DEFAULT_GRADLE)
-
-		when:
-			def result = gradle.run(task: "build")
-
-		then:
-			result.task(":build").outcome == SUCCESS
-			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle)
-    }
-
-	def "legacy build"() { // old 1.16 srg names
-		setup:
-			def gradle = gradleProject(project: "forge/legacyAw2At", version: DEFAULT_GRADLE)
-
-		when:
-			def result = gradle.run(task: "build")
-
-		then:
-			result.task(":build").outcome == SUCCESS
-			gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle)
+/**
+ * A {@link BufferedWriter} that writes {@code \n} (LF) instead of {@link System#lineSeparator()}.
+ */
+public class LfWriter extends BufferedWriter {
+	public LfWriter(Writer out) {
+		super(out);
 	}
 
-	private static String expected(GradleProject gradle) {
-		return new File(gradle.projectDir, "expected.accesstransformer.cfg").text
+	@Override
+	public void newLine() throws IOException {
+		write('\n');
 	}
 }

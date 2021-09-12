@@ -66,6 +66,9 @@ import dev.architectury.tinyremapper.IMappingProvider;
 import dev.architectury.tinyremapper.TinyRemapper;
 import dev.architectury.tinyremapper.TinyUtils;
 import dev.architectury.tinyremapper.extension.mixin.MixinExtension;
+
+import net.fabricmc.loom.util.LfWriter;
+
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.cadixdev.lorenz.MappingSet;
@@ -511,7 +514,7 @@ public class RemapJarTask extends Jar {
 				at = at.remap(mappingSet);
 			}
 
-			try (Writer writer = Files.newBufferedWriter(atPath)) {
+			try (Writer writer = new LfWriter(Files.newBufferedWriter(atPath))) {
 				AccessTransformFormats.FML.write(writer, at);
 			}
 		}
