@@ -24,7 +24,8 @@
 
 package net.fabricmc.loom.util;
 
-import org.gradle.api.provider.Property;
+import org.gradle.api.provider.HasConfigurableValue;
+import org.gradle.api.provider.Provider;
 
 /**
  * Working with properties.
@@ -37,7 +38,7 @@ public final class PropertyUtil {
 	 * @param <T> the value type
 	 * @return the current property value
 	 */
-	public static <T> T getAndFinalize(Property<T> property) {
+	public static <T, P extends Provider<T> & HasConfigurableValue> T getAndFinalize(P property) {
 		property.finalizeValue();
 		return property.get();
 	}
