@@ -32,7 +32,7 @@ import org.gradle.api.provider.Provider;
  */
 public final class PropertyUtil {
 	/**
-	 * Gets a property and finalizes it value.
+	 * Gets a property and finalizes its value.
 	 *
 	 * @param property the property
 	 * @param <T> the value type
