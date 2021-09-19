@@ -25,7 +25,6 @@
 package net.fabricmc.loom.extension;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -93,7 +92,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	private boolean silentMojangMappingsLicense = false;
 	public Boolean generateSrgTiny = null;
 	private final LazyBool supportsInclude;
-	private List<String> dataGenMods = new ArrayList<>();
 	private final List<String> tasksBeforeRun = Collections.synchronizedList(new ArrayList<>());
 	public final List<Consumer<RunConfig>> settingsPostEdit = new ArrayList<>();
 	private NamedDomainObjectContainer<LaunchProviderSettings> launchConfigs;
@@ -284,11 +282,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		return launchConfigs;
 	}
 
-	@Override
-	public List<String> getDataGenMods() {
-		return dataGenMods;
-	}
-
 	@SuppressWarnings("Convert2Lambda")
 	@Override
 	public void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action) {
@@ -299,22 +292,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods() {
 		return forgeLocalMods;
-	}
-
-	@SuppressWarnings("Convert2Lambda")
-	@Override
-	public void dataGen(Action<DataGenConsumer> action) {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
-		action.execute(new DataGenConsumer() {
-			@Override
-			public void mod(String... modIds) {
-				dataGenMods.addAll(Arrays.asList(modIds));
-
-				if (modIds.length > 0 && getRunConfigs().findByName("data") == null) {
-					getRunConfigs().create("data", RunConfigSettings::data);
-				}
-			}
-		});
 	}
 
 	@Override

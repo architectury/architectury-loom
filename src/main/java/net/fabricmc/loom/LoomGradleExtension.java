@@ -129,7 +129,7 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 	}
 
 	default boolean isDataGenEnabled() {
-		return isForge() && !getDataGenMods().isEmpty();
+		return isForge() && !getForge().getDataGenMods().isEmpty();
 	}
 
 	@Override

@@ -80,7 +80,7 @@ public class LaunchProvider extends DependencyProvider {
 
 					.argument("data", "--all")
 					.argument("data", "--mod")
-					.argument("data", String.join(",", getExtension().getDataGenMods()))
+					.argument("data", String.join(",", getExtension().getForge().getDataGenMods()))
 					.argument("data", "--output")
 					.argument("data", getProject().file("src/generated/resources").getAbsolutePath())
 

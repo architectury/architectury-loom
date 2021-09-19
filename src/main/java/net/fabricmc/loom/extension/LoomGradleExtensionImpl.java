@@ -75,7 +75,7 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.mixinApExtension = project.getObjects().newInstance(MixinExtensionImpl.class, project);
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
-		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project) : null);
+		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
 	}
 
 	@Override

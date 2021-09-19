@@ -227,12 +227,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	}
 
 	@Override
-	public List<String> getDataGenMods() {
-		reportDeprecation();
-		return parent.getDataGenMods();
-	}
-
-	@Override
 	public void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action) {
 		reportDeprecation();
 		parent.localMods(action);
@@ -242,12 +236,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	public NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods() {
 		reportDeprecation();
 		return parent.getForgeLocalMods();
-	}
-
-	@Override
-	public void dataGen(Action<DataGenConsumer> action) {
-		reportDeprecation();
-		parent.dataGen(action);
 	}
 
 	@Override

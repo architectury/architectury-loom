@@ -24,9 +24,13 @@
 
 package net.fabricmc.loom.api;
 
+import java.util.List;
+
+import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * This is the forge extension api available exposed to build scripts.
@@ -90,4 +94,33 @@ public interface ForgeExtensionAPI {
 	 * @return the property
 	 */
 	Property<Boolean> getUseFabricMixin();
+
+	/**
+	 * A list of mod IDs for mods applied for data generation.
+	 * The returned list is unmodifiable but not immutable - it will reflect changes done with
+	 * {@link #dataGen(Action)}.
+	 *
+	 * @return the list
+	 */
+	List<String> getDataGenMods();
+
+	/**
+	 * Applies data generation settings.
+	 *
+	 * @param action the action to configure data generation
+	 */
+	void dataGen(Action<DataGenConsumer> action);
+
+	/**
+	 * Data generation config.
+	 */
+	@ApiStatus.NonExtendable
+	interface DataGenConsumer {
+		/**
+		 * Adds mod IDs applied for data generation.
+		 *
+		 * @param modIds the mod IDs
+		 */
+		void mod(String... modIds);
+	}
 }
