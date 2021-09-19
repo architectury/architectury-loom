@@ -66,6 +66,7 @@ import net.fabricmc.loom.configuration.mods.forge.ForgeLocalMod;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.PropertyUtil;
 
 public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
@@ -114,7 +115,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			Dependency dep = null;
 
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
-				if (getExtension().isUseFabricMixin()) {
+				if (PropertyUtil.getAndFinalize(getExtension().getForge().getUseFabricMixin())) {
 					if (lib.getAsString().contains("0.8.2")) {
 						dep = addDependency("net.fabricmc:sponge-mixin:0.8.2+build.24", Constants.Configurations.FORGE_DEPENDENCIES);
 					} else {

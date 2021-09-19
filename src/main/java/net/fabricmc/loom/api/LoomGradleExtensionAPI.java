@@ -263,10 +263,6 @@ public interface LoomGradleExtensionAPI {
 
 	List<String> getTasksBeforeRun();
 
-	boolean isUseFabricMixin();
-
-	void setUseFabricMixin(boolean useFabricMixin);
-
 	List<Consumer<RunConfig>> getSettingsPostEdit();
 
 	/**

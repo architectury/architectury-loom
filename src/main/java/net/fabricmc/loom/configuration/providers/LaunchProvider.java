@@ -49,6 +49,7 @@ import net.fabricmc.loom.configuration.DependencyProvider;
 import net.fabricmc.loom.configuration.RemappedConfigurationEntry;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.PropertyUtil;
 
 public class LaunchProvider extends DependencyProvider {
 	public LaunchProvider(Project project) {
@@ -86,7 +87,7 @@ public class LaunchProvider extends DependencyProvider {
 
 					.property("mixin.env.remapRefMap", "true");
 
-			if (getExtension().isUseFabricMixin()) {
+			if (PropertyUtil.getAndFinalize(getExtension().getForge().getUseFabricMixin())) {
 				launchConfig.property("mixin.forgeloom.inject.mappings.srg-named", getExtension().getMappingsProvider().mixinTinyMappingsWithSrg.toAbsolutePath().toString());
 			} else {
 				launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString());

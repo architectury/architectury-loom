@@ -90,7 +90,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	//  Architectury Loom
 	// ===================
 	private Provider<ModPlatform> platform;
-	public boolean useFabricMixin = true; // FORGE: Use Fabric Mixin for better refmap resolutions
 	private boolean silentMojangMappingsLicense = false;
 	public Boolean generateSrgTiny = null;
 	private final LazyBool supportsInclude;
@@ -321,16 +320,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public List<String> getTasksBeforeRun() {
 		return tasksBeforeRun;
-	}
-
-	@Override
-	public boolean isUseFabricMixin() {
-		return useFabricMixin;
-	}
-
-	@Override
-	public void setUseFabricMixin(boolean useFabricMixin) {
-		this.useFabricMixin = useFabricMixin;
 	}
 
 	@Override

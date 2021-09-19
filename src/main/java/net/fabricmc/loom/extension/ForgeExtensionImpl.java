@@ -38,6 +38,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	private final SetProperty<String> extraAccessWideners;
 	private final ConfigurableFileCollection accessTransformers;
 	private final SetProperty<String> mixinConfigs;
+	private final Property<Boolean> useFabricMixin;
 
 	@Inject
 	public ForgeExtensionImpl(Project project) {
@@ -45,6 +46,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
 		accessTransformers = project.getObjects().fileCollection();
 		mixinConfigs = project.getObjects().setProperty(String.class).empty();
+		useFabricMixin = project.getObjects().property(Boolean.class).convention(true);
 	}
 
 	@Override
@@ -75,5 +77,10 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@Override
 	public void mixinConfigs(String... mixinConfigs) {
 		this.mixinConfigs.addAll(mixinConfigs);
+	}
+
+	@Override
+	public Property<Boolean> getUseFabricMixin() {
+		return useFabricMixin;
 	}
 }

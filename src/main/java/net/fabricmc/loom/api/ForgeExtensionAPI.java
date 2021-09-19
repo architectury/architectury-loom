@@ -82,4 +82,12 @@ public interface ForgeExtensionAPI {
 	 * @param mixinConfigs the mixin config file paths relative to resource roots
 	 */
 	void mixinConfigs(String... mixinConfigs);
+
+	/**
+	 * If true, upstream Mixin from Sponge will be replaced with Fabric's fork.
+	 * This is enabled by default.
+	 *
+	 * @return the property
+	 */
+	Property<Boolean> getUseFabricMixin();
 }
