@@ -63,7 +63,7 @@ public class ForgeProvider extends DependencyProvider {
 
 	public File getProjectCache() {
 		if (projectCache == null) {
-			projectCache = new File(getDirectories().getRootProjectPersistentCache(),  getMinecraftProvider().minecraftVersion() + "/forge/" + getExtension().getForgeProvider().getVersion().getCombined() + "/project-" + getProject().getPath().replace(':', '@'));
+			projectCache = new File(getDirectories().getRootProjectPersistentCache(), getMinecraftProvider().minecraftVersion() + "/forge/" + getExtension().getForgeProvider().getVersion().getCombined() + "/project-" + getProject().getPath().replace(':', '@'));
 			projectCache.mkdirs();
 		}
 
