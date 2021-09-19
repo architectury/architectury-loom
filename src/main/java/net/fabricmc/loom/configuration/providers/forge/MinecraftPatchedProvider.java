@@ -73,6 +73,7 @@ import net.minecraftforge.binarypatcher.ConsoleTool;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
@@ -145,7 +146,9 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 	public void initFiles() throws IOException {
 		filesDirty = false;
 		projectAtHash = new File(getDirectories().getProjectPersistentCache(), "at.sha256");
-		projectAts = getExtension().getAccessTransformers();
+		ConfigurableFileCollection accessTransformers = getExtension().getForge().getAccessTransformers();
+		accessTransformers.finalizeValue();
+		projectAts = accessTransformers.getFiles();
 
 		if (projectAts.isEmpty()) {
 			SourceSet main = getProject().getConvention().findPlugin(JavaPluginConvention.class).getSourceSets().getByName("main");

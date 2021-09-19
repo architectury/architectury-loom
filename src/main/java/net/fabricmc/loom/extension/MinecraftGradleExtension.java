@@ -24,9 +24,7 @@
 
 package net.fabricmc.loom.extension;
 
-import java.io.File;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.gradle.api.Action;
@@ -268,18 +266,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	public List<String> getMixinConfigs() {
 		reportDeprecation();
 		return parent.getMixinConfigs();
-	}
-
-	@Override
-	public void accessTransformer(Object file) {
-		reportDeprecation();
-		parent.accessTransformer(file);
-	}
-
-	@Override
-	public Set<File> getAccessTransformers() {
-		reportDeprecation();
-		return parent.getAccessTransformers();
 	}
 
 	@Override

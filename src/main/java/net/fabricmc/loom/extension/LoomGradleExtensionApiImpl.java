@@ -24,15 +24,12 @@
 
 package net.fabricmc.loom.extension;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import com.google.common.base.Suppliers;
@@ -94,7 +91,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	// ===================
 	private Provider<ModPlatform> platform;
 	public List<String> mixinConfigs = new ArrayList<>(); // FORGE: Passed to Minecraft
-	public Set<File> accessTransformers = new HashSet<>();
 	public boolean useFabricMixin = true; // FORGE: Use Fabric Mixin for better refmap resolutions
 	private boolean silentMojangMappingsLicense = false;
 	public Boolean generateSrgTiny = null;
@@ -336,16 +332,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public List<String> getMixinConfigs() {
 		return mixinConfigs;
-	}
-
-	@Override
-	public void accessTransformer(Object file) {
-		this.accessTransformers.add(getProject().file(file));
-	}
-
-	@Override
-	public Set<File> getAccessTransformers() {
-		return accessTransformers;
 	}
 
 	@Override

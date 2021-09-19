@@ -26,7 +26,6 @@ package net.fabricmc.loom.api;
 
 import java.io.File;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.gradle.api.Action;
@@ -271,10 +270,6 @@ public interface LoomGradleExtensionAPI {
 	void mixinConfig(String... config);
 
 	List<String> getMixinConfigs();
-
-	void accessTransformer(Object file);
-
-	Set<File> getAccessTransformers();
 
 	boolean isUseFabricMixin();
 

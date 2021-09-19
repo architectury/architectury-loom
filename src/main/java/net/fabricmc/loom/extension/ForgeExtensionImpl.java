@@ -27,6 +27,7 @@ package net.fabricmc.loom.extension;
 import javax.inject.Inject;
 
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 
@@ -35,11 +36,13 @@ import net.fabricmc.loom.api.ForgeExtensionAPI;
 public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	private final Property<Boolean> convertAccessWideners;
 	private final SetProperty<String> extraAccessWideners;
+	private final ConfigurableFileCollection accessTransformers;
 
 	@Inject
 	public ForgeExtensionImpl(Project project) {
 		convertAccessWideners = project.getObjects().property(Boolean.class).convention(false);
 		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
+		accessTransformers = project.getObjects().fileCollection();
 	}
 
 	@Override
@@ -50,5 +53,15 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@Override
 	public SetProperty<String> getExtraAccessWideners() {
 		return extraAccessWideners;
+	}
+
+	@Override
+	public ConfigurableFileCollection getAccessTransformers() {
+		return accessTransformers;
+	}
+
+	@Override
+	public void accessTransformer(Object file) {
+		accessTransformers.from(file);
 	}
 }

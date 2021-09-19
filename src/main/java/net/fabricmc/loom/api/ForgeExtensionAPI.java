@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.api;
 
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 
@@ -48,4 +49,22 @@ public interface ForgeExtensionAPI {
 	 * @return the property
 	 */
 	SetProperty<String> getExtraAccessWideners();
+
+	/**
+	 * A collection of all project access transformers.
+	 * The collection should only contain AT files, and not directories or other files.
+	 *
+	 * <p>If this collection is empty, Loom tries to resolve the AT from the default path
+	 * ({@code META-INF/accesstransformer.cfg} in the {@code main} source set.
+	 *
+	 * @return the collection of AT files
+	 */
+	ConfigurableFileCollection getAccessTransformers();
+
+	/**
+	 * Adds a {@linkplain #getAccessTransformers() project access transformer}.
+	 *
+	 * @param file the file, evaluated as per {@link org.gradle.api.Project#file(Object)}
+	 */
+	void accessTransformer(Object file);
 }
