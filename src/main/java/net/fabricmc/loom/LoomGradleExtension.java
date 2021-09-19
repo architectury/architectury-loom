@@ -128,6 +128,10 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 		return getDependencyManager().getProvider(McpConfigProvider.class);
 	}
 
+	default boolean isDataGenEnabled() {
+		return isForge() && !getDataGenMods().isEmpty();
+	}
+
 	@Override
 	default boolean isForgeAndOfficial() {
 		return isForge() && getMcpConfigProvider().isOfficial();

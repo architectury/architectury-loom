@@ -247,10 +247,6 @@ public interface LoomGradleExtensionAPI {
 
 	List<String> getDataGenMods();
 
-	default boolean isDataGenEnabled() {
-		return isForge() && !getDataGenMods().isEmpty();
-	}
-
 	void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action);
 
 	NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods();
