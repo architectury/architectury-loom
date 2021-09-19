@@ -257,18 +257,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	}
 
 	@Override
-	public void mixinConfig(String... config) {
-		reportDeprecation();
-		parent.mixinConfig(config);
-	}
-
-	@Override
-	public List<String> getMixinConfigs() {
-		reportDeprecation();
-		return parent.getMixinConfigs();
-	}
-
-	@Override
 	public boolean isUseFabricMixin() {
 		reportDeprecation();
 		return parent.isUseFabricMixin();

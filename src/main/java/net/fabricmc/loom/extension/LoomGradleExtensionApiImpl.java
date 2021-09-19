@@ -90,7 +90,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	//  Architectury Loom
 	// ===================
 	private Provider<ModPlatform> platform;
-	public List<String> mixinConfigs = new ArrayList<>(); // FORGE: Passed to Minecraft
 	public boolean useFabricMixin = true; // FORGE: Use Fabric Mixin for better refmap resolutions
 	private boolean silentMojangMappingsLicense = false;
 	public Boolean generateSrgTiny = null;
@@ -322,16 +321,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public List<String> getTasksBeforeRun() {
 		return tasksBeforeRun;
-	}
-
-	@Override
-	public void mixinConfig(String... config) {
-		mixinConfigs.addAll(Arrays.asList(config));
-	}
-
-	@Override
-	public List<String> getMixinConfigs() {
-		return mixinConfigs;
 	}
 
 	@Override

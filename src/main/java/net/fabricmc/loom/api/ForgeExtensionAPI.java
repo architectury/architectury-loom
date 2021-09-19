@@ -67,4 +67,19 @@ public interface ForgeExtensionAPI {
 	 * @param file the file, evaluated as per {@link org.gradle.api.Project#file(Object)}
 	 */
 	void accessTransformer(Object file);
+
+	/**
+	 * A set of all mixin configs related to source set resource roots.
+	 * All mixin configs must be added to this property so that they apply in a dev environment.
+	 *
+	 * @return the property
+	 */
+	SetProperty<String> getMixinConfigs();
+
+	/**
+	 * Adds mixin config files to {@link #getMixinConfigs() mixinConfigs}.
+	 *
+	 * @param mixinConfigs the mixin config file paths relative to resource roots
+	 */
+	void mixinConfigs(String... mixinConfigs);
 }

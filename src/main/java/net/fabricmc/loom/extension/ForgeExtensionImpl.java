@@ -37,12 +37,14 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	private final Property<Boolean> convertAccessWideners;
 	private final SetProperty<String> extraAccessWideners;
 	private final ConfigurableFileCollection accessTransformers;
+	private final SetProperty<String> mixinConfigs;
 
 	@Inject
 	public ForgeExtensionImpl(Project project) {
 		convertAccessWideners = project.getObjects().property(Boolean.class).convention(false);
 		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
 		accessTransformers = project.getObjects().fileCollection();
+		mixinConfigs = project.getObjects().setProperty(String.class).empty();
 	}
 
 	@Override
@@ -63,5 +65,15 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@Override
 	public void accessTransformer(Object file) {
 		accessTransformers.from(file);
+	}
+
+	@Override
+	public SetProperty<String> getMixinConfigs() {
+		return mixinConfigs;
+	}
+
+	@Override
+	public void mixinConfigs(String... mixinConfigs) {
+		this.mixinConfigs.addAll(mixinConfigs);
 	}
 }

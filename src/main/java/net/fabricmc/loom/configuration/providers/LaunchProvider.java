@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -42,6 +43,7 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.Project;
 import org.gradle.api.logging.configuration.ConsoleOutput;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.SetProperty;
 
 import net.fabricmc.loom.configuration.DependencyProvider;
 import net.fabricmc.loom.configuration.RemappedConfigurationEntry;
@@ -90,9 +92,11 @@ public class LaunchProvider extends DependencyProvider {
 				launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString());
 			}
 
-			List<String> mixinConfigs = getExtension().getMixinConfigs();
+			SetProperty<String> mixinConfigsProperty = getExtension().getForge().getMixinConfigs();
+			mixinConfigsProperty.finalizeValue();
+			Set<String> mixinConfigs = mixinConfigsProperty.get();
 
-			if (mixinConfigs != null) {
+			if (!mixinConfigs.isEmpty()) {
 				for (String config : mixinConfigs) {
 					launchConfig.argument("-mixin.config");
 					launchConfig.argument(config);
