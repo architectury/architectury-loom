@@ -97,6 +97,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 
 	@Override
 	public List<String> getDataGenMods() {
+		// unmod list prevents uncontrolled additions (we want to create the run config too)
 		return Collections.unmodifiableList(dataGenMods);
 	}
 
