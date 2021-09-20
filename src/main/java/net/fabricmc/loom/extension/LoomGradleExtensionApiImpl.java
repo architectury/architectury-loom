@@ -60,7 +60,6 @@ import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpecBuil
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsDependency;
 import net.fabricmc.loom.util.DeprecationHelper;
 import net.fabricmc.loom.util.ModPlatform;
-import net.fabricmc.loom.util.function.LazyBool;
 
 /**
  * This class implements the public extension api.
@@ -68,7 +67,6 @@ import net.fabricmc.loom.util.function.LazyBool;
 public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionAPI {
 	private static final String FORGE_PROPERTY = "loom.forge";
 	private static final String PLATFORM_PROPERTY = "loom.platform";
-	private static final String INCLUDE_PROPERTY = "loom.forge.include";
 
 	protected final DeprecationHelper deprecationHelper;
 	protected final ListProperty<LoomDecompiler> decompilers;
@@ -91,7 +89,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	private Provider<ModPlatform> platform;
 	private boolean silentMojangMappingsLicense = false;
 	public Boolean generateSrgTiny = null;
-	private final LazyBool supportsInclude;
 	private final List<String> tasksBeforeRun = Collections.synchronizedList(new ArrayList<>());
 	public final List<Consumer<RunConfig>> settingsPostEdit = new ArrayList<>();
 	private NamedDomainObjectContainer<LaunchProviderSettings> launchConfigs;
@@ -136,7 +133,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 
 			return ModPlatform.FABRIC;
 		})::get);
-		this.supportsInclude = new LazyBool(() -> Boolean.parseBoolean(Objects.toString(project.findProperty(INCLUDE_PROPERTY))));
 		this.launchConfigs = project.container(LaunchProviderSettings.class,
 				baseName -> new LaunchProviderSettings(project, baseName));
 		this.forgeLocalMods = project.container(ForgeLocalMod.class,
@@ -251,11 +247,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public Provider<ModPlatform> getPlatform() {
 		return platform;
-	}
-
-	@Override
-	public boolean supportsInclude() {
-		return !isForge() || supportsInclude.getAsBoolean();
 	}
 
 	@Override

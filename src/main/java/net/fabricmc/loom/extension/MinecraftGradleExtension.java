@@ -185,12 +185,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	}
 
 	@Override
-	public boolean supportsInclude() {
-		reportDeprecation();
-		return parent.supportsInclude();
-	}
-
-	@Override
 	public void setGenerateSrgTiny(Boolean generateSrgTiny) {
 		reportDeprecation();
 		parent.setGenerateSrgTiny(generateSrgTiny);

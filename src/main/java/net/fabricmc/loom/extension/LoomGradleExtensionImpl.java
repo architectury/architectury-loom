@@ -50,6 +50,7 @@ import net.fabricmc.loom.configuration.LoomDependencyManager;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.processors.JarProcessorManager;
 import net.fabricmc.loom.util.ModPlatform;
+import net.fabricmc.loom.util.function.LazyBool;
 
 public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implements LoomGradleExtension {
 	private final Project project;
@@ -68,6 +69,12 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	private JarProcessorManager jarProcessorManager;
 	private InstallerData installerData;
 
+	// +-------------------+
+	// | Architectury Loom |
+	// +-------------------+
+	private static final String INCLUDE_PROPERTY = "loom.forge.include";
+	private final LazyBool supportsInclude;
+
 	public LoomGradleExtensionImpl(Project project, LoomFiles files) {
 		super(project, files);
 		this.project = project;
@@ -76,6 +83,7 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
 		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
+		this.supportsInclude = new LazyBool(() -> Boolean.parseBoolean(Objects.toString(project.findProperty(INCLUDE_PROPERTY))));
 	}
 
 	@Override
@@ -199,5 +207,10 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	public ForgeExtensionAPI getForge() {
 		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
 		return forgeExtension.get();
+	}
+
+	@Override
+	public boolean supportsInclude() {
+		return !isForge() || supportsInclude.getAsBoolean();
 	}
 }

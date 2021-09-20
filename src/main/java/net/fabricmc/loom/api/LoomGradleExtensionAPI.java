@@ -231,8 +231,6 @@ public interface LoomGradleExtensionAPI {
 		return getPlatform().get() == ModPlatform.FORGE;
 	}
 
-	boolean supportsInclude();
-
 	void setGenerateSrgTiny(Boolean generateSrgTiny);
 
 	boolean shouldGenerateSrgTiny();
