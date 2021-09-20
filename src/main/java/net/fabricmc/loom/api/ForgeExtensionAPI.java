@@ -60,7 +60,7 @@ public interface ForgeExtensionAPI {
 	 * The collection should only contain AT files, and not directories or other files.
 	 *
 	 * <p>If this collection is empty, Loom tries to resolve the AT from the default path
-	 * ({@code META-INF/accesstransformer.cfg} in the {@code main} source set.
+	 * ({@code META-INF/accesstransformer.cfg} in the {@code main} source set).
 	 *
 	 * @return the collection of AT files
 	 */
