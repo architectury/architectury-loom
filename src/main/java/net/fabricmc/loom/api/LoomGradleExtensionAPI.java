@@ -238,10 +238,6 @@ public interface LoomGradleExtensionAPI {
 
 	NamedDomainObjectContainer<LaunchProviderSettings> getLaunchConfigs();
 
-	void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action);
-
-	NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods();
-
 	default void addTaskBeforeRun(String task) {
 		this.getTasksBeforeRun().add(task);
 	}

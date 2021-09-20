@@ -45,7 +45,6 @@ import net.fabricmc.loom.api.mappings.layered.spec.LayeredMappingSpecBuilder;
 import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
-import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.util.DeprecationHelper;
 import net.fabricmc.loom.util.ModPlatform;
@@ -206,18 +205,6 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 	public NamedDomainObjectContainer<LaunchProviderSettings> getLaunchConfigs() {
 		reportDeprecation();
 		return parent.getLaunchConfigs();
-	}
-
-	@Override
-	public void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action) {
-		reportDeprecation();
-		parent.localMods(action);
-	}
-
-	@Override
-	public NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods() {
-		reportDeprecation();
-		return parent.getForgeLocalMods();
 	}
 
 	@Override

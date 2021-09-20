@@ -259,7 +259,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			} else if (key.equals("source_roots")) {
 				List<String> modClasses = new ArrayList<>();
 
-				for (ForgeLocalMod localMod : getExtension().getForgeLocalMods()) {
+				for (ForgeLocalMod localMod : getExtension().getForge().getLocalMods()) {
 					String sourceSetName = localMod.getName();
 
 					localMod.getSourceSets().flatMap(sourceSet -> Stream.concat(

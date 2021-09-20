@@ -52,7 +52,6 @@ import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
 import net.fabricmc.loom.configuration.mods.ModVersionParser;
-import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpec;
@@ -92,7 +91,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	private final List<String> tasksBeforeRun = Collections.synchronizedList(new ArrayList<>());
 	public final List<Consumer<RunConfig>> settingsPostEdit = new ArrayList<>();
 	private NamedDomainObjectContainer<LaunchProviderSettings> launchConfigs;
-	private NamedDomainObjectContainer<ForgeLocalMod> forgeLocalMods;
 
 	protected LoomGradleExtensionApiImpl(Project project, LoomFiles directories) {
 		this.runConfigs = project.container(RunConfigSettings.class,
@@ -135,14 +133,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		})::get);
 		this.launchConfigs = project.container(LaunchProviderSettings.class,
 				baseName -> new LaunchProviderSettings(project, baseName));
-		this.forgeLocalMods = project.container(ForgeLocalMod.class,
-				baseName -> new ForgeLocalMod(project, baseName, new ArrayList<>()));
-
-		if (isForge()) {
-			localMods(mod -> {
-				mod.create("main").add("main");
-			});
-		}
 	}
 
 	@Override
@@ -271,18 +261,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public NamedDomainObjectContainer<LaunchProviderSettings> getLaunchConfigs() {
 		return launchConfigs;
-	}
-
-	@SuppressWarnings("Convert2Lambda")
-	@Override
-	public void localMods(Action<NamedDomainObjectContainer<ForgeLocalMod>> action) {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
-		action.execute(forgeLocalMods);
-	}
-
-	@Override
-	public NamedDomainObjectContainer<ForgeLocalMod> getForgeLocalMods() {
-		return forgeLocalMods;
 	}
 
 	@Override
