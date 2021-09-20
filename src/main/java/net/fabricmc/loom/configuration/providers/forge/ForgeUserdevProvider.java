@@ -62,7 +62,7 @@ import org.gradle.api.provider.Provider;
 import net.fabricmc.loom.configuration.DependencyProvider;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
-import net.fabricmc.loom.configuration.mods.forge.ForgeLocalMod;
+import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;

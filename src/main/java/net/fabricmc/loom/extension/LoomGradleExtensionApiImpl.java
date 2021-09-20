@@ -52,7 +52,7 @@ import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
 import net.fabricmc.loom.configuration.mods.ModVersionParser;
-import net.fabricmc.loom.configuration.mods.forge.ForgeLocalMod;
+import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpec;

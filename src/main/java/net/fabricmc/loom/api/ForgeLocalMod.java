@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.mods.forge;
+package net.fabricmc.loom.api;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -33,17 +33,39 @@ import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 
+/**
+ * Data for a mod built from project files in a dev environment.
+ */
 public class ForgeLocalMod implements Named {
 	private final Project project;
 	private final String name;
 	private final List<Supplier<SourceSet>> sourceSets;
 
+	/**
+	 * Constructs a local mod.
+	 *
+	 * @param project    the project using this mod
+	 * @param name       the unique name of this local mod (does not have to correspond to a mod ID)
+	 * @param sourceSets the list of source set suppliers corresponding to this mod; must be mutable
+	 */
 	public ForgeLocalMod(Project project, String name, List<Supplier<SourceSet>> sourceSets) {
 		this.project = project;
 		this.name = name;
 		this.sourceSets = sourceSets;
 	}
 
+	/**
+	 * Adds source sets to this local mod.
+	 *
+	 * <p>The source sets are resolved like this:
+	 * <ul>
+	 * <li>a {@link SourceSet} is used as is</li>
+	 * <li>all other objects will be converted to source set names with {@link String#valueOf(Object)} and
+	 * fetched with {@code sourceSets.findByName(name)}</li>
+	 * </ul>
+	 *
+	 * @param sourceSets the source sets
+	 */
 	public void add(Object... sourceSets) {
 		for (Object sourceSet : sourceSets) {
 			if (sourceSet instanceof SourceSet) {
