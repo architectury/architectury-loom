@@ -337,16 +337,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		}
 
 		@Override
-		public boolean isForgeAndOfficial() {
-			throw new RuntimeException("Yeah... something is really wrong");
-		}
-
-		@Override
-		public boolean isForgeAndNotOfficial() {
-			throw new RuntimeException("Yeah... something is really wrong");
-		}
-
-		@Override
 		protected String getMinecraftVersion() {
 			throw new RuntimeException("Yeah... something is really wrong");
 		}

@@ -132,12 +132,10 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 		return isForge() && !getForge().getDataGenMods().isEmpty();
 	}
 
-	@Override
 	default boolean isForgeAndOfficial() {
 		return isForge() && getMcpConfigProvider().isOfficial();
 	}
 
-	@Override
 	default boolean isForgeAndNotOfficial() {
 		return isForge() && !getMcpConfigProvider().isOfficial();
 	}

@@ -36,6 +36,7 @@ import org.jetbrains.annotations.ApiStatus;
  * This is the forge extension api available exposed to build scripts.
  */
 // TODO: Move other forge-related configuration here
+@ApiStatus.NonExtendable
 public interface ForgeExtensionAPI {
 	/**
 	 * If true, {@linkplain LoomGradleExtensionAPI#getAccessWidenerPath() the project access widener file}
