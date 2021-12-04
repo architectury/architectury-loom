@@ -52,18 +52,11 @@ public abstract class ArchitecturyGenerateSourcesTask extends AbstractLoomTask {
 	@Input
 	public abstract MapProperty<String, String> getOptions();
 
-	/**
-	 * Max memory for forked JVM in megabytes.
-	 */
-	@Input
-	public abstract Property<Long> getMaxMemory();
-
 	@Inject
 	public ArchitecturyGenerateSourcesTask(ArchitecturyLoomDecompiler decompiler) {
 		this.decompiler = decompiler;
 		getOutputs().upToDateWhen((o) -> false);
 		getOptions().finalizeValueOnRead();
-		getMaxMemory().convention(4096L).finalizeValueOnRead();
 	}
 
 	@TaskAction
