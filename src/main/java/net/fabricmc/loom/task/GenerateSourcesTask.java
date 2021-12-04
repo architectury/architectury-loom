@@ -43,6 +43,7 @@ import javax.inject.Inject;
 
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
@@ -272,7 +273,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			}
 		}
 
-		private void remapLineNumbers(IOStringConsumer logger, Path oldCompiledJar, Path linemap, Path linemappedJarDestination) throws IOException {
+		static void remapLineNumbers(IOStringConsumer logger, Path oldCompiledJar, Path linemap, Path linemappedJarDestination) throws IOException {
 			LineNumberRemapper remapper = new LineNumberRemapper();
 			remapper.readMappings(linemap.toFile());
 
@@ -283,7 +284,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		}
 
 		private Collection<Path> getLibraries() {
-			return getParameters().getClassPath().getFiles().stream().map(File::toPath).collect(Collectors.toSet());
+			return toPaths(getParameters().getClassPath());
+		}
+
+		static Collection<Path> toPaths(FileCollection files) {
+			return files.getFiles().stream().map(File::toPath).collect(Collectors.toSet());
 		}
 	}
 

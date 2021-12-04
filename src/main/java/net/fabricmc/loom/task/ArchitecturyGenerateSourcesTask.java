@@ -25,15 +25,20 @@
 package net.fabricmc.loom.task;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 import javax.inject.Inject;
 
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.TaskAction;
 
+import net.fabricmc.loom.api.decompilers.DecompilationMetadata;
 import net.fabricmc.loom.api.decompilers.architectury.ArchitecturyLoomDecompiler;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.OperatingSystem;
@@ -47,11 +52,18 @@ public abstract class ArchitecturyGenerateSourcesTask extends AbstractLoomTask {
 	@Input
 	public abstract MapProperty<String, String> getOptions();
 
+	/**
+	 * Max memory for forked JVM in megabytes.
+	 */
+	@Input
+	public abstract Property<Long> getMaxMemory();
+
 	@Inject
 	public ArchitecturyGenerateSourcesTask(ArchitecturyLoomDecompiler decompiler) {
 		this.decompiler = decompiler;
 		getOutputs().upToDateWhen((o) -> false);
 		getOptions().finalizeValueOnRead();
+		getMaxMemory().convention(4096L).finalizeValueOnRead();
 	}
 
 	@TaskAction
@@ -60,20 +72,32 @@ public abstract class ArchitecturyGenerateSourcesTask extends AbstractLoomTask {
 			throw new UnsupportedOperationException("GenSources task requires a 64bit JVM to run due to the memory requirements.");
 		}
 
-		GenerateSourcesTask.DecompileParams params = getProject().getObjects().newInstance(GenerateSourcesTask.DecompileParams.class);
-
 		// TODO: Need a good way to not keep a duplicated code for this
-		params.getOptions().set(getOptions());
+		Path compiledJar = getInputJar().get().getAsFile().toPath();
+		Path runtimeJar = getExtension().getMappingsProvider().mappedProvider.getMappedJar().toPath();
+		Path sourcesDestination = GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-sources.jar").toPath();
+		Path linemapDestination = GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-sources.lmap").toPath();
+		DecompilationMetadata metadata = new DecompilationMetadata(
+				Runtime.getRuntime().availableProcessors(),
+				GenerateSourcesTask.getMappings(getProject(), getExtension()),
+				GenerateSourcesTask.DecompileAction.toPaths(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES)),
+				getLogger()::info,
+				getOptions().get()
+		);
 
-		params.getInputJar().set(getInputJar());
-		params.getRuntimeJar().set(getExtension().getMappingsProvider().mappedProvider.getMappedJar());
-		params.getSourcesDestinationJar().set(GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-sources.jar"));
-		params.getLinemap().set(GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-sources.lmap"));
-		params.getLinemapJar().set(GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-linemapped.jar"));
-		params.getMappings().set(GenerateSourcesTask.getMappings(getProject(), getExtension()).toFile());
+		decompiler.create(getProject()).decompile(compiledJar, sourcesDestination, linemapDestination, metadata);
 
-		params.getClassPath().setFrom(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES));
+		// Apply linemap
+		if (Files.exists(linemapDestination)) {
+			Path linemapJar = GenerateSourcesTask.getMappedJarFileWithSuffix(getProject(), "-linemapped.jar").toPath();
 
-		decompiler.decompile(getLogger(), params);
+			try {
+				GenerateSourcesTask.DecompileAction.remapLineNumbers(getLogger()::info, runtimeJar, linemapDestination, linemapJar);
+				Files.copy(linemapJar, runtimeJar, StandardCopyOption.REPLACE_EXISTING);
+				Files.delete(linemapJar);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not remap line numbers", e);
+			}
+		}
 	}
 }

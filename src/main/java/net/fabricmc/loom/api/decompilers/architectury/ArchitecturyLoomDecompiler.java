@@ -24,12 +24,32 @@
 
 package net.fabricmc.loom.api.decompilers.architectury;
 
-import org.gradle.api.logging.Logger;
+import org.gradle.api.Project;
 
-import net.fabricmc.loom.task.GenerateSourcesTask;
+import net.fabricmc.loom.api.decompilers.LoomDecompiler;
 
+/**
+ * A decompiler definition. Differs from {@link LoomDecompiler} by allowing
+ * to use a project context for creating the decompiler, which lets you make
+ * configurable decompilers.
+ *
+ * <p>Note that JVM forking is not handled by this interface, and that is
+ * the responsibility of the decompiler implementation.
+ */
 public interface ArchitecturyLoomDecompiler {
+	/**
+	 * {@return the name of the decompiler}
+	 * It is used for naming the source generation task ({@code genSourcesWith[name]}).
+	 */
 	String name();
 
-	void decompile(Logger logger, GenerateSourcesTask.DecompileParams params);
+	/**
+	 * Creates a {@link LoomDecompiler} from a {@link Project} context.
+	 *
+	 * <p>The name of the created decompiler is not used.
+	 *
+	 * @param project the project context
+	 * @return the created decompiler
+	 */
+	LoomDecompiler create(Project project);
 }
