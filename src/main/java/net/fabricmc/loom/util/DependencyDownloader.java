@@ -81,6 +81,16 @@ public final class DependencyDownloader {
 		return files;
 	}
 
+	/**
+	 * Resolves a configuration and its superconfigurations.
+	 *
+	 * <p>Note that unlike resolving a {@linkplain Configuration#copyRecursive() recursive copy} of the configuration,
+	 * this method overrides the transitivity of all superconfigurations as well.
+	 *
+	 * @param configuration the configuration to resolve
+	 * @param transitive    true if transitive dependencies should be included, false otherwise
+	 * @return a mutable set containing the resolved files of the configuration
+	 */
 	public static Set<File> resolveFiles(Configuration configuration, boolean transitive) {
 		return resolve(configuration, transitive);
 	}

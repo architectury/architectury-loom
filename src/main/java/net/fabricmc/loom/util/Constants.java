@@ -79,9 +79,24 @@ public class Constants {
 		public static final String FORGE_USERDEV = "forgeUserdev";
 		public static final String FORGE_INSTALLER = "forgeInstaller";
 		public static final String FORGE_UNIVERSAL = "forgeUniversal";
+		/**
+		 * Forge's own dependencies. Not intended to be used by users,
+		 * {@link #FORGE_RUNTIME_LIBRARY forgeRuntimeLibrary} is for that instead.
+		 */
 		public static final String FORGE_DEPENDENCIES = "forgeDependencies";
 		public static final String FORGE_NAMED = "forgeNamed";
+		/**
+		 * "Extra" runtime dependencies on Forge. Contains the Minecraft resources
+		 * and {@linkplain Dependencies#FORGE_RUNTIME the Architectury Loom runtime}.
+		 */
 		public static final String FORGE_EXTRA = "forgeExtra";
+		/**
+		 * The configuration used to create the Forge runtime classpath file list.
+		 * Users can also directly add files to this config.
+		 *
+		 * @see net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider
+		 */
+		public static final String FORGE_RUNTIME_LIBRARY = "forgeRuntimeLibrary";
 		public static final String MAPPING_CONSTANTS = "mappingsConstants";
 		public static final String UNPICK_CLASSPATH = "unpick";
 		/**
