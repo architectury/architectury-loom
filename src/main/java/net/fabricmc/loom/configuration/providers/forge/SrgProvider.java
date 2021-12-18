@@ -219,7 +219,8 @@ public class SrgProvider extends DependencyProvider {
 
 	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {
 		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
-		if(mojmapTsrgMap.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
+
+		if(mojmapTsrgMap.containsKey(minecraftVersion)) return mojmapTsrgMap.get(minecraftVersion);
 
 		Path mojmapTsrg = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
 
@@ -236,6 +237,7 @@ public class SrgProvider extends DependencyProvider {
 
 	public static Path getMojmapTsrg2(Project project, LoomGradleExtension extension) throws IOException {
 		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
+
 		if (mojmapTsrg2Map.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
 
 		Path mojmapTsrg2 = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
@@ -248,7 +250,7 @@ public class SrgProvider extends DependencyProvider {
 			}
 		}
 
-		mojmapTsrgMap.put(minecraftVersion, mojmapTsrg2);
+		mojmapTsrg2Map.put(minecraftVersion, mojmapTsrg2);
 		return mojmapTsrg2;
 	}
 
