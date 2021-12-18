@@ -72,8 +72,8 @@ public class SrgProvider extends DependencyProvider {
 	private Path mergedMojangRaw;
 	private Path mergedMojang;
 	private Path mergedMojangTrimmed;
-	private static Path mojmapTsrg;
-	private static Path mojmapTsrg2;
+	private static Map<String, Path> mojmapTsrgMap = new HashMap<>();
+	private static Map<String, Path> mojmapTsrg2Map = new HashMap<>();
 
 	public SrgProvider(Project project) {
 		super(project);
@@ -218,9 +218,10 @@ public class SrgProvider extends DependencyProvider {
 	}
 
 	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {
-		if (mojmapTsrg != null) return mojmapTsrg;
+		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
+		if(mojmapTsrgMap.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
 
-		mojmapTsrg = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
+		Path mojmapTsrg = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
 
 		if (Files.notExists(mojmapTsrg) || LoomGradlePlugin.refreshDeps) {
 			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
@@ -229,13 +230,15 @@ public class SrgProvider extends DependencyProvider {
 			}
 		}
 
+		mojmapTsrgMap.put(minecraftVersion, mojmapTsrg);
 		return mojmapTsrg;
 	}
 
 	public static Path getMojmapTsrg2(Project project, LoomGradleExtension extension) throws IOException {
-		if (mojmapTsrg2 != null) return mojmapTsrg2;
+		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
+		if (mojmapTsrg2Map.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
 
-		mojmapTsrg2 = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
+		Path mojmapTsrg2 = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
 
 		if (Files.notExists(mojmapTsrg2) || LoomGradlePlugin.refreshDeps) {
 			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg2, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
@@ -245,6 +248,7 @@ public class SrgProvider extends DependencyProvider {
 			}
 		}
 
+		mojmapTsrgMap.put(minecraftVersion, mojmapTsrg2);
 		return mojmapTsrg2;
 	}
 
