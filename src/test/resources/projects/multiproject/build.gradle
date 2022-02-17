@@ -1,11 +1,11 @@
 plugins {
 	id "java"
 	id "java-library"
-	id 'dev.architectury.loom' apply false
+	id 'gg.essential.loom' apply false
 }
 
 allprojects {
-	apply plugin: "dev.architectury.loom"
+	apply plugin: "gg.essential.loom"
 
 	version = "1.0.0"
 

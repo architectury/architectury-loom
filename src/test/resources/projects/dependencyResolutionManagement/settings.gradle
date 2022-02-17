@@ -1,11 +1,11 @@
 pluginManagement {
     plugins {
-        id 'dev.architectury.loom'
+        id 'gg.essential.loom'
     }
 }
 
 plugins {
-    id 'dev.architectury.loom'
+    id 'gg.essential.loom'
 }
 
 dependencyResolutionManagement {
