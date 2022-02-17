@@ -120,9 +120,9 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 	private File minecraftClientExtra;
 
 	private File projectAtHash;
-	private Set<File> projectAts = new HashSet<>();
-	private boolean atDirty = false;
-	private boolean filesDirty = false;
+	protected Set<File> projectAts = new HashSet<>();
+	protected boolean atDirty = false;
+	protected boolean filesDirty = false;
 	private Path mcpConfigMappings;
 	private Path[] mergedMojangTsrg2Files;
 
@@ -130,8 +130,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		super(project);
 	}
 
-	public void initFiles() throws IOException {
-		filesDirty = false;
+	protected void initAts() throws IOException {
 		projectAtHash = new File(getDirectories().getProjectPersistentCache(), "at.sha256");
 		ConfigurableFileCollection accessTransformers = getExtension().getForge().getAccessTransformers();
 		accessTransformers.finalizeValue();
@@ -164,6 +163,11 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 
 			atDirty = mismatched;
 		}
+	}
+
+	public void initFiles() throws IOException {
+		filesDirty = false;
+		initAts();
 
 		MinecraftProviderImpl minecraftProvider = getExtension().getMinecraftProvider();
 		PatchProvider patchProvider = getExtension().getPatchProvider();
@@ -186,7 +190,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		forgeMergedJar = getExtension().isForgeAndOfficial() ? null : new File(globalCache, "forge-official.jar");
 		minecraftMergedPatchedSrgAtJar = new File(projectDir, "merged-srg-at-patched.jar");
 		minecraftMergedPatchedJar = new File(projectDir, "merged-patched.jar");
-		minecraftClientExtra = new File(globalCache, "forge-client-extra.jar");
+		minecraftClientExtra = getExtension().isForgeAndOfficial() ? new File(globalCache, "forge-client-extra.jar") : null;
 
 		if (isRefreshDeps() || Stream.of(getGlobalCaches()).anyMatch(((Predicate<File>) File::exists).negate())
 						|| !isPatchedJarUpToDate(minecraftMergedPatchedJar)) {
@@ -215,7 +219,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		cleanProjectCache();
 	}
 
-	private File[] getGlobalCaches() {
+	protected File[] getGlobalCaches() {
 		File[] files = {
 				minecraftClientSrgJar,
 				minecraftServerSrgJar,
@@ -223,14 +227,9 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 				minecraftServerPatchedSrgJar,
 				minecraftMergedPatchedSrgJar,
 				minecraftClientExtra,
+				forgeMergedJar
 		};
-
-		if (forgeMergedJar != null) {
-			Arrays.copyOf(files, files.length + 1);
-			files[files.length - 1] = forgeMergedJar;
-		}
-
-		return files;
+		return Arrays.stream(files).filter(Objects::nonNull).toArray(File[]::new);
 	}
 
 	public void cleanProjectCache() {
@@ -239,7 +238,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		}
 	}
 
-	private File[] getProjectCache() {
+	protected File[] getProjectCache() {
 		return new File[] {
 				minecraftMergedPatchedSrgAtJar,
 				minecraftMergedPatchedJar
@@ -456,7 +455,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		return getExtension().getForgeUserdevProvider().getUserdevJar();
 	}
 
-	private boolean isPatchedJarUpToDate(File jar) throws IOException {
+	protected boolean isPatchedJarUpToDate(File jar) throws IOException {
 		if (!jar.exists()) return false;
 
 		byte[] manifestBytes = ZipUtils.unpackNullable(jar.toPath(), "META-INF/MANIFEST.MF");
@@ -478,6 +477,26 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 	}
 
 	private void accessTransformForge(Logger logger) throws Exception {
+		List<byte[]> ats = new ArrayList<>();
+
+		for (File jar : ImmutableList.of(getForgeJar(), getForgeUserdevJar(), minecraftMergedPatchedSrgJar)) {
+			byte[] atBytes = ZipUtils.unpackNullable(jar.toPath(), Constants.Forge.ACCESS_TRANSFORMER_PATH);
+
+			if (atBytes != null) {
+				ats.add(atBytes);
+			}
+		}
+
+		if (usesProjectCache()) {
+			for (File projectAt : projectAts) {
+				ats.add(Files.readAllBytes(projectAt.toPath()));
+			}
+		}
+
+		accessTransformForge(logger, minecraftMergedPatchedSrgJar, minecraftMergedPatchedSrgAtJar, ats);
+	}
+
+	protected void accessTransformForge(Logger logger, File input, File target, List<byte[]> ats) throws Exception {
 		MinecraftProviderImpl minecraftProvider = getExtension().getMinecraftProvider();
 		List<File> toDelete = new ArrayList<>();
 		String atDependency = Constants.Dependencies.ACCESS_TRANSFORMERS + (minecraftProvider.isNewerThan21w39a() ? Constants.Dependencies.Versions.ACCESS_TRANSFORMERS_NEW : Constants.Dependencies.Versions.ACCESS_TRANSFORMERS);
@@ -486,8 +505,6 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 
 		logger.lifecycle(":access transforming minecraft");
 
-		File input = minecraftMergedPatchedSrgJar;
-		File target = minecraftMergedPatchedSrgAtJar;
 		Files.deleteIfExists(target.toPath());
 
 		List<String> args = new ArrayList<>();
@@ -496,23 +513,12 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		args.add("--outJar");
 		args.add(target.getAbsolutePath());
 
-		for (File jar : ImmutableList.of(getForgeJar(), getForgeUserdevJar(), minecraftMergedPatchedSrgJar)) {
-			byte[] atBytes = ZipUtils.unpackNullable(jar.toPath(), Constants.Forge.ACCESS_TRANSFORMER_PATH);
-
-			if (atBytes != null) {
-				File tmpFile = File.createTempFile("at-conf", ".cfg");
-				toDelete.add(tmpFile);
-				Files.write(tmpFile.toPath(), atBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-				args.add("--atFile");
-				args.add(tmpFile.getAbsolutePath());
-			}
-		}
-
-		if (usesProjectCache()) {
-			for (File projectAt : projectAts) {
-				args.add("--atFile");
-				args.add(projectAt.getAbsolutePath());
-			}
+		for (byte[] atBytes : ats) {
+			File tmpFile = File.createTempFile("at-conf", ".cfg");
+			toDelete.add(tmpFile);
+			Files.write(tmpFile.toPath(), atBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			args.add("--atFile");
+			args.add(tmpFile.getAbsolutePath());
 		}
 
 		getProject().javaexec(spec -> {
@@ -599,7 +605,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		applyLoomPatchVersion(mcOutput);
 	}
 
-	private void patchJars(Logger logger) throws IOException {
+	private void patchJars(Logger logger) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		logger.lifecycle(":patching jars");
 
@@ -619,7 +625,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		logger.lifecycle(":patched jars in " + stopwatch.stop());
 	}
 
-	private void patchJars(File clean, File output, Path patches) throws IOException {
+	protected void patchJars(File clean, File output, Path patches) throws Exception {
 		PrintStream previous = System.out;
 
 		try {
@@ -682,7 +688,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		}
 	}
 
-	private void walkFileSystems(File source, File target, Predicate<Path> filter, FsPathConsumer action) throws IOException {
+	protected void walkFileSystems(File source, File target, Predicate<Path> filter, FsPathConsumer action) throws IOException {
 		walkFileSystems(source, target, filter, FileSystem::getRootDirectories, action);
 	}
 
@@ -690,7 +696,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		walkFileSystems(source, target, it -> true, this::copyReplacing);
 	}
 
-	private void copyMissingClasses(File source, File target) throws IOException {
+	protected void copyMissingClasses(File source, File target) throws IOException {
 		walkFileSystems(source, target, it -> it.toString().endsWith(".class"), (sourceFs, targetFs, sourcePath, targetPath) -> {
 			if (Files.exists(targetPath)) return;
 			Path parent = targetPath.getParent();
@@ -703,7 +709,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		});
 	}
 
-	private void copyNonClassFiles(File source, File target) throws IOException {
+	protected void copyNonClassFiles(File source, File target) throws IOException {
 		Predicate<Path> filter = getExtension().isForgeAndOfficial() ? file -> {
 			String s = file.toString();
 			return !s.endsWith(".class");
@@ -715,7 +721,7 @@ public class MinecraftPatchedProvider extends DependencyProvider {
 		walkFileSystems(source, target, filter, this::copyReplacing);
 	}
 
-	private void copyReplacing(FileSystem sourceFs, FileSystem targetFs, Path sourcePath, Path targetPath) throws IOException {
+	protected void copyReplacing(FileSystem sourceFs, FileSystem targetFs, Path sourcePath, Path targetPath) throws IOException {
 		Path parent = targetPath.getParent();
 
 		if (parent != null) {

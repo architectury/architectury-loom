@@ -52,6 +52,7 @@ import com.google.gson.JsonObject;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.logging.Logger;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 
@@ -66,15 +67,18 @@ import net.fabricmc.loom.configuration.processors.MinecraftProcessedProvider;
 import net.fabricmc.loom.configuration.providers.MinecraftProviderImpl;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
+import net.fabricmc.loom.configuration.providers.forge.fg2.MinecraftLegacyPatchedProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMappedProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.DownloadUtil;
+import net.fabricmc.loom.util.LoggerFilter;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.srg.MCPReader;
 import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.MappingNsCompleter;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
@@ -83,6 +87,7 @@ import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
+import net.fabricmc.stitch.commands.CommandGenerateIntermediary;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
 import net.fabricmc.stitch.commands.tinyv2.TinyFile;
 import net.fabricmc.stitch.commands.tinyv2.TinyV2Writer;
@@ -147,7 +152,12 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 		}
 
 		if (getExtension().isForge()) {
-			patchedProvider = new MinecraftPatchedProvider(getProject());
+			if (getExtension().isModernForge()) {
+				patchedProvider = new MinecraftPatchedProvider(getProject());
+			} else {
+				patchedProvider = new MinecraftLegacyPatchedProvider(getProject());
+			}
+
 			patchedProvider.provide(dependency, postPopulationScheduler);
 		}
 
@@ -157,7 +167,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 		if (getExtension().shouldGenerateSrgTiny()) {
 			if (Files.notExists(tinyMappingsWithSrg) || isRefreshDeps()) {
 				// Merge tiny mappings with srg
-				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), tinyMappings, tinyMappingsWithSrg, true);
+				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), tinyMappings, tinyMappingsWithSrg, true, getExtension().isLegacyForge());
 			}
 
 			mappingTreeWithSrg = readMappings(tinyMappingsWithSrg);
@@ -192,7 +202,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 			}
 
 			if (Files.notExists(srgToNamedSrg) || isRefreshDeps()) {
-				SrgNamedWriter.writeTo(getProject().getLogger(), srgToNamedSrg, getMappingsWithSrg(), "srg", "named");
+				SrgNamedWriter.writeTo(srgToNamedSrg, getMappingsWithSrg(), "srg", "named", getExtension().isLegacyForge());
 			}
 		}
 
@@ -340,6 +350,7 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 			getProject().getDependencies().add(provider.getTargetConfig(), "de.oceanlabs.mcp:mcp_config:" + getMinecraftProvider().minecraftVersion());
 			Configuration configuration = getProject().getConfigurations().getByName(provider.getTargetConfig());
 			provider.provide(DependencyInfo.create(getProject(), configuration.getDependencies().iterator().next(), configuration), postPopulationScheduler);
+			getExtension().getDependencyManager().addProvider(provider);
 		}
 
 		Path srgPath = getRawSrgFile();
@@ -577,15 +588,51 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 				hasRefreshed = true;
 
 				// Download and extract intermediary
-				String encodedMinecraftVersion = UrlEscapers.urlFragmentEscaper().escape(getMinecraftProvider().minecraftVersion());
-				String intermediaryArtifactUrl = getExtension().getIntermediaryUrl(encodedMinecraftVersion);
-				File intermediaryJar = getMinecraftProvider().file("intermediary-v2.jar");
-				DownloadUtil.downloadIfChanged(new URL(intermediaryArtifactUrl), intermediaryJar, getProject().getLogger());
-				extractMappings(intermediaryJar.toPath(), intermediaryTiny);
+				if (!getExtension().isLegacyForge()) {
+					String encodedMinecraftVersion = UrlEscapers.urlFragmentEscaper().escape(getMinecraftProvider().minecraftVersion());
+					String intermediaryArtifactUrl = getExtension().getIntermediaryUrl(encodedMinecraftVersion);
+					File intermediaryJar = getMinecraftProvider().file("intermediary-v2.jar");
+					DownloadUtil.downloadIfChanged(new URL(intermediaryArtifactUrl), intermediaryJar, getProject().getLogger());
+					extractMappings(intermediaryJar.toPath(), intermediaryTiny);
+				} else {
+					generateDummyIntermediary(getProject().getLogger(), intermediaryTiny);
+				}
 			}
 		}
 
 		return intermediaryTiny;
+	}
+
+	private void generateDummyIntermediary(Logger logger, Path tinyV2) throws IOException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		logger.lifecycle(":generating dummy intermediary");
+
+		Path minecraftJar = getExtension().getMinecraftProvider().getMergedJar().toPath();
+
+		// create a temporary folder into which stitch will output the v1 file
+		// we cannot just create a temporary file directly, cause stitch will try to read it if it exists
+		Path tmpFolder = Files.createTempDirectory("dummy-intermediary");
+		Path tinyV1 = tmpFolder.resolve("intermediary-v1.tiny");
+
+		CommandGenerateIntermediary command = new CommandGenerateIntermediary();
+		LoggerFilter.withSystemOutAndErrSuppressed(() -> {
+			try {
+				command.run(new String[]{ minecraftJar.toAbsolutePath().toString(), tinyV1.toAbsolutePath().toString() });
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException("Failed to generate intermediary", e);
+			}
+		});
+
+		try (MappingWriter writer = MappingWriter.create(tinyV2, MappingFormat.TINY_2)) {
+			MappingReader.read(tinyV1, writer);
+		}
+
+		Files.delete(tinyV1);
+		Files.delete(tmpFolder);
+
+		logger.lifecycle(":generated dummy intermediary in " + stopwatch.stop());
 	}
 
 	@Override

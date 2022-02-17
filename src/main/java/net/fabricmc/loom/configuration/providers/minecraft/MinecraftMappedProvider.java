@@ -266,7 +266,17 @@ public class MinecraftMappedProvider extends DependencyProvider {
 	}
 
 	public void remap(TinyRemapper remapper, Mutable<MemoryMappingTree> mappings, List<TinyRemapper.ApplyVisitorProvider> postApply, Info vanilla, @Nullable Info forge, String fromM) throws IOException {
-		Set<String> classNames = getExtension().isForge() ? InnerClassRemapper.readClassNames(vanilla.input) : null;
+		Set<String> classNames;
+
+		if (getExtension().isForge()) {
+			classNames = InnerClassRemapper.readClassNames(vanilla.input);
+
+			if (forge != null) {
+				classNames.addAll(InnerClassRemapper.readClassNames(forge.input));
+			}
+		} else {
+			classNames = null;
+		}
 
 		for (String toM : getExtension().isForge() ? Arrays.asList(MappingsNamespace.INTERMEDIARY.toString(), MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()) : Arrays.asList(MappingsNamespace.INTERMEDIARY.toString(), MappingsNamespace.NAMED.toString())) {
 			Path output = MappingsNamespace.NAMED.toString().equals(toM) ? vanilla.outputMapped : MappingsNamespace.SRG.toString().equals(toM) ? vanilla.outputSrg : vanilla.outputIntermediary;

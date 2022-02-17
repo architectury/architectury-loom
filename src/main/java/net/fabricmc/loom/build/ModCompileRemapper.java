@@ -181,7 +181,7 @@ public class ModCompileRemapper {
 			}
 
 			if (forge) {
-				if (zipFile.getEntry("META-INF/mods.toml") != null) {
+				if (zipFile.getEntry("META-INF/mods.toml") != null || zipFile.getEntry("mcmod.info") != null) {
 					logger.info("Found Forge mod in " + config + ": {}", id);
 					return true;
 				}

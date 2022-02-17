@@ -33,6 +33,8 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.jetbrains.annotations.ApiStatus;
 
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
+
 /**
  * This is the forge extension api available exposed to build scripts.
  */
@@ -148,4 +150,6 @@ public interface ForgeExtensionAPI {
 	 * @see ForgeLocalMod
 	 */
 	NamedDomainObjectContainer<ForgeLocalMod> getLocalMods();
+
+	Property<Pack200Provider> getPack200Provider();
 }

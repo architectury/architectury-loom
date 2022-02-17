@@ -126,6 +126,7 @@ dependencies {
 	}
 	testImplementation 'io.javalin:javalin:3.13.11'
 	testImplementation 'net.fabricmc:fabric-installer:0.9.0'
+	runtimeOnly 'dev.architectury.architectury-pack200:dev.architectury.architectury-pack200.gradle.plugin:0.1.3'
 
 	compileOnly 'org.jetbrains:annotations:22.0.0'
 }

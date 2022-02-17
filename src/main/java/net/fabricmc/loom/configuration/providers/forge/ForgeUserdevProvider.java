@@ -50,6 +50,7 @@ import com.google.gson.JsonObject;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository;
 import org.gradle.api.artifacts.transform.InputArtifact;
 import org.gradle.api.artifacts.transform.TransformAction;
 import org.gradle.api.artifacts.transform.TransformOutputs;
@@ -72,6 +73,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
 	private JsonObject json;
 	private Consumer<Runnable> postPopulationScheduler;
+	private boolean isLegacyForge;
 
 	public ForgeUserdevProvider(Project project) {
 		super(project);
@@ -99,7 +101,14 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			Files.copy(resolved.toPath(), userdevJar.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
 			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + resolved.toURI()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config.json"), configJson, StandardCopyOption.REPLACE_EXISTING);
+				Path configEntry = fs.getPath("config.json");
+
+				// If we cannot find a modern config json, try the legacy/FG2-era one
+				if (Files.notExists(configEntry)) {
+					configEntry = fs.getPath("dev.json");
+				}
+
+				Files.copy(configEntry, configJson, StandardCopyOption.REPLACE_EXISTING);
 			}
 		}
 
@@ -107,11 +116,31 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			json = new Gson().fromJson(reader, JsonObject.class);
 		}
 
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);
-		addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
+		isLegacyForge = !json.has("mcp");
+
+		if (!isLegacyForge) {
+			addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
+			addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);
+			addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
+		} else {
+			Map<String, String> mcpDep = Map.of(
+					"group", "de.oceanlabs.mcp",
+					"name", "mcp",
+					"version", json.get("inheritsFrom").getAsString(),
+					"classifier", "srg",
+					"ext", "zip"
+			);
+			addDependency(mcpDep, Constants.Configurations.MCP_CONFIG);
+			addDependency(mcpDep, Constants.Configurations.SRG);
+			addDependency(dependency.getDepString() + ":universal", Constants.Configurations.FORGE_UNIVERSAL);
+			addLegacyMCPRepo();
+		}
 
 		for (JsonElement lib : json.get("libraries").getAsJsonArray()) {
+			if (isLegacyForge) {
+				lib = lib.getAsJsonObject().get("name");
+			}
+
 			Dependency dep = null;
 
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
@@ -128,7 +157,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 				dep = addDependency(lib.getAsString(), Constants.Configurations.FORGE_DEPENDENCIES);
 			}
 
-			if (lib.getAsString().split(":").length < 4) {
+			if (!isLegacyForge && lib.getAsString().split(":").length < 4) {
 				((ModuleDependency) dep).attributes(attributes -> {
 					attributes.attribute(transformed, true);
 				});
@@ -137,7 +166,16 @@ public class ForgeUserdevProvider extends DependencyProvider {
 
 		// TODO: Should I copy the patches from here as well?
 		//       That'd require me to run the "MCP environment" fully up to merging.
-		for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("runs").entrySet()) {
+
+		if (!isLegacyForge) {
+			configureRuns(json.getAsJsonObject("runs"));
+		} else {
+			configureRunsForLegacyForge();
+		}
+	}
+
+	private void configureRuns(JsonObject runs) {
+		for (Map.Entry<String, JsonElement> entry : runs.entrySet()) {
 			LaunchProviderSettings launchSettings = getExtension().getLaunchConfigs().findByName(entry.getKey());
 			RunConfigSettings settings = getExtension().getRunConfigs().findByName(entry.getKey());
 			JsonObject value = entry.getValue().getAsJsonObject();
@@ -182,6 +220,35 @@ public class ForgeUserdevProvider extends DependencyProvider {
 				});
 			}
 		}
+	}
+
+	private void configureRunsForLegacyForge() {
+		getExtension().getRunConfigs().configureEach(config -> {
+			if (Constants.Forge.LAUNCH_TESTING.equals(config.getDefaultMainClass())) {
+				config.setDefaultMainClass(Constants.LegacyForge.LAUNCH_WRAPPER);
+			}
+		});
+	}
+
+	private void addLegacyMCPRepo() {
+		getProject().getRepositories().ivy(repo -> {
+			// Old MCP data does not have POMs
+			repo.setName("LegacyMCP");
+			repo.setUrl("https://maven.minecraftforge.net/");
+			repo.patternLayout(layout -> {
+				layout.artifact("[orgPath]/[artifact]/[revision]/[artifact]-[revision](-[classifier])(.[ext])");
+				// also check the zip so people do not have to explicitly specify the extension for older versions
+				layout.artifact("[orgPath]/[artifact]/[revision]/[artifact]-[revision](-[classifier]).zip");
+			});
+			repo.content(descriptor -> {
+				descriptor.includeGroup("de.oceanlabs.mcp");
+			});
+			repo.metadataSources(IvyArtifactRepository.MetadataSources::artifact);
+		});
+	}
+
+	public boolean isLegacyForge() {
+		return isLegacyForge;
 	}
 
 	public abstract static class RemoveNameProvider implements TransformAction<TransformParameters.None> {

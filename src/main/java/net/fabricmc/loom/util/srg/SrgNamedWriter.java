@@ -25,23 +25,49 @@
 package net.fabricmc.loom.util.srg;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.lorenz.io.srg.SrgWriter;
-import org.gradle.api.logging.Logger;
 
 import net.fabricmc.lorenztiny.TinyMappingsReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 
 public class SrgNamedWriter {
-	public static void writeTo(Logger logger, Path srgFile, MappingTree mappings, String from, String to) throws IOException {
+	public static void writeTo(Path srgFile, MappingTree mappings, String from, String to, boolean includeIdentityMappings) throws IOException {
 		Files.deleteIfExists(srgFile);
 
-		try (SrgWriter writer = new SrgWriter(Files.newBufferedWriter(srgFile))) {
+		try (SrgWriter writer = newSrgWriter(Files.newBufferedWriter(srgFile), includeIdentityMappings)) {
 			try (TinyMappingsReader reader = new TinyMappingsReader(mappings, from, to)) {
 				writer.write(reader.read());
 			}
+		}
+	}
+
+	private static SrgWriter newSrgWriter(Writer writer, boolean includeIdentityMappings) {
+		return includeIdentityMappings ? new SrgWithIdentitiesWriter(writer) : new SrgWriter(writer);
+	}
+
+	/**
+	 * Legacy Forge's FMLDeobfuscatingRemapper requires class mappings, even if they are identity maps, but such
+	 * mappings are filtered out by the SrgWriter. To get around that, this SrgWriter manually emits identity mappings
+	 * before emitting all regular mappings.
+	 */
+	private static class SrgWithIdentitiesWriter extends SrgWriter {
+		private SrgWithIdentitiesWriter(Writer writer) {
+			super(writer);
+		}
+
+		@Override
+		public void write(MappingSet mappings) {
+			mappings.getTopLevelClassMappings().stream()
+					.filter(cls -> !cls.hasDeobfuscatedName())
+					.sorted(getConfig().getClassMappingComparator())
+					.forEach(cls -> writer.format("CL: %s %s%n", cls.getFullObfuscatedName(), cls.getFullDeobfuscatedName()));
+
+			super.write(mappings);
 		}
 	}
 }

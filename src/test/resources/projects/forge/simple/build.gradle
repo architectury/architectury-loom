@@ -57,6 +57,13 @@ jar {
 	}
 }
 
+loom {
+	forge {
+		// FIXME should eventually be handled by architectury-pack200 gradle plugin?
+		pack200Provider = new dev.architectury.pack200.java.Pack200Adapter()
+	}
+}
+
 // configure the maven publication
 publishing {
 	publications {

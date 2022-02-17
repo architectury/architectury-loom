@@ -29,8 +29,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
@@ -47,6 +49,8 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.NullOutputStream;
+import org.cadixdev.lorenz.io.srg.SrgReader;
+import org.cadixdev.lorenz.io.srg.tsrg.TSrgWriter;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 
@@ -87,7 +91,16 @@ public class SrgProvider extends DependencyProvider {
 			Path srgZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve srg")).toPath();
 
 			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + srgZip.toUri()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config", "joined.tsrg"), srg, StandardCopyOption.REPLACE_EXISTING);
+				Path srgPath = fs.getPath("joined.srg");
+
+				if (Files.exists(srgPath)) {
+					// FG2-era MCP uses the older SRG format, convert it on the fly
+					try (Reader reader = Files.newBufferedReader(srgPath); Writer writer = Files.newBufferedWriter(srg)) {
+						new TSrgWriter(writer).write(new SrgReader(reader).read());
+					}
+				} else {
+					Files.copy(fs.getPath("config", "joined.tsrg"), srg, StandardCopyOption.REPLACE_EXISTING);
+				}
 			}
 		}
 

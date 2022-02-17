@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +66,7 @@ public class LaunchProvider extends DependencyProvider {
 				.property("client", "java.library.path", getExtension().getMinecraftProvider().nativesDir().getAbsolutePath())
 				.property("client", "org.lwjgl.librarypath", getExtension().getMinecraftProvider().nativesDir().getAbsolutePath());
 
-		if (!getExtension().isForge()) {
+		if (!getExtension().isModernForge()) {
 			launchConfig
 					.argument("client", "--assetIndex")
 					.argument("client", getExtension().getMinecraftProvider().getVersionInfo().assetIndex().fabricId(getExtension().getMinecraftProvider().minecraftVersion()))
@@ -74,7 +74,7 @@ public class LaunchProvider extends DependencyProvider {
 					.argument("client", new File(getDirectories().getUserCache(), "assets").getAbsolutePath());
 		}
 
-		if (getExtension().isForge()) {
+		if (getExtension().isModernForge()) {
 			launchConfig
 					// Should match YarnNamingService.PATH_TO_MAPPINGS in forge-runtime
 					.property("fabric.yarnWithSrg.path", getExtension().getMappingsProvider().tinyMappingsWithSrg.toAbsolutePath().toString())
@@ -103,11 +103,29 @@ public class LaunchProvider extends DependencyProvider {
 			}
 		}
 
+		if (getExtension().isLegacyForge()) {
+			launchConfig
+					.argument("client", "--tweakClass")
+					.argument("client", Constants.LegacyForge.FML_TWEAKER)
+					.argument("server", "--tweakClass")
+					.argument("server", Constants.LegacyForge.FML_SERVER_TWEAKER)
+
+					.argument("--accessToken")
+					.argument("undefined")
+
+					.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString())
+					.property("mixin.env.remapRefMap", "true");
+
+			for (String config : PropertyUtil.getAndFinalize(getExtension().getForge().getMixinConfigs())) {
+				launchConfig.argument("--mixin").argument(config);
+			}
+		}
+
 		addDependency(Constants.Dependencies.DEV_LAUNCH_INJECTOR + Constants.Dependencies.Versions.DEV_LAUNCH_INJECTOR, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
 		addDependency(Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
 		addDependency(Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
 
-		if (getExtension().isForge()) {
+		if (getExtension().isModernForge()) {
 			addDependency(Constants.Dependencies.FORGE_RUNTIME + Constants.Dependencies.Versions.FORGE_RUNTIME, Constants.Configurations.FORGE_EXTRA);
 			addDependency(Constants.Dependencies.JAVAX_ANNOTATIONS + Constants.Dependencies.Versions.JAVAX_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
 		}
@@ -197,7 +215,7 @@ public class LaunchProvider extends DependencyProvider {
 	}
 
 	public static class LaunchConfig {
-		private final Map<String, List<String>> values = new HashMap<>();
+		private final Map<String, List<String>> values = new LinkedHashMap<>();
 
 		public LaunchConfig property(String key, String value) {
 			return property("common", key, value);

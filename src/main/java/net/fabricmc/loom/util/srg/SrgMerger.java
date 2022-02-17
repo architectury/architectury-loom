@@ -72,15 +72,17 @@ public final class SrgMerger {
 	private final FlatMappingVisitor flatOutput;
 	private final List<Runnable> postProcesses = new ArrayList<>();
 	private final boolean lenient;
+	private final boolean legacy;
 	private final Set<String> methodSrgNames = new HashSet<>();
 
-	public SrgMerger(Logger logger, Path srg, @Nullable Supplier<Path> mojmap, Path tiny, boolean lenient) throws IOException {
+	public SrgMerger(Logger logger, Path srg, @Nullable Supplier<Path> mojmap, Path tiny, boolean lenient, boolean legacy) throws IOException {
 		this.logger = logger;
 		this.srg = readSrg(srg, mojmap);
 		this.src = new MemoryMappingTree();
 		this.output = new MemoryMappingTree();
 		this.flatOutput = new RegularAsFlatMappingVisitor(output);
 		this.lenient = lenient;
+		this.legacy = legacy;
 
 		MappingReader.read(tiny, this.src);
 
@@ -115,14 +117,15 @@ public final class SrgMerger {
 	 * @param tiny    the tiny file
 	 * @param out     the output file, will be in tiny v2
 	 * @param lenient whether to ignore missing tiny mapping
+	 * @param legacy  treat any method as mapped, even when it is lacking the 'func_' prefix
 	 * @throws IOException      if an IO error occurs while reading or writing the mappings
 	 * @throws MappingException if the input tiny tree's default namespace is not 'official'
 	 *                          or if an element mentioned in the SRG file does not have tiny mappings
 	 */
-	public static void mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, Path out, boolean lenient)
+	public static void mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, Path out, boolean lenient, boolean legacy)
 			throws IOException, MappingException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		MemoryMappingTree tree = mergeSrg(logger, mojmap, srg, tiny, lenient);
+		MemoryMappingTree tree = mergeSrg(logger, mojmap, srg, tiny, lenient, legacy);
 
 		try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(out), false)) {
 			tree.accept(writer);
@@ -140,14 +143,15 @@ public final class SrgMerger {
 	 * @param mojmap  the path to the mojmap file used for generating mojmap+srg names, may be null
 	 * @param tiny    the tiny file
 	 * @param lenient whether to ignore missing tiny mapping
+	 * @param legacy  treat any method as mapped, even when it is lacking the 'func_' prefix
 	 * @return the created mapping tree
 	 * @throws IOException      if an IO error occurs while reading or writing the mappings
 	 * @throws MappingException if the input tiny tree's default namespace is not 'official'
 	 *                          or if an element mentioned in the SRG file does not have tiny mappings
 	 */
-	public static MemoryMappingTree mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, boolean lenient)
+	public static MemoryMappingTree mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, boolean lenient, boolean legacy)
 			throws IOException, MappingException {
-		return new SrgMerger(logger, srg, mojmap, tiny, lenient).merge();
+		return new SrgMerger(logger, srg, mojmap, tiny, lenient, legacy).merge();
 	}
 
 	private MemoryMappingTree readSrg(Path srg, @Nullable Supplier<Path> mojmap) throws IOException {
@@ -256,7 +260,7 @@ public final class SrgMerger {
 
 			methodToTiny(obf, method, methodSrgName, def);
 
-			if (methodSrgName.startsWith("func_") || methodSrgName.startsWith("m_")) {
+			if (methodSrgName.startsWith("func_") || methodSrgName.startsWith("m_") || legacy) {
 				methodSrgNames.add(methodSrgName);
 			}
 		}

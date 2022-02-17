@@ -198,9 +198,9 @@ public final class CompileConfiguration {
 			}
 
 			if (extension.isForge()) {
+				dependencyManager.addProvider(new ForgeUniversalProvider(project));
 				dependencyManager.addProvider(new McpConfigProvider(project));
 				dependencyManager.addProvider(new PatchProvider(project));
-				dependencyManager.addProvider(new ForgeUniversalProvider(project));
 			}
 
 			dependencyManager.addProvider(extension.isForge() ? new FieldMigratedMappingsProvider(project) : new MappingsProviderImpl(project));
