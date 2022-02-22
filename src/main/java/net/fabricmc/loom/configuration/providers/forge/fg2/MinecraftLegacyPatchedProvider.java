@@ -223,8 +223,8 @@ public class MinecraftLegacyPatchedProvider extends MinecraftPatchedProvider {
 		}
 
 		// The JarMerger adds Sided annotations but so do the Forge patches. The latter doesn't require extra
-		// dependencies beyond Forge, so we'll keep those and remove the Fabric ones.
-		modifyClasses(minecraftMergedPatchedJar, FabricSideStripper::new);
+		// dependencies beyond Forge, so we'll keep those and convert any non-redundant Fabric ones.
+		modifyClasses(minecraftMergedPatchedJar, SideAnnotationMerger::new);
 
 		logger.info(":merged jars in " + stopwatch);
 	}
@@ -334,17 +334,30 @@ public class MinecraftLegacyPatchedProvider extends MinecraftPatchedProvider {
 		}
 	}
 
-	private static class FabricSideStripper extends ClassVisitor {
-		private static final String SIDED_DESCRIPTOR = "Lnet/fabricmc/api/Environment;";
+	private static class SideAnnotationMerger extends ClassVisitor {
+		private static final String FABRIC_ANNOTATION_DESCRIPTOR = "Lnet/fabricmc/api/Environment;";
+		private static final String FORGE_ANNOTATION_DESCRIPTOR = "Lnet/minecraftforge/fml/relauncher/SideOnly;";
+		private static final String FORGE_SIDE_DESCRIPTOR = "Lnet/minecraftforge/fml/relauncher/Side;";
 
-		private FabricSideStripper(ClassVisitor classVisitor) {
+		private static boolean isSideAnnotation(String descriptor) {
+			return FABRIC_ANNOTATION_DESCRIPTOR.equals(descriptor) || FORGE_ANNOTATION_DESCRIPTOR.equals(descriptor);
+		}
+
+		private boolean visitedAnnotation;
+
+		private SideAnnotationMerger(ClassVisitor classVisitor) {
 			super(Opcodes.ASM9, classVisitor);
 		}
 
 		@Override
 		public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-			if (descriptor.equals(SIDED_DESCRIPTOR)) {
-				return null;
+			if (isSideAnnotation(descriptor)) {
+				if (visitedAnnotation) {
+					return null;
+				}
+
+				visitedAnnotation = true;
+				return new FabricToForgeConverter(super.visitAnnotation(FORGE_ANNOTATION_DESCRIPTOR, true));
 			}
 
 			return super.visitAnnotation(descriptor, visible);
@@ -352,41 +365,66 @@ public class MinecraftLegacyPatchedProvider extends MinecraftPatchedProvider {
 
 		@Override
 		public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-			return new FieldStripper(super.visitField(access, name, descriptor, signature, value));
+			return new FieldSideAnnotationMerger(super.visitField(access, name, descriptor, signature, value));
 		}
 
 		@Override
 		public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-			return new MethodStripper(super.visitMethod(access, name, descriptor, signature, exceptions));
+			return new MethodSideAnnotationMerger(super.visitMethod(access, name, descriptor, signature, exceptions));
 		}
 
-		private static class FieldStripper extends FieldVisitor {
-			private FieldStripper(FieldVisitor fieldVisitor) {
+		private static class FieldSideAnnotationMerger extends FieldVisitor {
+			private boolean visitedAnnotation;
+
+			private FieldSideAnnotationMerger(FieldVisitor fieldVisitor) {
 				super(Opcodes.ASM9, fieldVisitor);
 			}
 
 			@Override
 			public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-				if (descriptor.equals(SIDED_DESCRIPTOR)) {
-					return null;
+				if (isSideAnnotation(descriptor)) {
+					if (visitedAnnotation) {
+						return null;
+					}
+
+					visitedAnnotation = true;
+					return new FabricToForgeConverter(super.visitAnnotation(FORGE_ANNOTATION_DESCRIPTOR, true));
 				}
 
 				return super.visitAnnotation(descriptor, visible);
 			}
 		}
 
-		private static class MethodStripper extends MethodVisitor {
-			private MethodStripper(MethodVisitor methodVisitor) {
+		private static class MethodSideAnnotationMerger extends MethodVisitor {
+			private boolean visitedAnnotation;
+
+			private MethodSideAnnotationMerger(MethodVisitor methodVisitor) {
 				super(Opcodes.ASM9, methodVisitor);
 			}
 
 			@Override
 			public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-				if (descriptor.equals(SIDED_DESCRIPTOR)) {
-					return null;
+				if (isSideAnnotation(descriptor)) {
+					if (visitedAnnotation) {
+						return null;
+					}
+
+					visitedAnnotation = true;
+					return new FabricToForgeConverter(super.visitAnnotation(FORGE_ANNOTATION_DESCRIPTOR, true));
 				}
 
 				return super.visitAnnotation(descriptor, visible);
+			}
+		}
+
+		private static class FabricToForgeConverter extends AnnotationVisitor {
+			private FabricToForgeConverter(AnnotationVisitor annotationVisitor) {
+				super(Opcodes.ASM9, annotationVisitor);
+			}
+
+			@Override
+			public void visitEnum(String name, String descriptor, String value) {
+				super.visitEnum(name, FORGE_SIDE_DESCRIPTOR, value);
 			}
 		}
 	}
