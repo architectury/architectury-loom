@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,13 +100,72 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			Files.copy(resolved.toPath(), userdevJar.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
 			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + resolved.toURI()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config.json"), configJson, StandardCopyOption.REPLACE_EXISTING);
+				if (Files.exists(fs.getPath("config.json"))) {
+					//fg3+
+					Files.copy(fs.getPath("config.json"), configJson, StandardCopyOption.REPLACE_EXISTING);
+				} else {
+					//fg2
+					Files.copy(fs.getPath("dev.json"), configJson, StandardCopyOption.REPLACE_EXISTING);
+				}
 			}
 		}
 
 		try (Reader reader = Files.newBufferedReader(configJson)) {
 			json = new Gson().fromJson(reader, JsonObject.class);
 		}
+
+		boolean fg2 = !json.has("mcp");
+		getExtension().getForgeProvider().setFg2(fg2);
+
+		if (fg2) {
+			getProject().getLogger().info("FG2 Userdev, using default mcp_config/universal...");
+
+			String defaultMCPPath = "de.oceanlabs.mcp:mcp:" + getExtension().getMinecraftProvider().minecraftVersion() + ":srg@zip";
+			String defaultUniversalPath = "net.minecraftforge:forge:" + dependency.getResolvedVersion() + ":universal";
+
+			getProject().getLogger().info("Using default MCP path: " + defaultMCPPath);
+			getProject().getLogger().info("Using default Universal path: " + defaultUniversalPath);
+
+			addDependency(defaultMCPPath, Constants.Configurations.MCP_CONFIG);
+			addDependency(defaultMCPPath, Constants.Configurations.SRG);
+			addDependency(defaultUniversalPath, Constants.Configurations.FORGE_UNIVERSAL);
+
+			for (JsonElement lib : json.getAsJsonArray("libraries")) {
+				JsonObject libObj = lib.getAsJsonObject();
+
+				Dependency dep = addDependency(libObj.get("name").getAsString(), Constants.Configurations.FORGE_DEPENDENCIES);
+
+				if (libObj.get("name").getAsString().split(":").length < 4) {
+					((ModuleDependency) dep).attributes(attributes -> {
+						attributes.attribute(transformed, true);
+					});
+				}
+			}
+
+			for (String name : new String[] {"client", "server"}) {
+				LaunchProviderSettings launchSettings = getExtension().getLaunchConfigs().findByName(name);
+				RunConfigSettings settings = getExtension().getRunConfigs().findByName(name);
+
+				if (launchSettings != null) {
+					launchSettings.evaluateLater(() -> {
+						launchSettings.arg(Arrays.stream(json.get("minecraftArguments").getAsString().split(" ")).map(this::processTemplates).collect(Collectors.toList()));
+
+						// add missing args
+						launchSettings.arg("--accessToken", "FML");
+					});
+				}
+
+				if (settings != null) {
+					settings.evaluateLater(() -> {
+						settings.defaultMainClass("net.minecraft.launchwrapper.Launch");
+					});
+				}
+			}
+
+			return;
+		}
+
+		getProject().getLogger().info("FG3+ Userdev");
 
 		addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
 		addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);

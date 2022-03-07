@@ -191,6 +191,7 @@ public final class CompileConfiguration {
 			if (extension.isForge()) {
 				dependencyManager.addProvider(new ForgeProvider(project));
 				dependencyManager.addProvider(new ForgeUserdevProvider(project));
+				dependencyManager.addProvider(new ForgeUniversalProvider(project));
 			}
 
 			if (extension.shouldGenerateSrgTiny()) {
@@ -200,7 +201,6 @@ public final class CompileConfiguration {
 			if (extension.isForge()) {
 				dependencyManager.addProvider(new McpConfigProvider(project));
 				dependencyManager.addProvider(new PatchProvider(project));
-				dependencyManager.addProvider(new ForgeUniversalProvider(project));
 			}
 
 			dependencyManager.addProvider(extension.isForge() ? new FieldMigratedMappingsProvider(project) : new MappingsProviderImpl(project));

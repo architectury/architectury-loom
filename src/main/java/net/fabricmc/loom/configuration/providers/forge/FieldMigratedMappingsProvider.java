@@ -56,6 +56,7 @@ import org.objectweb.asm.Opcodes;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.configuration.providers.forge.fg3.MinecraftPatchedProviderFG3;
 import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
@@ -116,7 +117,7 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 		if (getExtension().shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || isRefreshDeps()) {
 				// Merge tiny mappings with srg
-				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), rawTinyMappings, rawTinyMappingsWithSrg, true);
+				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), rawTinyMappings, rawTinyMappingsWithSrg, true, extension.getSrgProvider().isLegacy());
 			}
 		}
 
@@ -203,20 +204,25 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 
 		Visitor visitor = new Visitor(Opcodes.ASM9);
 
-		for (MinecraftPatchedProvider.Environment environment : MinecraftPatchedProvider.Environment.values()) {
-			File patchedSrgJar = environment.patchedSrgJar.apply(extension.getMappingsProvider().patchedProvider);
-			FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
-			completer.onComplete(value -> system.close());
+		if (extension.getMappingsProvider().patchedProvider instanceof MinecraftPatchedProviderFG3 pp3) {
+			for (MinecraftPatchedProviderFG3.Environment environment : MinecraftPatchedProviderFG3.Environment.values()) {
+				File patchedSrgJar = environment.patchedSrgJar.apply(pp3);
+				FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
+				completer.onComplete(value -> system.close());
 
-			for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
-				if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
-					completer.add(() -> {
-						byte[] bytes = Files.readAllBytes(fsPath);
-						new ClassReader(bytes).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-					});
+				for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
+					if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
+						completer.add(() -> {
+							byte[] bytes = Files.readAllBytes(fsPath);
+							new ClassReader(bytes).accept(
+									visitor,
+									ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES
+							);
+						});
+					}
 				}
 			}
-		}
+		} //TODO: DOES FG2 NEED THIS????
 
 		completer.complete();
 		Map<FieldMember, String> migratedFields = new HashMap<>();

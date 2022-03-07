@@ -56,20 +56,13 @@ public class SpecialSourceExecutor {
 		return string;
 	}
 
-	public static Path produceSrgJar(RemapAction remapAction, Project project, String side, Set<File> mcLibs, Path officialJar, Path mappings)
-			throws Exception {
-		Set<String> filter = Files.readAllLines(mappings, StandardCharsets.UTF_8).stream()
-				.filter(s -> !s.startsWith("\t"))
-				.map(s -> s.split(" ")[0] + ".class")
-				.collect(Collectors.toSet());
-		LoomGradleExtension extension = LoomGradleExtension.get(project.getProject());
-		Path stripped = extension.getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-filtered.jar");
-		Files.deleteIfExists(stripped);
-
+	public static void stripJar(Project project, Path inJar, Path outJar, Set<String> filter) throws IOException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
-		try (FileSystemUtil.Delegate output = FileSystemUtil.getJarFileSystem(stripped, true)) {
-			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(officialJar, false)) {
+		int count = 0;
+
+		try (FileSystemUtil.Delegate output = FileSystemUtil.getJarFileSystem(outJar, true)) {
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(inJar, false)) {
 				ThreadingUtils.TaskCompleter completer = ThreadingUtils.taskCompleter();
 
 				for (Path path : (Iterable<? extends Path>) Files.walk(fs.get().getPath("/"))::iterator) {
@@ -91,17 +84,32 @@ public class SpecialSourceExecutor {
 					completer.add(() -> {
 						Files.copy(path, to, StandardCopyOption.COPY_ATTRIBUTES);
 					});
+					count++;
 				}
 
 				completer.complete();
 			}
 		} finally {
-			project.getLogger().info("Copied class files in " + stopwatch.stop());
+			project.getLogger().info("Copied " + count + " class files in " + stopwatch.stop());
 		}
+	}
+
+	public static Path produceSrgJar(RemapAction remapAction, Project project, String side, Set<File> mcLibs, Path officialJar, Path mappings)
+					throws Exception {
+		Set<String> filter = Files.readAllLines(mappings, StandardCharsets.UTF_8).stream()
+				.filter(s -> !s.startsWith("\t"))
+				.map(s -> s.split(" ")[0] + ".class")
+				.collect(Collectors.toSet());
+
+		LoomGradleExtension extension = LoomGradleExtension.get(project.getProject());
+		Path stripped = extension.getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-filtered.jar");
+		Files.deleteIfExists(stripped);
+
+		stripJar(project, officialJar, stripped, filter);
 
 		Path output = extension.getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-srg-output.jar");
 		Files.deleteIfExists(output);
-		stopwatch = Stopwatch.createStarted();
+		Stopwatch stopwatch = Stopwatch.createStarted();
 
 		List<String> args = remapAction.getArgs(stripped, output, mappings, project.files(mcLibs));
 

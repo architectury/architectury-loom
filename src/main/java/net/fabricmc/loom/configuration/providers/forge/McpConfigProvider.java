@@ -68,6 +68,18 @@ public class McpConfigProvider extends DependencyProvider {
 
 		Path mcpZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve MCPConfig")).toPath();
 
+		if (getExtension().getForgeProvider().isFG2()) {
+			official = false;
+			mappingsPath = ZipUtils.contains(mcpZip, "joined.srg") ? "joined.srg" : "config/joined.tsrg";
+			remapAction = null;
+
+			if (!Files.exists(mcp) || isRefreshDeps()) {
+				Files.copy(mcpZip, mcp, StandardCopyOption.REPLACE_EXISTING);
+			}
+
+			return;
+		}
+
 		if (!Files.exists(mcp) || !Files.exists(configJson) || isRefreshDeps()) {
 			Files.copy(mcpZip, mcp, StandardCopyOption.REPLACE_EXISTING);
 			Files.write(configJson, ZipUtils.unpack(mcp, "config.json"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);

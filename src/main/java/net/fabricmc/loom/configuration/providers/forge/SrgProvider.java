@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -69,6 +70,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree;
 public class SrgProvider extends DependencyProvider {
 	private Path srg;
 	private Boolean isTsrgV2;
+	private boolean isLegacy;
 	private Path mergedMojangRaw;
 	private Path mergedMojang;
 	private Path mergedMojangTrimmed;
@@ -87,12 +89,18 @@ public class SrgProvider extends DependencyProvider {
 			Path srgZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve srg")).toPath();
 
 			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + srgZip.toUri()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config", "joined.tsrg"), srg, StandardCopyOption.REPLACE_EXISTING);
+				try {
+					Files.copy(fs.getPath("config", "joined.tsrg"), srg, StandardCopyOption.REPLACE_EXISTING);
+				} catch (NoSuchFileException e) {
+					Files.copy(fs.getPath("joined.srg"), srg, StandardCopyOption.REPLACE_EXISTING);
+				}
 			}
 		}
 
 		try (BufferedReader reader = Files.newBufferedReader(srg)) {
-			isTsrgV2 = reader.readLine().startsWith("tsrg2");
+			String line = reader.readLine();
+			isTsrgV2 = line.startsWith("tsrg2");
+			isLegacy = line.startsWith("PK:") || line.startsWith("CL:");
 		}
 
 		if (isTsrgV2) {
@@ -215,6 +223,10 @@ public class SrgProvider extends DependencyProvider {
 
 	public boolean isTsrgV2() {
 		return isTsrgV2;
+	}
+
+	public boolean isLegacy() {
+		return isLegacy;
 	}
 
 	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {

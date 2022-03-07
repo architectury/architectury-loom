@@ -52,6 +52,7 @@ import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.mappingio.FlatMappingVisitor;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.adapter.RegularAsFlatMappingVisitor;
+import net.fabricmc.mappingio.format.SrgReader;
 import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.format.TsrgReader;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -74,8 +75,11 @@ public final class SrgMerger {
 	private final boolean lenient;
 	private final Set<String> methodSrgNames = new HashSet<>();
 
-	public SrgMerger(Logger logger, Path srg, @Nullable Supplier<Path> mojmap, Path tiny, boolean lenient) throws IOException {
+	private final boolean isLegacySrg;
+
+	public SrgMerger(Logger logger, Path srg, @Nullable Supplier<Path> mojmap, Path tiny, boolean lenient, boolean isLegacySrg) throws IOException {
 		this.logger = logger;
+		this.isLegacySrg = isLegacySrg;
 		this.srg = readSrg(srg, mojmap);
 		this.src = new MemoryMappingTree();
 		this.output = new MemoryMappingTree();
@@ -119,10 +123,10 @@ public final class SrgMerger {
 	 * @throws MappingException if the input tiny tree's default namespace is not 'official'
 	 *                          or if an element mentioned in the SRG file does not have tiny mappings
 	 */
-	public static void mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, Path out, boolean lenient)
+	public static void mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, Path out, boolean lenient, boolean isLegacySrg)
 			throws IOException, MappingException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		MemoryMappingTree tree = mergeSrg(logger, mojmap, srg, tiny, lenient);
+		MemoryMappingTree tree = mergeSrg(logger, mojmap, srg, tiny, lenient, isLegacySrg);
 
 		try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(out), false)) {
 			tree.accept(writer);
@@ -145,9 +149,9 @@ public final class SrgMerger {
 	 * @throws MappingException if the input tiny tree's default namespace is not 'official'
 	 *                          or if an element mentioned in the SRG file does not have tiny mappings
 	 */
-	public static MemoryMappingTree mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, boolean lenient)
+	public static MemoryMappingTree mergeSrg(Logger logger, @Nullable Supplier<Path> mojmap, Path srg, Path tiny, boolean lenient, boolean isLegacySrg)
 			throws IOException, MappingException {
-		return new SrgMerger(logger, srg, mojmap, tiny, lenient).merge();
+		return new SrgMerger(logger, srg, mojmap, tiny, lenient, isLegacySrg).merge();
 	}
 
 	private MemoryMappingTree readSrg(Path srg, @Nullable Supplier<Path> mojmap) throws IOException {
@@ -159,7 +163,13 @@ public final class SrgMerger {
 			}
 
 			MemoryMappingTree tsrg = new MemoryMappingTree();
-			TsrgReader.read(new StringReader(content), tsrg);
+
+			if (isLegacySrg) {
+				SrgReader.read(new StringReader(content), tsrg);
+			} else {
+				TsrgReader.read(new StringReader(content), tsrg);
+			}
+
 			return tsrg;
 		}
 	}

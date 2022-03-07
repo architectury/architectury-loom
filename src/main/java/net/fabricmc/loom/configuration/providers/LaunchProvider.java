@@ -104,7 +104,11 @@ public class LaunchProvider extends DependencyProvider {
 		}
 
 		addDependency(Constants.Dependencies.DEV_LAUNCH_INJECTOR + Constants.Dependencies.Versions.DEV_LAUNCH_INJECTOR, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
-		addDependency(Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
+
+		if (!getExtension().isForge() || !getExtension().getForgeProvider().isFG2()) {
+			addDependency(Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER, Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
+		}
+
 		addDependency(Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
 
 		if (getExtension().isForge()) {

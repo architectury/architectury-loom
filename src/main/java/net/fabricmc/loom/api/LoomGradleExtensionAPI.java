@@ -270,4 +270,6 @@ public interface LoomGradleExtensionAPI {
 	ForgeExtensionAPI getForge();
 
 	void forge(Action<ForgeExtensionAPI> action);
+
+	Property<Boolean> getStubIntermediaries();
 }

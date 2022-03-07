@@ -37,6 +37,8 @@ public class ForgeProvider extends DependencyProvider {
 	private File globalCache;
 	private File projectCache;
 
+	private boolean fg2 = false;
+
 	public ForgeProvider(Project project) {
 		super(project);
 	}
@@ -73,6 +75,14 @@ public class ForgeProvider extends DependencyProvider {
 	@Override
 	public String getTargetConfig() {
 		return Constants.Configurations.FORGE;
+	}
+
+	public boolean isFG2() {
+		return fg2;
+	}
+
+	public void setFg2(boolean fg2) {
+		this.fg2 = fg2;
 	}
 
 	public static final class ForgeVersion {

@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -53,10 +54,26 @@ public class PatchProvider extends DependencyProvider {
 	public void provide(DependencyInfo dependency, Consumer<Runnable> postPopulationScheduler) throws Exception {
 		init(dependency.getDependency().getVersion());
 
+		if (getExtension().getForgeProvider().isFG2()) {
+			File forge = getExtension().getForgeUniversalProvider().getForge();
+
+			if (Files.notExists(clientPatches) || isRefreshDeps()) {
+				getProject().getLogger().info(":extracting forge patches");
+
+				try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + forge.toURI()), ImmutableMap.of("create", false))) {
+					Files.copy(fs.getPath("binpatches.pack.lzma"), clientPatches, StandardCopyOption.REPLACE_EXISTING);
+					Files.copy(fs.getPath("binpatches.pack.lzma"), serverPatches, StandardCopyOption.REPLACE_EXISTING);
+				}
+			}
+
+			return;
+		}
+
 		if (Files.notExists(clientPatches) || Files.notExists(serverPatches) || isRefreshDeps()) {
 			getProject().getLogger().info(":extracting forge patches");
 
-			Path installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath();
+			Path installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException(
+							"Could not resolve Forge installer")).toPath();
 
 			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + installerJar.toUri()), ImmutableMap.of("create", false))) {
 				Files.copy(fs.getPath("data", "client.lzma"), clientPatches, StandardCopyOption.REPLACE_EXISTING);
