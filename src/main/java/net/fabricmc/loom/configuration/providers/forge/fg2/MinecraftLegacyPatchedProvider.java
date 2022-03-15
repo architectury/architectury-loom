@@ -64,9 +64,11 @@ import net.fabricmc.loom.configuration.providers.MinecraftProviderImpl;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.PatchProvider;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ThreadingUtils;
 import net.fabricmc.loom.util.TinyRemapperHelper;
 import net.fabricmc.loom.util.ZipUtils;
+import net.fabricmc.loom.util.legacyforge.CoreModManagerTransformer;
 import net.fabricmc.loom.util.srg.AccessTransformSetMapper;
 import net.fabricmc.lorenztiny.TinyMappingsReader;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -185,6 +187,19 @@ public class MinecraftLegacyPatchedProvider extends MinecraftPatchedProvider {
 			Predicate<Path> isHelper = path -> path.startsWith("/org/apache/logging/log4j/core/helpers");
 			walkFileSystems(log4jBeta9.toFile(), forgeJar, isHelper, this::copyReplacing);
 		}
+
+		// While Forge will discover mods on the classpath, it won't do the same for ATs, coremods or tweakers.
+		// ForgeGradle "solves" this problem using a huge, gross hack (GradleForgeHacks and related classes), and only
+		// for ATs and coremods, not tweakers.
+		// No clue why FG went the hack route when it's the same project and they could have just added first-party
+		// support for loading both from the classpath right into Forge (it's even really simply to do).
+		// We'll have none of those hacks and instead patch first-party support into Forge.
+		ZipUtils.transform(forgeJar.toPath(), Stream.of(new Pair<>(CoreModManagerTransformer.FILE, original -> {
+			ClassReader reader = new ClassReader(original);
+			ClassWriter writer = new ClassWriter(reader, 0);
+			reader.accept(new CoreModManagerTransformer(writer), 0);
+			return writer.toByteArray();
+		})));
 
 		logger.lifecycle(":patched forge in " + stopwatch.stop());
 	}
