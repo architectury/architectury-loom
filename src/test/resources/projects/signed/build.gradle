@@ -1,5 +1,5 @@
 plugins {
-	id 'gg.essential.loom'
+	id 'xyz.unifycraft.gradle.loom'
 	id 'maven-publish'
 	id 'signing'
 }

@@ -24,11 +24,10 @@
 
 package net.fabricmc.loom.decompilers;
 
+import juuxel.loomquiltflowermini.impl.QuiltflowerDecompiler;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.decompilers.cfr.LoomCFRDecompiler;
-import net.fabricmc.loom.decompilers.fernflower.FabricFernFlowerDecompiler;
 
 public final class DecompilerConfiguration {
 	private DecompilerConfiguration() {
@@ -36,7 +35,6 @@ public final class DecompilerConfiguration {
 
 	public static void setup(Project project) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		extension.getGameDecompilers().add(new FabricFernFlowerDecompiler());
-		extension.getGameDecompilers().add(new LoomCFRDecompiler());
+		extension.getGameDecompilers().add(new QuiltflowerDecompiler());
 	}
 }

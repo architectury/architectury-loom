@@ -1,11 +1,11 @@
 pluginManagement {
     plugins {
-        id 'gg.essential.loom'
+        id 'xyz.unifycraft.gradle.loom'
     }
 }
 
 plugins {
-    id 'gg.essential.loom'
+    id 'xyz.unifycraft.gradle.loom'
 }
 
 dependencyResolutionManagement {

@@ -2,7 +2,7 @@ import java.util.Properties
 
 plugins {
 	kotlin("jvm") version "1.5.21"
-    id("gg.essential.loom")
+    id("xyz.unifycraft.gradle.loom")
 }
 
 java {

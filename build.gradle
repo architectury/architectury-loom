@@ -1,16 +1,16 @@
 plugins {
-	id 'java'
-	id 'maven-publish'
-	id 'java-gradle-plugin'
-	id 'idea'
-	id 'eclipse'
-	id 'groovy'
-	id 'checkstyle'
-	id 'jacoco'
-	id 'codenarc'
+	id "java"
+	id "maven-publish"
+	id "java-gradle-plugin"
+	id "idea"
+	id "eclipse"
+	id "groovy"
+	id "checkstyle"
+	id "jacoco"
+	id "codenarc"
 	id "com.diffplug.spotless" version "5.14.1"
-	id 'net.kyori.blossom' version '1.3.0'
-	id 'me.shedaniel.java-version-bridge' version '1.0-SNAPSHOT'
+	id "net.kyori.blossom" version "1.3.0"
+	id "me.shedaniel.java-version-bridge" version "1.0-SNAPSHOT"
 }
 
 sourceCompatibility = 16
@@ -21,33 +21,21 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.release = 16
 }
 
-group = "gg.essential"
+group = "xyz.unifycraft.gradle.loom"
 archivesBaseName = project.name
-def baseVersion = '0.10.0'
-def runNumber = System.getenv("GITHUB_RUN_NUMBER") ?: "9999"
-
-def isSnapshot = System.getenv("PR_NUM") != null
-
-def buildNum = "release #$runNumber"
-
-if (!isSnapshot) {
-	version = baseVersion + "." + runNumber
-} else {
-	version = baseVersion + "-PR." + System.getenv("PR_NUM") + "." + runNumber
-}
-
-logger.lifecycle(":building plugin v${version}")
+version = "1.0.0"
 
 repositories {
 	mavenCentral()
-	maven { url "https://maven.fabricmc.net/" }
-	maven { url "https://maven.architectury.dev/" }
+	maven { url("https://maven.fabricmc.net/") }
+	maven { url("https://maven.architectury.dev/") }
 	maven {
-		url "https://maven.minecraftforge.net/"
+		url("https://maven.minecraftforge.net/")
 		content {
-			excludeGroupByRegex "org\\.eclipse\\.?.*"
+			excludeGroupByRegex("org\\.eclipse\\.?.*")
 		}
 	}
+	maven { url("https://server.bbkr.space/artifactory/libs-release/") }
 	mavenLocal()
 }
 
@@ -55,88 +43,81 @@ configurations {
 	bootstrap {
 		transitive false
 	}
-	compileClasspath.extendsFrom bootstrap
-	runtimeClasspath.extendsFrom bootstrap
-	testRuntimeClasspath.extendsFrom bootstrap
-}
-
-configurations.all {
-	resolutionStrategy {
-		// I am sorry, for now
-		// failOnNonReproducibleResolution()
-	}
+	
+	compileClasspath.extendsFrom(bootstrap)
+	runtimeClasspath.extendsFrom(bootstrap)
+	testRuntimeClasspath.extendsFrom(bootstrap)
 }
 
 dependencies {
-	implementation gradleApi()
+	implementation(gradleApi())
 
-	bootstrap project(":bootstrap")
+	bootstrap(project(":bootstrap"))
 
 	// libraries
-	implementation ('commons-io:commons-io:2.8.0')
-	implementation ('com.google.code.gson:gson:2.8.8')
-	implementation ('com.fasterxml.jackson.core:jackson-databind:2.12.5')
-	implementation ('com.google.guava:guava:30.1.1-jre')
-	implementation ('org.ow2.asm:asm:9.2')
-	implementation ('org.ow2.asm:asm-analysis:9.2')
-	implementation ('org.ow2.asm:asm-commons:9.2')
-	implementation ('org.ow2.asm:asm-tree:9.2')
-	implementation ('org.ow2.asm:asm-util:9.2')
-	implementation ('me.tongfei:progressbar:0.9.0')
+	implementation("commons-io:commons-io:2.8.0")
+	implementation("com.google.code.gson:gson:2.8.8")
+	implementation("com.fasterxml.jackson.core:jackson-databind:2.12.5")
+	implementation("com.google.guava:guava:30.1.1-jre")
+	implementation("org.ow2.asm:asm:9.2")
+	implementation("org.ow2.asm:asm-analysis:9.2")
+	implementation("org.ow2.asm:asm-commons:9.2")
+	implementation("org.ow2.asm:asm-tree:9.2")
+	implementation("org.ow2.asm:asm-util:9.2")
+	implementation("me.tongfei:progressbar:0.9.0")
 
 	// game handling utils
-	implementation ('net.fabricmc:stitch:0.6.1') {
-		exclude module: 'mercury'
-		exclude module: 'enigma'
+	implementation("net.fabricmc:stitch:0.6.1") {
+		exclude module: "mercury"
+		exclude module: "enigma"
 	}
 
 	// tinyfile management
-	implementation ('dev.architectury:tiny-remapper:1.5.16')
-	implementation 'net.fabricmc:access-widener:2.1.0'
-	implementation 'net.fabricmc:mapping-io:0.2.1'
+	implementation("dev.architectury:tiny-remapper:1.5.16")
+	implementation("net.fabricmc:access-widener:2.1.0")
+	implementation("net.fabricmc:mapping-io:0.2.1")
 
-	implementation ('net.fabricmc:lorenz-tiny:4.0.2') {
+	implementation("net.fabricmc:lorenz-tiny:4.0.2") {
 		transitive = false
 	}
-	implementation "dev.architectury:refmap-remapper:1.0.5"
+	implementation("dev.architectury:refmap-remapper:1.0.5")
 
 	// decompilers
-	implementation ('net.fabricmc:fabric-fernflower:1.4.1')
-	implementation ('net.fabricmc:cfr:0.0.9')
+	implementation("io.github.juuxel:loom-quiltflower-mini:1.3.0")
 
 	// source code remapping
-	implementation ('dev.architectury:mercury:0.1.1.11')
+	implementation("dev.architectury:mercury:0.1.1.11")
 
 
 	// Kapt integration
-	compileOnly('org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.21')
+	compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.21")
 
 	// Forge patches
-	implementation ('net.minecraftforge:installertools:1.2.0')
-	implementation ('net.minecraftforge:binarypatcher:1.1.1')
-	implementation ('org.cadixdev:lorenz:0.5.3')
-	implementation ('org.cadixdev:lorenz-asm:0.5.3')
-	implementation ('de.oceanlabs.mcp:mcinjector:3.8.0')
-	implementation ('com.opencsv:opencsv:5.4')
+	implementation("net.minecraftforge:installertools:1.2.0")
+	implementation("net.minecraftforge:binarypatcher:1.1.1")
+	implementation("org.cadixdev:lorenz:0.5.3")
+	implementation("org.cadixdev:lorenz-asm:0.5.3")
+	implementation("de.oceanlabs.mcp:mcinjector:3.8.0")
+	implementation("com.opencsv:opencsv:5.4")
 
 	// Testing
 	testImplementation(gradleTestKit())
-	testImplementation('org.spockframework:spock-core:2.0-groovy-3.0') {
-		exclude module: 'groovy-all'
+	testImplementation("org.spockframework:spock-core:2.0-groovy-3.0") {
+		exclude module: "groovy-all"
 	}
-	testImplementation 'io.javalin:javalin:3.13.11'
-	testImplementation 'net.fabricmc:fabric-installer:0.9.0'
-	runtimeOnly 'dev.architectury.architectury-pack200:dev.architectury.architectury-pack200.gradle.plugin:0.1.3'
+	testImplementation("io.javalin:javalin:3.13.11")
+	testImplementation("net.fabricmc:fabric-installer:0.9.0")
+	runtimeOnly("dev.architectury.architectury-pack200:dev.architectury.architectury-pack200.gradle.plugin:0.1.3")
 
-	compileOnly 'org.jetbrains:annotations:22.0.0'
+	compileOnly("org.jetbrains:annotations:22.0.0")
 }
 
 blossom {
-	replaceToken '$LOOM_VERSION', version
+	replaceToken('$LOOM_VERSION', version)
 }
 
 jar {
-	classifier 'jar'
+	classifier("jar")
 }
 
 task mainJar(type: Jar, dependsOn: jar) {
@@ -151,20 +132,20 @@ task downgradeJava(type: BridgeTransformingTask, dependsOn: mainJar) {
 	fromVersion = JavaVersion.VERSION_16
 	toVersion = JavaVersion.VERSION_11
 	classpath.from configurations.compileClasspath
-	flags.add "insertRecordConstructorProperties"
+	flags.add("insertRecordConstructorProperties")
 
 	manifest {
-		attributes 'Implementation-Version': project.version
+		attributes("Implementation-Version": project.version)
 	}
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
-	archiveClassifier = 'sources'
+	archiveClassifier = "sources"
 	from sourceSets.main.allSource
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
-	archiveClassifier = 'javadoc'
+	archiveClassifier = "javadoc"
 	from javadoc.destinationDir
 }
 
@@ -180,8 +161,8 @@ spotless {
 }
 
 checkstyle {
-	configFile = file('checkstyle.xml')
-	toolVersion = '8.44'
+	configFile = file("checkstyle.xml")
+	toolVersion = "8.44"
 }
 
 codenarc {
@@ -191,14 +172,14 @@ codenarc {
 
 gradlePlugin {
 	plugins {
-		fabricLoom {
-			id = 'gg.essential.loom'
-			implementationClass = 'net.fabricmc.loom.bootstrap.LoomGradlePluginBootstrap'
+		architecturyLoom {
+			id = "xyz.unifycraft.gradle.loom"
+			implementationClass = "net.fabricmc.loom.bootstrap.LoomGradlePluginBootstrap"
 		}
 	}
 }
 
-build.dependsOn downgradeJava
+build.dependsOn(downgradeJava)
 
 jacoco {
 	toolVersion = "0.8.6"
@@ -206,10 +187,10 @@ jacoco {
 
 // Run to get test coverage.
 jacocoTestReport {
-	dependsOn test
+	dependsOn(test)
 	reports {
-		xml.enabled false
-		csv.enabled false
+		xml.enabled(false)
+		csv.enabled(false)
 		html.destination file("${buildDir}/jacocoHtml")
 	}
 }
@@ -228,8 +209,8 @@ import org.w3c.dom.Node
 publishing {
 	publications {
 		plugin(MavenPublication) {
-			groupId 'gg.essential.loom'
-			artifactId 'gg.essential.loom.gradle.plugin'
+			groupId "xyz.unifycraft.gradle.loom"
+			artifactId "xyz.unifycraft.gradle.loom.gradle.plugin"
 
 			from components.java
 			artifact downgradeJava
@@ -244,52 +225,6 @@ publishing {
 			artifact downgradeJava
 			artifact sourcesJar
 			artifact javadocJar
-		}
-
-		if (isSnapshot) return
-
-		mavenSnapshot(MavenPublication) { publication ->
-			groupId project.group
-			artifactId project.archivesBaseName
-			version baseVersion + '-SNAPSHOT'
-
-			from components.java
-			artifact downgradeJava
-			artifact sourcesJar
-			artifact javadocJar
-		}
-
-		pluginSnapshot(MavenPublication) {
-			groupId 'gg.essential.loom'
-			artifactId 'gg.essential.loom.gradle.plugin'
-			version baseVersion + '-SNAPSHOT'
-
-			pom.withXml {
-				// Based off org.gradle.plugin.devel.plugins.MavenPluginPublishPlugin
-				Element root = asElement()
-				Document document = root.getOwnerDocument()
-				Node dependencies = root.appendChild(document.createElement('dependencies'))
-				Node dependency = dependencies.appendChild(document.createElement('dependency'))
-				Node groupId = dependency.appendChild(document.createElement('groupId'))
-				groupId.setTextContent(project.group)
-				Node artifactId = dependency.appendChild(document.createElement('artifactId'))
-				artifactId.setTextContent(project.archivesBaseName)
-				Node version = dependency.appendChild(document.createElement('version'))
-				version.setTextContent(baseVersion + '-SNAPSHOT')
-			}
-		}
-	}
-	
-	repositories {
-		if (project.hasProperty("nexus_user")) {
-			maven {
-				url = "https://repo.sk1er.club/repository/maven-releases/"
-				name = "nexus-public"
-				credentials {
-					username = project.property("nexus_user").toString()
-					password = project.property("nexus_password").toString()
-				}
-			}
 		}
 	}
 }
@@ -313,15 +248,15 @@ tasks.withType(GenerateModuleMetadata) {
 task writeActionsTestMatrix() {
 	doLast {
 		def testMatrix = []
-		file('src/test/groovy/net/fabricmc/loom/test/integration').traverse {
+		file("src/test/groovy/net/fabricmc/loom/test/integration").traverse {
 			if (it.name.endsWith("Test.groovy")) {
 				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
-					// This test gets a special case to run across all os's
+					// This test gets a special case to run across all os"s
 					return
 				}
 
 				def className = it.path.toString().replace(".groovy", "")
-				className = className.substring(className.lastIndexOf("integration/") + "integration/".length()).replace('/', '.')
+				className = className.substring(className.lastIndexOf("integration/") + "integration/".length()).replace("/", ".")
 				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
 			}
 		}
@@ -336,7 +271,7 @@ task writeActionsTestMatrix() {
 	}
 }
 
-tasks.named('wrapper') {
+tasks.named("wrapper") {
 	distributionType = Wrapper.DistributionType.ALL
 }
 
