@@ -207,7 +207,7 @@ public final class LoomTasks {
 				task.setDescription("Decompile minecraft using the default decompiler.");
 				task.setGroup(Constants.TaskGroup.FABRIC);
 
-				task.dependsOn(project.getTasks().getByName("genSourcesWithCfr"));
+				task.dependsOn(project.getTasks().getByName("genSourcesWithQuiltflower"));
 			});
 		});
 	}
