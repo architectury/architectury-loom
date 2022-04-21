@@ -370,7 +370,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 	}
 
 	private Set<File> minecraftClasspath() {
-		return DependencyDownloader.resolveFiles(getProject().getConfigurations().getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY), true);
+		return DependencyDownloader.resolveFiles(getProject(), getProject().getConfigurations().getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY), true);
 	}
 
 	public File getUserdevJar() {

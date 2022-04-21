@@ -50,7 +50,7 @@ public final record JarManifestConfiguration(Project project) {
 		Optional<String> tinyRemapperVersion = Optional.ofNullable(TinyRemapper.class.getPackage().getImplementationVersion());
 
 		attributes.putValue("Fabric-Gradle-Version", GradleVersion.current().getVersion());
-		attributes.putValue("Fabric-Loom-Version", LoomGradlePlugin.LOOM_VERSION);
+		attributes.putValue("Fabric-Loom-Version", LoomGradlePlugin.PROJECT_VERSION);
 		attributes.putValue("Fabric-Mixin-Compile-Extensions-Version", Constants.Dependencies.Versions.MIXIN_COMPILE_EXTENSIONS);
 		attributes.putValue("Fabric-Minecraft-Version", extension.getMinecraftProvider().minecraftVersion());
 		tinyRemapperVersion.ifPresent(s -> attributes.putValue("Fabric-Tiny-Remapper-Version", s));

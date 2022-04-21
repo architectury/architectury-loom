@@ -53,7 +53,7 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 	public static boolean refreshDeps;
 	public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-	public static final String LOOM_VERSION = Objects.requireNonNullElse(LoomGradlePlugin.class.getPackage().getImplementationVersion(), "0.0.0+unknown");
+	public static final String PROJECT_VERSION = Objects.requireNonNullElse(LoomGradlePlugin.class.getPackage().getImplementationVersion(), "0.0.0+unknown");
 
 	@Override
 	public void apply(PluginAware target) {
@@ -65,28 +65,26 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 	}
 
 	public void apply(Project project) {
-		Set<String> loggedVersions = new HashSet<>(Arrays.asList(System.getProperty("loom.printed.logged", "").split(",")));
-
-		if (!loggedVersions.contains(LOOM_VERSION)) {
-			loggedVersions.add(LOOM_VERSION);
-			System.setProperty("loom.printed.logged", String.join(",", loggedVersions));
-			project.getLogger().lifecycle("Architectury Loom: " + LOOM_VERSION);
+		// Version printing.
+		Set<String> loggedVersions = new HashSet<>(Arrays.asList(System.getProperty("modgradle.printed.logged", "").split(",")));
+		if (!loggedVersions.contains(PROJECT_VERSION)) {
+			loggedVersions.add(PROJECT_VERSION);
+			System.setProperty("modgradle.printed.logged", String.join(",", loggedVersions));
+			project.getLogger().lifecycle("ModGradle: " + PROJECT_VERSION);
 		}
 
-		refreshDeps = project.getGradle().getStartParameter().isRefreshDependencies() || Boolean.getBoolean("loom.refresh");
+		// Refresh.
+		refreshDeps = project.getGradle().getStartParameter().isRefreshDependencies() || Boolean.getBoolean("modgradle.refresh");
+		if (refreshDeps)
+			project.getLogger().lifecycle("Refresh dependencies is in use, ModGradle will be significantly slower.");
 
-		if (refreshDeps) {
-			project.getLogger().lifecycle("Refresh dependencies is in use, loom will be significantly slower.");
-		}
+		// Apply default plugins.
+		project.getPlugins().apply("java-library");
+		project.getPlugins().apply("eclipse");
+		project.getPlugins().apply("idea");
 
-		// Apply default plugins
-		project.apply(ImmutableMap.of("plugin", "java-library"));
-		project.apply(ImmutableMap.of("plugin", "eclipse"));
-		project.apply(ImmutableMap.of("plugin", "idea"));
-
-		// Setup extensions, minecraft wraps loom
-		LoomGradleExtensionAPI extension = project.getExtensions().create(LoomGradleExtensionAPI.class, "loom", LoomGradleExtensionImpl.class, project, LoomFiles.create(project));
-		project.getExtensions().create(LoomGradleExtensionAPI.class, "minecraft", MinecraftGradleExtension.class, extension);
+		// Set up extensions.
+		project.getExtensions().create(LoomGradleExtensionAPI.class, "loom", LoomGradleExtensionImpl.class, project, LoomFiles.create(project));
 		project.getExtensions().create("fabricApi", FabricApiExtension.class, project);
 
 		CompileConfiguration.setupConfigurations(project);

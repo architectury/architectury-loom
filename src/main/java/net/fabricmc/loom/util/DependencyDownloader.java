@@ -25,7 +25,9 @@
 package net.fabricmc.loom.util;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.gradle.api.Project;
@@ -81,6 +83,20 @@ public final class DependencyDownloader {
 		return files;
 	}
 
+	private static List<Dependency> collectDependencies(Configuration configuration) {
+		List<Dependency> dependencies = new ArrayList<>();
+		for (Configuration extendsFrom : configuration.getExtendsFrom())
+			dependencies.addAll(collectDependencies(extendsFrom));
+		dependencies.addAll(configuration.getDependencies());
+		return dependencies;
+	}
+
+	private static Configuration copyWith(Project project, Configuration configuration, boolean transitive) {
+		Configuration copy = project.getConfigurations().detachedConfiguration(collectDependencies(configuration).toArray(new Dependency[0]));
+		copy.setTransitive(transitive);
+		return copy;
+	}
+
 	/**
 	 * Resolves a configuration and its superconfigurations.
 	 *
@@ -91,7 +107,7 @@ public final class DependencyDownloader {
 	 * @param transitive    true if transitive dependencies should be included, false otherwise
 	 * @return a mutable set containing the resolved files of the configuration
 	 */
-	public static Set<File> resolveFiles(Configuration configuration, boolean transitive) {
-		return resolve(configuration, transitive);
+	public static Set<File> resolveFiles(Project project, Configuration configuration, boolean transitive) {
+		return copyWith(project, configuration, transitive).resolve();
 	}
 }

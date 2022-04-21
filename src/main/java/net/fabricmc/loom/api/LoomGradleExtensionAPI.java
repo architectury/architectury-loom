@@ -226,7 +226,7 @@ public interface LoomGradleExtensionAPI {
 	Property<String> getIntermediaryUrl();
 
 	// ===================
-	//  Architectury Loom
+	//  ModGradle
 	// ===================
 	ListProperty<ArchitecturyLoomDecompiler> getArchGameDecompilers();
 

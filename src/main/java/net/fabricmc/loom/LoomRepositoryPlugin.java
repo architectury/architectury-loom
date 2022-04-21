@@ -66,9 +66,7 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 		repositories.maven(repo -> {
 			repo.setName("Architectury");
 			repo.setUrl("https://maven.architectury.dev/");
-			repo.mavenContent(content -> {
-				content.includeGroup("dev.architectury");
-			});
+			repo.mavenContent(content -> content.includeGroup("dev.architectury"));
 		});
 		repositories.maven(repo -> {
 			repo.setName("Fabric");

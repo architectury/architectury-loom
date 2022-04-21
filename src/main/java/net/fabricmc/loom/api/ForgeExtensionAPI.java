@@ -100,7 +100,10 @@ public interface ForgeExtensionAPI {
 	}
 
 	/**
-	 * If true, upstream Mixin from Sponge will be replaced with Fabric's or Architectury's fork.
+	 * If true, upstream Mixin from Sponge
+	 * will be replaced with Fabric's or
+	 * Architectury's fork.
+	 *
 	 * This is enabled by default.
 	 *
 	 * @return the property
