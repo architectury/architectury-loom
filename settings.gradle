@@ -1,9 +1,0 @@
-pluginManagement {
-	repositories {
-		maven { url "https://maven.architectury.dev" }
-		gradlePluginPortal()
-	}
-}
-
-rootProject.name = "architectury-loom"
-include "bootstrap"

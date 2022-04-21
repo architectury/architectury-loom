@@ -17,7 +17,7 @@
 !/HEADER
 !/LICENSE
 !/README.md
-!/settings.gradle
+!/settings.gradle.kts
 !/Jenkinsfile
 !/checkstyle.xml
 !/codenarc.groovy
