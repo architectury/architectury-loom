@@ -230,7 +230,7 @@ public class InterfaceInjectionProcessor implements JarProcessor, GenerateSource
 
 				try {
 					quiltModJson = sourceSet.getResources()
-							.matching(patternFilterable -> patternFilterable.include("quilt.mods.json"))
+							.matching(patternFilterable -> patternFilterable.include("quilt.mod.json"))
 							.getSingleFile();
 
 					final String jsonString;
