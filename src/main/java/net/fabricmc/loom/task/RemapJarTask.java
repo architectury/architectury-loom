@@ -251,7 +251,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			}
 
 			if (allMixinConfigs == null && getReadMixinConfigsFromManifest().get()) {
-					allMixinConfigs = readMixinConfigsFromManifest();
+				allMixinConfigs = readMixinConfigsFromManifest();
 			}
 			if (allMixinConfigs == null) {
 				if (extension.getPlatform().get() == ModPlatform.QUILT) {
