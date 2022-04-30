@@ -36,7 +36,7 @@ public final class ModUtils {
 		if (platform == ModPlatform.FORGE) {
 			return ZipUtils.contains(input.toPath(), "META-INF/mods.toml");
 		} else if (platform == ModPlatform.QUILT) {
-			return ZipUtils.contains(input.toPath(), "quilt.mod.json");
+			return ZipUtils.contains(input.toPath(), "quilt.mod.json") || ZipUtils.contains(input.toPath(), "fabric.mod.json");
 		}
 
 		return ZipUtils.contains(input.toPath(), "fabric.mod.json");
