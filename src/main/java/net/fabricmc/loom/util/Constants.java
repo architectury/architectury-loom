@@ -126,6 +126,7 @@ public class Constants {
 		public static final String JAVAX_ANNOTATIONS = "com.google.code.findbugs:jsr305:"; // I hate that I have to add these.
 		public static final String FORGE_RUNTIME = "dev.architectury:architectury-loom-runtime:";
 		public static final String ACCESS_TRANSFORMERS = "net.minecraftforge:accesstransformers:";
+		public static final String UNPROTECT = "io.github.juuxel:unprotect:";
 
 		private Dependencies() {
 		}
@@ -143,6 +144,7 @@ public class Constants {
 			public static final String FORGE_RUNTIME = "1.1.3";
 			public static final String ACCESS_TRANSFORMERS = "3.0.1";
 			public static final String ACCESS_TRANSFORMERS_NEW = "8.0.5";
+			public static final String UNPROTECT = "1.0.0";
 
 			private Versions() {
 			}
