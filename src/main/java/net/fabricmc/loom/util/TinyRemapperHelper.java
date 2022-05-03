@@ -106,13 +106,6 @@ public final class TinyRemapperHelper {
 				.logger(project.getLogger()::lifecycle)
 				.rebuildSourceFilenames(true);
 
-		if (extension.isForge()) {
-			/* FORGE: Required for classes like aej$OptionalNamedTag (1.16.4) which are added by Forge patches.
-			 * They won't get remapped to their proper packages, so IllegalAccessErrors will happen without ._.
-			 */
-			builder.fixPackageAccess(true);
-		}
-
 		builder.invalidLvNamePattern(MC_LV_PATTERN);
 		builder.inferNameFromSameLvIndex(true);
 		builder.extraPreApplyVisitor((cls, next) -> {
