@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,6 +64,7 @@ import net.fabricmc.loom.configuration.accesswidener.AccessWidenerJarProcessor;
 import net.fabricmc.loom.configuration.accesswidener.TransitiveAccessWidenerJarProcessor;
 import net.fabricmc.loom.configuration.processors.JarProcessorManager;
 import net.fabricmc.loom.configuration.processors.MinecraftProcessedProvider;
+import net.fabricmc.loom.configuration.providers.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.MinecraftProviderImpl;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
@@ -74,6 +76,7 @@ import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.srg.MCPReader;
 import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
+import net.fabricmc.mappingio.MappedElementKind;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.adapter.MappingNsCompleter;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
@@ -86,6 +89,11 @@ import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
 import net.fabricmc.stitch.commands.tinyv2.TinyFile;
 import net.fabricmc.stitch.commands.tinyv2.TinyV2Writer;
+import net.fabricmc.stitch.representation.JarClassEntry;
+import net.fabricmc.stitch.representation.JarFieldEntry;
+import net.fabricmc.stitch.representation.JarMethodEntry;
+import net.fabricmc.stitch.representation.JarReader;
+import net.fabricmc.stitch.representation.JarRootEntry;
 
 public class MappingsProviderImpl extends DependencyProvider implements MappingsProvider {
 	public MinecraftMappedProvider mappedProvider;
@@ -573,6 +581,22 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 		if (intermediaryTiny == null) {
 			intermediaryTiny = getMinecraftProvider().file("intermediary-v2.tiny").toPath();
 
+			if (getExtension().getStubIntermediaries().get()) {
+				intermediaryTiny = getMinecraftProvider().file("stub-intermediary-v2.tiny").toPath();
+
+				if (isRefreshDeps() && !hasRefreshed) {
+					Files.deleteIfExists(intermediaryTiny);
+				}
+
+				if (Files.exists(intermediaryTiny)) {
+					return intermediaryTiny;
+				}
+
+				hasRefreshed = true;
+				generateIntermediary(intermediaryTiny);
+				return intermediaryTiny;
+			}
+
 			if (!Files.exists(intermediaryTiny) || (isRefreshDeps() && !hasRefreshed)) {
 				hasRefreshed = true;
 
@@ -586,6 +610,55 @@ public class MappingsProviderImpl extends DependencyProvider implements Mappings
 		}
 
 		return intermediaryTiny;
+	}
+
+	private void generateIntermediary(Path output) throws IOException {
+		MinecraftProviderImpl provider = getExtension().getMinecraftProvider();
+		JarRootEntry entry = new JarRootEntry(provider.getMergedJar());
+		MemoryMappingTree tree = new MemoryMappingTree();
+
+		MappingNsCompleter visitor = new MappingNsCompleter(tree, Collections.singletonMap(MappingsNamespace.INTERMEDIARY.toString(), MappingsNamespace.OFFICIAL.toString()), true);
+
+		if (visitor.visitHeader()) {
+			visitor.visitNamespaces(MappingsNamespace.OFFICIAL.toString(), Collections.emptyList());
+		}
+
+		if (visitor.visitContent()) {
+			try {
+				JarReader reader = new JarReader(entry);
+				reader.apply();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			for (JarClassEntry classEntry : entry.getAllClasses()) {
+				if (visitor.visitClass(classEntry.getFullyQualifiedName())) {
+					if (!visitor.visitElementContent(MappedElementKind.CLASS)) return;
+
+					for (JarFieldEntry field : classEntry.getFields()) {
+						if (visitor.visitField(field.getName(), field.getDescriptor())) {
+							if (!visitor.visitElementContent(MappedElementKind.FIELD)) return;
+						}
+					}
+
+					for (JarMethodEntry method : classEntry.getMethods()) {
+						if (method.getName().startsWith("<")) continue;
+
+						if (visitor.visitMethod(method.getName(), method.getDescriptor())) {
+							if (!visitor.visitElementContent(MappedElementKind.METHOD)) return;
+						}
+					}
+				}
+			}
+		}
+
+		visitor.visitEnd();
+
+		try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(output, StandardOpenOption.CREATE), false)) {
+			tree.accept(writer);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override

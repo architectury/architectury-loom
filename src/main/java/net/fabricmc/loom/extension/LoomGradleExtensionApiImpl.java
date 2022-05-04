@@ -94,6 +94,7 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	private final List<String> tasksBeforeRun = Collections.synchronizedList(new ArrayList<>());
 	public final List<Consumer<RunConfig>> settingsPostEdit = new ArrayList<>();
 	private NamedDomainObjectContainer<LaunchProviderSettings> launchConfigs;
+	private final Property<Boolean> stubIntermediaries;
 
 	protected LoomGradleExtensionApiImpl(Project project, LoomFiles directories) {
 		this.runConfigs = project.container(RunConfigSettings.class,
@@ -140,6 +141,8 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 				baseName -> new LaunchProviderSettings(project, baseName));
 		this.archDecompilers = project.getObjects().listProperty(ArchitecturyLoomDecompiler.class)
 				.empty();
+		this.stubIntermediaries = project.getObjects().property(Boolean.class)
+				.convention(false);
 	}
 
 	@Override
@@ -293,6 +296,11 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public ListProperty<ArchitecturyLoomDecompiler> getArchGameDecompilers() {
 		return archDecompilers;
+	}
+
+	@Override
+	public Property<Boolean> getStubIntermediaries() {
+		return stubIntermediaries;
 	}
 
 	// This is here to ensure that LoomGradleExtensionApiImpl compiles without any unimplemented methods

@@ -243,4 +243,10 @@ public class MinecraftGradleExtension implements LoomGradleExtensionAPI {
 		reportDeprecation();
 		parent.forge(action);
 	}
+
+	@Override
+	public Property<Boolean> getStubIntermediaries() {
+		reportDeprecation();
+		return parent.getStubIntermediaries();
+	}
 }

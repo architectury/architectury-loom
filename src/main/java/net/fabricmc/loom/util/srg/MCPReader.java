@@ -37,11 +37,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import dev.architectury.refmapremapper.utils.DescriptorRemapper;
 import org.apache.commons.io.IOUtils;
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.lorenz.io.srg.tsrg.TSrgReader;
@@ -72,11 +75,11 @@ public class MCPReader {
 	}
 
 	public TinyFile read(Path mcpJar) throws IOException {
-		Map<MemberToken, String> srgTokens = readSrg();
+		Map<MemberToken<?>, String> srgTokens = readSrg();
 		TinyFile intermediaryTiny = TinyV2Reader.read(intermediaryTinyPath);
-		Map<String, String> intermediaryToMCPMap = createIntermediaryToMCPMap(intermediaryTiny, srgTokens);
-		Map<String, String[]> intermediaryToDocsMap = new HashMap<>();
-		Map<String, Map<Integer, String>> intermediaryToParamsMap = new HashMap<>();
+		Map<MemberToken<?>, String> intermediaryToMCPMap = createIntermediaryToMCPMap(intermediaryTiny, srgTokens);
+		Map<MemberToken<?>, String[]> intermediaryToDocsMap = new HashMap<>();
+		Map<MemberToken<?>, Map<Integer, String>> intermediaryToParamsMap = new HashMap<>();
 
 		try {
 			injectMcp(mcpJar, intermediaryToMCPMap, intermediaryToDocsMap, intermediaryToParamsMap);
@@ -88,43 +91,54 @@ public class MCPReader {
 		return intermediaryTiny;
 	}
 
-	private Map<String, String> createIntermediaryToMCPMap(TinyFile tiny, Map<MemberToken, String> officialToMCP) {
-		Map<String, String> map = new HashMap<>();
+	private Map<MemberToken<?>, String> createIntermediaryToMCPMap(TinyFile tiny, Map<MemberToken<?>, String> officialToMCP) {
+		Map<MemberToken<?>, String> map = new HashMap<>();
+		BiConsumer<MemberToken<?>, MemberToken<?>> adder = (intermediary, obf) -> {
+			String mcp = officialToMCP.get(obf);
+
+			if (mcp != null && !intermediary.name.equals(mcp)) {
+				map.put(intermediary, mcp);
+			}
+		};
 
 		for (TinyClass tinyClass : tiny.getClassEntries()) {
 			String classObf = tinyClass.getMapping().get(0);
 			String classIntermediary = tinyClass.getMapping().get(1);
-			MemberToken classTokenObf = MemberToken.ofClass(classObf);
+			MemberToken<TokenType.Class> classTokenIntermediary = MemberToken.ofClass(classIntermediary);
+			MemberToken<TokenType.Class> classTokenObf = MemberToken.ofClass(classObf);
 
-			if (officialToMCP.containsKey(classTokenObf)) {
-				map.put(classIntermediary, officialToMCP.get(classTokenObf));
-			}
+			adder.accept(classTokenIntermediary, classTokenObf);
 
 			for (TinyField tinyField : tinyClass.getFields()) {
 				String fieldObf = tinyField.getMapping().get(0);
 				String fieldIntermediary = tinyField.getMapping().get(1);
-				MemberToken fieldTokenObf = MemberToken.ofField(classTokenObf, fieldObf);
+				MemberToken<TokenType.Field> fieldTokenObf = MemberToken.ofField(classTokenObf, fieldObf);
 
-				if (officialToMCP.containsKey(fieldTokenObf)) {
-					map.put(fieldIntermediary, officialToMCP.get(fieldTokenObf));
-				}
+				adder.accept(MemberToken.ofField(classTokenIntermediary, fieldIntermediary), fieldTokenObf);
 			}
 
 			for (TinyMethod tinyMethod : tinyClass.getMethods()) {
 				String methodObf = tinyMethod.getMapping().get(0);
 				String methodIntermediary = tinyMethod.getMapping().get(1);
-				MemberToken methodTokenObf = MemberToken.ofMethod(classTokenObf, methodObf, tinyMethod.getMethodDescriptorInFirstNamespace());
+				String methodDescIntermediary = remapDescriptor(tinyMethod.getMethodDescriptorInFirstNamespace(), tiny);
+				MemberToken<TokenType.Method> methodTokenObf = MemberToken.ofMethod(classTokenObf, methodObf, tinyMethod.getMethodDescriptorInFirstNamespace());
 
-				if (officialToMCP.containsKey(methodTokenObf)) {
-					map.put(methodIntermediary, officialToMCP.get(methodTokenObf));
-				}
+				adder.accept(MemberToken.ofMethod(classTokenIntermediary, methodIntermediary, methodDescIntermediary), methodTokenObf);
 			}
 		}
 
 		return map;
 	}
 
-	private void mergeTokensIntoIntermediary(TinyFile tiny, Map<String, String> intermediaryToMCPMap, Map<String, String[]> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap) {
+	private String remapDescriptor(String descriptor, TinyFile file) {
+		return DescriptorRemapper.remapDescriptor(descriptor, s -> {
+			TinyClass tinyClass = file.mapClassesByFirstNamespace().get(s);
+			return tinyClass == null ? s : tinyClass.getMapping().get(1);
+		});
+	}
+
+	private void mergeTokensIntoIntermediary(TinyFile tiny, Map<MemberToken<?>, String> intermediaryToMCPMap, Map<MemberToken<?>, String[]> intermediaryToDocsMap,
+			Map<MemberToken<?>, Map<Integer, String>> intermediaryToParamsMap) {
 		stripTinyWithParametersAndLocal(tiny);
 
 		// We will be adding the "named" namespace with MCP
@@ -132,12 +146,14 @@ public class MCPReader {
 
 		for (TinyClass tinyClass : tiny.getClassEntries()) {
 			String classIntermediary = tinyClass.getMapping().get(1);
-			tinyClass.getMapping().add(intermediaryToMCPMap.getOrDefault(classIntermediary, classIntermediary));
+			MemberToken<TokenType.Class> classMemberToken = MemberToken.ofClass(classIntermediary);
+			tinyClass.getMapping().add(intermediaryToMCPMap.getOrDefault(classMemberToken, classIntermediary));
 
 			for (TinyField tinyField : tinyClass.getFields()) {
 				String fieldIntermediary = tinyField.getMapping().get(1);
-				String[] docs = intermediaryToDocsMap.get(fieldIntermediary);
-				tinyField.getMapping().add(intermediaryToMCPMap.getOrDefault(fieldIntermediary, fieldIntermediary));
+				MemberToken<TokenType.Field> fieldMemberToken = MemberToken.ofField(classMemberToken, fieldIntermediary);
+				String[] docs = intermediaryToDocsMap.get(fieldMemberToken);
+				tinyField.getMapping().add(intermediaryToMCPMap.getOrDefault(fieldMemberToken, fieldIntermediary));
 
 				if (docs != null) {
 					tinyField.getComments().clear();
@@ -147,15 +163,17 @@ public class MCPReader {
 
 			for (TinyMethod tinyMethod : tinyClass.getMethods()) {
 				String methodIntermediary = tinyMethod.getMapping().get(1);
-				String[] docs = intermediaryToDocsMap.get(methodIntermediary);
-				tinyMethod.getMapping().add(intermediaryToMCPMap.getOrDefault(methodIntermediary, methodIntermediary));
+				String methodDescIntermediary = remapDescriptor(tinyMethod.getMethodDescriptorInFirstNamespace(), tiny);
+				MemberToken<TokenType.Method> methodMemberToken = MemberToken.ofMethod(classMemberToken, methodIntermediary, methodDescIntermediary);
+				String[] docs = intermediaryToDocsMap.get(methodMemberToken);
+				tinyMethod.getMapping().add(intermediaryToMCPMap.getOrDefault(methodMemberToken, methodIntermediary));
 
 				if (docs != null) {
 					tinyMethod.getComments().clear();
 					tinyMethod.getComments().addAll(Arrays.asList(docs));
 				}
 
-				Map<Integer, String> params = intermediaryToParamsMap.get(methodIntermediary);
+				Map<Integer, String> params = intermediaryToParamsMap.get(methodMemberToken);
 
 				if (params != null) {
 					for (Map.Entry<Integer, String> entry : params.entrySet()) {
@@ -182,8 +200,8 @@ public class MCPReader {
 		}
 	}
 
-	private Map<MemberToken, String> readSrg() throws IOException {
-		Map<MemberToken, String> tokens = new HashMap<>();
+	private Map<MemberToken<?>, String> readSrg() throws IOException {
+		Map<MemberToken<?>, String> tokens = new HashMap<>();
 
 		try (BufferedReader reader = Files.newBufferedReader(srgTsrgPath, StandardCharsets.UTF_8)) {
 			String content = IOUtils.toString(reader);
@@ -202,14 +220,14 @@ public class MCPReader {
 		return tokens;
 	}
 
-	private void readTsrg2(Map<MemberToken, String> tokens, String content) throws IOException {
+	private void readTsrg2(Map<MemberToken<?>, String> tokens, String content) throws IOException {
 		MemoryMappingTree tree = new MemoryMappingTree();
 		MappingReader.read(new StringReader(content), tree);
 		int obfIndex = tree.getNamespaceId("obf");
 		int srgIndex = tree.getNamespaceId("srg");
 
 		for (MappingTree.ClassMapping classDef : tree.getClasses()) {
-			MemberToken ofClass = MemberToken.ofClass(classDef.getName(obfIndex));
+			MemberToken<TokenType.Class> ofClass = MemberToken.ofClass(classDef.getName(obfIndex));
 			tokens.put(ofClass, classDef.getName(srgIndex));
 
 			for (MappingTree.FieldMapping fieldDef : classDef.getFields()) {
@@ -223,17 +241,19 @@ public class MCPReader {
 		}
 	}
 
-	private void injectMcp(Path mcpJar, Map<String, String> intermediaryToSrgMap, Map<String, String[]> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap)
+	private void injectMcp(Path mcpJar, Map<MemberToken<?>, String> intermediaryToSrgMap, Map<MemberToken<?>, String[]> intermediaryToDocsMap,
+			Map<MemberToken<?>, Map<Integer, String>> intermediaryToParamsMap)
 			throws IOException, CsvValidationException {
-		Map<String, List<String>> srgToIntermediary = inverseMap(intermediaryToSrgMap);
-		Map<String, List<String>> simpleSrgToIntermediary = new HashMap<>();
+		Map<String, List<MemberToken<?>>> srgToIntermediary = inverseMap(intermediaryToSrgMap);
+		Map<String, List<MemberToken<TokenType.Method>>> simpleSrgToIntermediary = new HashMap<>();
 		Pattern methodPattern = Pattern.compile("(func_\\d*)_.*");
 
-		for (Map.Entry<String, List<String>> entry : srgToIntermediary.entrySet()) {
+		for (Map.Entry<String, List<MemberToken<?>>> entry : srgToIntermediary.entrySet()) {
 			Matcher matcher = methodPattern.matcher(entry.getKey());
 
 			if (matcher.matches()) {
-				simpleSrgToIntermediary.put(matcher.group(1), entry.getValue());
+				simpleSrgToIntermediary.put(matcher.group(1),
+						(List<MemberToken<TokenType.Method>>) (List<? extends MemberToken<?>>) entry.getValue());
 			}
 		}
 
@@ -248,11 +268,11 @@ public class MCPReader {
 				String[] line;
 
 				while ((line = reader.readNext()) != null) {
-					List<String> intermediaryField = srgToIntermediary.get(line[0]);
+					List<MemberToken<TokenType.Field>> intermediaryField = (List<MemberToken<TokenType.Field>>) (List<? extends MemberToken<?>>) srgToIntermediary.get(line[0]);
 					String[] docs = line[3].split("\n");
 
 					if (intermediaryField != null) {
-						for (String s : intermediaryField) {
+						for (MemberToken<TokenType.Field> s : intermediaryField) {
 							intermediaryToSrgMap.put(s, line[1]);
 
 							if (!line[3].trim().isEmpty() && docs.length > 0) {
@@ -268,11 +288,11 @@ public class MCPReader {
 				String[] line;
 
 				while ((line = reader.readNext()) != null) {
-					List<String> intermediaryMethod = srgToIntermediary.get(line[0]);
+					List<MemberToken<TokenType.Method>> intermediaryMethod = (List<MemberToken<TokenType.Method>>) (List<? extends MemberToken<?>>) srgToIntermediary.get(line[0]);
 					String[] docs = line[3].split("\n");
 
 					if (intermediaryMethod != null) {
-						for (String s : intermediaryMethod) {
+						for (MemberToken<TokenType.Method> s : intermediaryMethod) {
 							intermediaryToSrgMap.put(s, line[1]);
 
 							if (!line[3].trim().isEmpty() && docs.length > 0) {
@@ -295,10 +315,10 @@ public class MCPReader {
 							String named = line[1];
 							String srgMethodStartWith = "func_" + param.group(1);
 							int lvIndex = Integer.parseInt(param.group(2));
-							List<String> intermediaryMethod = simpleSrgToIntermediary.get(srgMethodStartWith);
+							List<MemberToken<TokenType.Method>> intermediaryMethod = simpleSrgToIntermediary.get(srgMethodStartWith);
 
 							if (intermediaryMethod != null) {
-								for (String s : intermediaryMethod) {
+								for (MemberToken<TokenType.Method> s : intermediaryMethod) {
 									intermediaryToParamsMap.computeIfAbsent(s, s1 -> new HashMap<>()).put(lvIndex, named);
 								}
 							}
@@ -309,18 +329,18 @@ public class MCPReader {
 		}
 	}
 
-	private Map<String, List<String>> inverseMap(Map<String, String> intermediaryToMCPMap) {
-		Map<String, List<String>> map = new HashMap<>();
+	private <T, A> Map<A, List<T>> inverseMap(Map<T, A> intermediaryToMCPMap) {
+		Map<A, List<T>> map = new HashMap<>();
 
-		for (Map.Entry<String, String> token : intermediaryToMCPMap.entrySet()) {
+		for (Map.Entry<T, A> token : intermediaryToMCPMap.entrySet()) {
 			map.computeIfAbsent(token.getValue(), s -> new ArrayList<>()).add(token.getKey());
 		}
 
 		return map;
 	}
 
-	private void appendClass(Map<MemberToken, String> tokens, ClassMapping<?, ?> classMapping) {
-		MemberToken ofClass = MemberToken.ofClass(classMapping.getFullObfuscatedName());
+	private void appendClass(Map<MemberToken<?>, String> tokens, ClassMapping<?, ?> classMapping) {
+		MemberToken<TokenType.Class> ofClass = MemberToken.ofClass(classMapping.getFullObfuscatedName());
 		tokens.put(ofClass, classMapping.getFullDeobfuscatedName());
 
 		for (FieldMapping fieldMapping : classMapping.getFieldMappings()) {
@@ -336,28 +356,102 @@ public class MCPReader {
 		}
 	}
 
-	private record MemberToken(
-			TokenType type,
-			@Nullable MCPReader.MemberToken owner,
-			String name,
-			@Nullable String descriptor
-	) {
-		static MemberToken ofClass(String name) {
-			return new MemberToken(TokenType.CLASS, null, name, null);
+	private interface TokenType {
+		enum Class implements TokenType {
 		}
 
-		static MemberToken ofField(MemberToken owner, String name) {
-			return new MemberToken(TokenType.FIELD, owner, name, null);
+		enum Method implements TokenType {
 		}
 
-		static MemberToken ofMethod(MemberToken owner, String name, String descriptor) {
-			return new MemberToken(TokenType.METHOD, owner, name, descriptor);
+		enum Field implements TokenType {
 		}
 	}
 
-	private enum TokenType {
-		CLASS,
-		METHOD,
-		FIELD
+	private static class MemberToken<T extends TokenType> {
+		@Nullable
+		private MemberToken<TokenType.Class> owner;
+		private String name;
+		@Nullable private String descriptor;
+
+		public MemberToken(@Nullable MemberToken<TokenType.Class> owner, String name, @Nullable String descriptor) {
+			this.owner = owner;
+			this.name = name;
+			this.descriptor = descriptor;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (!(o instanceof MemberToken<?> that)) return false;
+			return Objects.equals(owner, that.owner) && Objects.equals(name, that.name) && Objects.equals(descriptor, that.descriptor);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(owner, name, descriptor);
+		}
+
+		static class ClassToken extends MemberToken<TokenType.Class> {
+			ClassToken(String name) {
+				super(null, name, null);
+			}
+
+			@Override
+			public boolean equals(Object o) {
+				if (!(o instanceof ClassToken)) return false;
+				return super.equals(o);
+			}
+
+			@Override
+			public int hashCode() {
+				return (1 + super.hashCode()) * 31 + 1;
+			}
+		}
+
+		static class FieldToken extends MemberToken<TokenType.Field> {
+			FieldToken(@Nullable MemberToken<TokenType.Class> owner, String name) {
+				super(owner, name, null);
+			}
+
+			@Override
+			public boolean equals(Object o) {
+				if (!(o instanceof FieldToken)) return false;
+				return super.equals(o);
+			}
+
+			@Override
+			public int hashCode() {
+				return (1 + super.hashCode()) * 31 + 2;
+			}
+		}
+
+		static class MethodToken extends MemberToken<TokenType.Method> {
+			MethodToken(@Nullable MemberToken<TokenType.Class> owner, String name, @Nullable String descriptor) {
+				super(owner, name, descriptor);
+			}
+
+			@Override
+			public boolean equals(Object o) {
+				if (!(o instanceof MethodToken)) return false;
+				return super.equals(o);
+			}
+
+			@Override
+			public int hashCode() {
+				return (1 + super.hashCode()) * 31 + 3;
+			}
+		}
+
+		static MemberToken<TokenType.Class> ofClass(String name) {
+			return new MemberToken.ClassToken(name);
+		}
+
+		static MemberToken<TokenType.Field> ofField(MemberToken<TokenType.Class> owner, String name) {
+			return new MemberToken.FieldToken(owner, name);
+		}
+
+		static MemberToken<TokenType.Method> ofMethod(MemberToken<TokenType.Class> owner, String name, String descriptor) {
+			return new MemberToken.MethodToken(owner, name, descriptor);
+		}
 	}
 }
