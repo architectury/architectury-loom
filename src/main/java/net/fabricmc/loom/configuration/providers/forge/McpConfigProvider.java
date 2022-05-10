@@ -64,6 +64,11 @@ public class McpConfigProvider extends DependencyProvider {
 
 	@Override
 	public void provide(DependencyInfo dependency, Consumer<Runnable> postPopulationScheduler) throws Exception {
+		if (getExtension().isLegacyForge()) {
+			official = false;
+			return;
+		}
+
 		init(dependency.getDependency().getVersion());
 
 		Path mcpZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve MCPConfig")).toPath();

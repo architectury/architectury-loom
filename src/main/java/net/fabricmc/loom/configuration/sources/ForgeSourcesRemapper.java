@@ -105,11 +105,28 @@ public class ForgeSourcesRemapper {
 			}
 		}
 
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		Path legacySourcesZip = null;
+
+		if (extension.isLegacyForge()) {
+			Path userdevJar = extension.getForgeUserdevProvider().getUserdevJar().toPath();
+			byte[] sourcesZip = ZipUtils.unpack(userdevJar, "sources.zip");
+
+			legacySourcesZip = Files.createTempFile("sources", ".zip");
+			legacySourcesZip.toFile().deleteOnExit();
+			Files.write(legacySourcesZip, sourcesZip, StandardOpenOption.TRUNCATE_EXISTING);
+			forgeInstallerSources.add(legacySourcesZip);
+		}
+
 		project.getLogger().lifecycle(":found {} forge source jars", forgeInstallerSources.size());
 		Map<String, byte[]> forgeSources = extractSources(forgeInstallerSources);
 		project.getLogger().lifecycle(":extracted {} forge source classes", forgeSources.size());
 		remapSources(project, forgeSources);
 		forgeSources.forEach(consumer);
+
+		if (legacySourcesZip != null) {
+			Files.delete(legacySourcesZip);
+		}
 	}
 
 	private static void remapSources(Project project, Map<String, byte[]> sources) throws IOException {

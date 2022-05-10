@@ -42,6 +42,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
 import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
 
 public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	private final LoomGradleExtension extension;
@@ -52,6 +53,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	private final Property<Boolean> useCustomMixin;
 	private final List<String> dataGenMods = new ArrayList<>(); // not a property because it has custom adding logic
 	private final NamedDomainObjectContainer<ForgeLocalMod> localMods;
+	private final Property<Pack200Provider> pack200Provider;
 
 	@Inject
 	public ForgeExtensionImpl(Project project, LoomGradleExtension extension) {
@@ -63,6 +65,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 		useCustomMixin = project.getObjects().property(Boolean.class).convention(true);
 		localMods = project.container(ForgeLocalMod.class,
 				baseName -> new ForgeLocalMod(project, baseName, new ArrayList<>()));
+		pack200Provider = project.getObjects().property(Pack200Provider.class);
 
 		// Create default mod from main source set
 		localMods(mod -> mod.create("main").add("main"));
@@ -132,5 +135,10 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@Override
 	public NamedDomainObjectContainer<ForgeLocalMod> getLocalMods() {
 		return localMods;
+	}
+
+	@Override
+	public Property<Pack200Provider> getPack200Provider() {
+		return pack200Provider;
 	}
 }

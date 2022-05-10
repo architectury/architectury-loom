@@ -109,6 +109,13 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 	public void manipulateMappings(Path mappingsJar) throws IOException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		LoomGradleExtension extension = getExtension();
+
+		if (extension.isLegacyForge()) {
+			// Legacy forge patches are in official namespace, so if the type of a field is changed by them, then that
+			// is effectively a new field and not traceable to any mapping. Therefore this does not apply to it.
+			return;
+		}
+
 		this.rawTinyMappings = tinyMappings;
 		this.rawTinyMappingsWithSrg = tinyMappingsWithSrg;
 		String mappingsJarName = mappingsJar.getFileName().toString();
@@ -116,7 +123,7 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 		if (getExtension().shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || isRefreshDeps()) {
 				// Merge tiny mappings with srg
-				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), rawTinyMappings, rawTinyMappingsWithSrg, true);
+				SrgMerger.mergeSrg(getProject().getLogger(), getExtension().getMappingsProvider()::getMojmapSrgFileIfPossible, getRawSrgFile(), rawTinyMappings, rawTinyMappingsWithSrg, true, false);
 			}
 		}
 

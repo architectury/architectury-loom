@@ -177,4 +177,10 @@ public class Constants {
 		private Forge() {
 		}
 	}
+
+	public static final class LegacyForge {
+		public static final String LAUNCH_WRAPPER = "net.minecraft.launchwrapper.Launch";
+		public static final String FML_TWEAKER = "net.minecraftforge.fml.common.launcher.FMLTweaker";
+		public static final String FML_SERVER_TWEAKER = "net.minecraftforge.fml.common.launcher.FMLServerTweaker";
+	}
 }

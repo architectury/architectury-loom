@@ -54,5 +54,7 @@ class ForgeTest extends Specification implements GradleProjectTestTrait {
 			'1.16.5'  | "36.2.4"     | "\"net.fabricmc:yarn:1.16.5+build.5:v2\""
 			'1.14.4'  | "28.2.23"    | "loom.officialMojangMappings()"
 			'1.14.4'  | "28.2.23"    | "\"net.fabricmc:yarn:1.14.4+build.18:v2\""
+			'1.12.2'  | "14.23.0.2486" | "\"de.oceanlabs.mcp:mcp_snapshot:20170615-1.12\""
+			'1.8.9'   | "11.15.1.2318-1.8.9" | "\"de.oceanlabs.mcp:mcp_stable:22-1.8.9\""
 	}
 }
