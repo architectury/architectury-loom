@@ -40,8 +40,7 @@ import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 
 public class PatchProvider extends DependencyProvider {
-	public Path clientPatches;
-	public Path serverPatches;
+	public Path patches;
 	public Path projectCacheFolder;
 
 	public PatchProvider(Project project) {
@@ -52,22 +51,20 @@ public class PatchProvider extends DependencyProvider {
 	public void provide(DependencyInfo dependency) throws Exception {
 		init(dependency.getDependency().getVersion());
 
-		if (Files.notExists(clientPatches) || Files.notExists(serverPatches) || isRefreshDeps()) {
+		if (Files.notExists(patches) || isRefreshDeps()) {
 			getProject().getLogger().info(":extracting forge patches");
 
-			Path installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath();
+			Path userdev = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge userdev")).toPath();
 
-			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + installerJar.toUri()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("data", "client.lzma"), clientPatches, StandardCopyOption.REPLACE_EXISTING);
-				Files.copy(fs.getPath("data", "server.lzma"), serverPatches, StandardCopyOption.REPLACE_EXISTING);
+			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + userdev.toUri()), ImmutableMap.of("create", false))) {
+				Files.copy(fs.getPath("joined.lzma"), patches, StandardCopyOption.REPLACE_EXISTING);
 			}
 		}
 	}
 
 	private void init(String forgeVersion) {
 		projectCacheFolder = getMinecraftProvider().dir("forge/" + forgeVersion).toPath();
-		clientPatches = projectCacheFolder.resolve("patches-client.lzma");
-		serverPatches = projectCacheFolder.resolve("patches-server.lzma");
+		patches = projectCacheFolder.resolve("patches.lzma");
 
 		try {
 			Files.createDirectories(projectCacheFolder);
@@ -82,6 +79,6 @@ public class PatchProvider extends DependencyProvider {
 
 	@Override
 	public String getTargetConfig() {
-		return Constants.Configurations.FORGE_INSTALLER;
+		return Constants.Configurations.FORGE_USERDEV;
 	}
 }

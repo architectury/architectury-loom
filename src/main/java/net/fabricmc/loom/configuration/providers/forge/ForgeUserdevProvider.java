@@ -263,6 +263,8 @@ public class ForgeUserdevProvider extends DependencyProvider {
 				string = String.join(File.pathSeparator, modClasses);
 			} else if (key.equals("mcp_mappings")) {
 				string = "loom.stub";
+			} else if (key.equals("mcp_to_srg")) {
+				string = getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString();
 			} else if (json.has(key)) {
 				JsonElement element = json.get(key);
 
@@ -301,6 +303,10 @@ public class ForgeUserdevProvider extends DependencyProvider {
 
 	public File getUserdevJar() {
 		return userdevJar;
+	}
+
+	public JsonObject getConfig() {
+		return json;
 	}
 
 	@Override

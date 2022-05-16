@@ -61,7 +61,6 @@ import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
-import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -115,9 +114,7 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 
 		if (extension.shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || isRefreshDeps()) {
-				// Merge tiny mappings with srg
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), rawTinyMappings, rawTinyMappingsWithSrg, extraMappings, true);
+				mergeSrg(project, rawTinyMappings, rawTinyMappingsWithSrg);
 			}
 		}
 
@@ -204,18 +201,16 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 
 		Visitor visitor = new Visitor(Opcodes.ASM9);
 
-		for (MinecraftPatchedProvider.Environment environment : MinecraftPatchedProvider.Environment.values()) {
-			File patchedSrgJar = environment.patchedSrgJar.apply(MinecraftPatchedProvider.get(project));
-			FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
-			completer.onComplete(value -> system.close());
+		File patchedSrgJar = MinecraftPatchedProvider.get(project).getMinecraftMergedPatchedJar();
+		FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
+		completer.onComplete(value -> system.close());
 
-			for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
-				if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
-					completer.add(() -> {
-						byte[] bytes = Files.readAllBytes(fsPath);
-						new ClassReader(bytes).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-					});
-				}
+		for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
+			if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
+				completer.add(() -> {
+					byte[] bytes = Files.readAllBytes(fsPath);
+					new ClassReader(bytes).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+				});
 			}
 		}
 

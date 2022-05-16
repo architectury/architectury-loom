@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.mappings;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -36,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,6 +49,12 @@ import java.util.function.Supplier;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.gson.JsonObject;
+
+import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
+
+import net.fabricmc.mappingio.tree.MappingTree;
+
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -205,13 +213,23 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 			if (Files.notExists(tinyMappingsWithSrg) || isRefreshDeps()) {
 				// Merge tiny mappings with srg
 				Stopwatch stopwatch = Stopwatch.createStarted();
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
+				mergeSrg(project, tinyMappings, tinyMappingsWithSrg);
 				project.getLogger().info(":merged srg mappings in " + stopwatch.stop());
 			}
 
 			mappingTreeWithSrg = Suppliers.memoize(() -> readMappings(tinyMappingsWithSrg));
 		}
+	}
+
+	protected void mergeSrg(Project project, Path tinyMappings, Path tinyMappingsWithSrg) throws IOException {
+		MinecraftVersionMeta versionInfo = LoomGradleExtension.get(project).getMinecraftProvider().getVersionInfo();
+		SrgMerger.ExtraMappings extraMappings;
+		if (versionInfo.download(MojangMappingsSpec.MANIFEST_CLIENT_MAPPINGS) == null) {
+			extraMappings = null;
+		} else {
+			extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
+		}
+		SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
 	}
 
 	public void applyToProject(Project project, DependencyInfo dependency) throws IOException {
@@ -235,6 +253,31 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 			if (Files.notExists(srgToNamedSrg) || isRefreshDeps()) {
 				SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, getMappingsWithSrg(), "srg", "named");
+
+				// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
+				// So we try to get as close to that by adding the class mappings even if they don't change.
+				BufferedWriter writer = null;
+				try {
+					for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
+						final var srg = missingClass.getName("srg");
+						final var named = missingClass.getName("named");
+						if (srg.equals(named)) {
+							if (writer == null) {
+								writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);
+							}
+
+							writer.write("CL: ");
+							writer.write(srg);
+							writer.write(' ');
+							writer.write(named);
+							writer.write('\n');
+						}
+					}
+				} finally {
+					if (writer != null) {
+						writer.close();
+					}
+				}
 			}
 		}
 
