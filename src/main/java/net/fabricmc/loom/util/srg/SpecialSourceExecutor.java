@@ -30,7 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,9 +37,8 @@ import com.google.common.base.Stopwatch;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.forge.McpConfigProvider.RemapAction;
+import net.fabricmc.loom.configuration.providers.forge.McpConfigProvider;
 import net.fabricmc.loom.util.FileSystemUtil;
-import net.fabricmc.loom.util.ForgeToolExecutor;
 import net.fabricmc.loom.util.ThreadingUtils;
 
 public class SpecialSourceExecutor {
@@ -54,13 +52,12 @@ public class SpecialSourceExecutor {
 		return string;
 	}
 
-	public static Path produceSrgJar(RemapAction remapAction, Project project, String side, Set<File> mcLibs, Path officialJar, Path mappings)
-			throws IOException {
+	public static Path stripJar(Project project, Path officialJar, Path mappings) throws IOException {
 		Set<String> filter = Files.readAllLines(mappings, StandardCharsets.UTF_8).stream()
 				.filter(s -> !s.startsWith("\t"))
 				.map(s -> s.split(" ")[0] + ".class")
 				.collect(Collectors.toSet());
-		LoomGradleExtension extension = LoomGradleExtension.get(project.getProject());
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		Path stripped = extension.getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-filtered.jar");
 		Files.deleteIfExists(stripped);
 
@@ -97,26 +94,21 @@ public class SpecialSourceExecutor {
 			project.getLogger().info("Copied class files in " + stopwatch.stop());
 		}
 
-		Path output = extension.getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-srg-output.jar");
+		return stripped;
+	}
+
+	public static Path produceSrgJar(McpConfigProvider.RemapAction remapAction, Project project, String side, Path officialJar, Path mappings)
+			throws IOException {
+		Path output = LoomGradleExtension.get(project).getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-srg-output.jar");
 		Files.deleteIfExists(output);
-		stopwatch = Stopwatch.createStarted();
 
-		List<String> args = remapAction.getArgs(stripped, output, mappings, project.files(mcLibs));
+		Stopwatch stopwatch = Stopwatch.createStarted();
 
-		project.getLogger().lifecycle(":remapping minecraft (" + remapAction + ", " + side + ", official -> mojang)");
+		project.getLogger().lifecycle(":remapping minecraft (" + remapAction + ", " + side + ", official -> srg)");
+		remapAction.execute(officialJar, output, mappings);
+		project.getLogger().lifecycle(":remapped minecraft (" + remapAction + ", " + side + ", official -> srg) in " + stopwatch.stop());
 
-		Path workingDir = tmpDir();
-
-		ForgeToolExecutor.exec(project, spec -> {
-			spec.setArgs(args);
-			spec.setClasspath(remapAction.getClasspath());
-			spec.workingDir(workingDir.toFile());
-			spec.getMainClass().set(remapAction.getMainClass());
-		}).rethrowFailure().assertNormalExitValue();
-
-		project.getLogger().lifecycle(":remapped minecraft (" + remapAction + ", " + side + ", official -> mojang) in " + stopwatch.stop());
-
-		Files.deleteIfExists(stripped);
+		Files.deleteIfExists(officialJar);
 
 		Path tmp = tmpFile();
 		Files.deleteIfExists(tmp);
@@ -128,9 +120,5 @@ public class SpecialSourceExecutor {
 
 	private static Path tmpFile() throws IOException {
 		return Files.createTempFile(null, null);
-	}
-
-	private static Path tmpDir() throws IOException {
-		return Files.createTempDirectory(null);
 	}
 }

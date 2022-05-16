@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -32,9 +31,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.jar.Attributes;
-import java.util.jar.Manifest;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -47,6 +48,7 @@ import org.gradle.api.file.FileCollection;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
+import net.fabricmc.loom.util.ForgeToolExecutor;
 import net.fabricmc.loom.util.ZipUtils;
 
 public class McpConfigProvider extends DependencyProvider {
@@ -55,6 +57,7 @@ public class McpConfigProvider extends DependencyProvider {
 	private Path mappings;
 	private Boolean official;
 	private String mappingsPath;
+	private MergeAction mergeAction;
 	private RemapAction remapAction;
 
 	public McpConfigProvider(Project project) {
@@ -84,14 +87,17 @@ public class McpConfigProvider extends DependencyProvider {
 		if (json.has("functions")) {
 			JsonObject functions = json.getAsJsonObject("functions");
 
-			if (functions.has("rename")) {
-				remapAction = new ConfigDefinedRemapAction(getProject(), functions.getAsJsonObject("rename"));
-			}
+			mergeAction = new MergeAction(getProject(), functions);
+			remapAction = new RemapAction(getProject(), functions);
 		}
 
 		if (remapAction == null) {
 			throw new RuntimeException("Could not find remap action, this is probably a version Architectury Loom does not support!");
 		}
+	}
+
+	public MergeAction getMergeAction() {
+		return mergeAction;
 	}
 
 	public RemapAction getRemapAction() {
@@ -138,23 +144,16 @@ public class McpConfigProvider extends DependencyProvider {
 		return Constants.Configurations.MCP_CONFIG;
 	}
 
-	public interface RemapAction {
-		FileCollection getClasspath();
-
-		String getMainClass();
-
-		List<String> getArgs(Path input, Path output, Path mappings, FileCollection libraries);
-	}
-
-	public static class ConfigDefinedRemapAction implements RemapAction {
+	public abstract static class McpStepAction {
 		private final Project project;
 		private final String name;
 		private final File mainClasspath;
 		private final FileCollection classpath;
 		private final List<String> args;
-		private boolean hasLibraries;
 
-		public ConfigDefinedRemapAction(Project project, JsonObject json) {
+		protected Map<String, String> argumentTemplates;
+
+		public McpStepAction(Project project, JsonObject json) {
 			this.project = project;
 			this.name = json.get("version").getAsString();
 			this.mainClasspath = DependencyDownloader.download(project, this.name, false, true)
@@ -163,69 +162,60 @@ public class McpConfigProvider extends DependencyProvider {
 			this.args = StreamSupport.stream(json.getAsJsonArray("args").spliterator(), false)
 					.map(JsonElement::getAsString)
 					.collect(Collectors.toList());
-			for (int i = 1; i < this.args.size(); i++) {
-				if (this.args.get(i).equals("{libraries}")) {
-					this.args.remove(i);
-					this.args.remove(i - 1);
-					this.hasLibraries = true;
-					break;
-				}
-			}
 		}
 
-		@Override
-		public FileCollection getClasspath() {
-			return classpath;
-		}
-
-		@Override
-		public String getMainClass() {
-			try {
-				byte[] manifestBytes = ZipUtils.unpackNullable(mainClasspath.toPath(), "META-INF/MANIFEST.MF");
-
-				if (manifestBytes == null) {
-					throw new RuntimeException("Could not find MANIFEST.MF in " + mainClasspath + "!");
-				}
-
-				Manifest manifest = new Manifest(new ByteArrayInputStream(manifestBytes));
-				Attributes attributes = manifest.getMainAttributes();
-				String value = attributes.getValue(Attributes.Name.MAIN_CLASS);
-
-				if (value == null) {
-					throw new RuntimeException("Could not find main class in " + mainClasspath + "!");
-				} else {
-					return value;
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+		protected void execute() throws IOException {
+			String mainClass;
+			try (var jar = new JarFile(mainClasspath)) {
+				mainClass = jar.getManifest().getMainAttributes().getValue(Attributes.Name.MAIN_CLASS);
 			}
-		}
-
-		@Override
-		public List<String> getArgs(Path input, Path output, Path mappings, FileCollection libraries) {
-			List<String> args = this.args.stream()
-					.map(str -> {
-						return switch (str) {
-						case "{input}" -> input.toAbsolutePath().toString();
-						case "{output}" -> output.toAbsolutePath().toString();
-						case "{mappings}" -> mappings.toAbsolutePath().toString();
-						default -> str;
-						};
-					})
-					.collect(Collectors.toList());
-
-			if (hasLibraries) {
-				for (File file : libraries) {
-					args.add("-e=" + file.getAbsolutePath());
-				}
-			}
-
-			return args;
+			ForgeToolExecutor.exec(project, spec -> {
+				spec.setArgs(args.stream().map(arg -> {
+					if (argumentTemplates != null) {
+						final var replacement = argumentTemplates.get(arg);
+						if (replacement != null) {
+							return replacement;
+						}
+					}
+					return arg;
+				}).collect(Collectors.toList()));
+				spec.getMainClass().set(mainClass);
+				spec.setClasspath(classpath);
+			});
 		}
 
 		@Override
 		public String toString() {
 			return this.name;
+		}
+	}
+
+	public static class MergeAction extends McpStepAction {
+		public MergeAction(Project project, JsonObject json) {
+			super(project, json.getAsJsonObject("merge"));
+		}
+
+		public void execute(Path client, Path server, String version, Path output) throws IOException {
+			argumentTemplates = new HashMap<>();
+			argumentTemplates.put("{client}", client.toAbsolutePath().toString());
+			argumentTemplates.put("{server}", server.toAbsolutePath().toString());
+			argumentTemplates.put("{version}", version);
+			argumentTemplates.put("{output}", output.toAbsolutePath().toString());
+			execute();
+		}
+	}
+
+	public static class RemapAction extends McpStepAction {
+		public RemapAction(Project project, JsonObject json) {
+			super(project, json.getAsJsonObject("rename"));
+		}
+
+		public void execute(Path input, Path output, Path mappings) throws IOException {
+			argumentTemplates = new HashMap<>();
+			argumentTemplates.put("{input}", input.toAbsolutePath().toString());
+			argumentTemplates.put("{output}", output.toAbsolutePath().toString());
+			argumentTemplates.put("{mappings}", mappings.toAbsolutePath().toString());
+			execute();
 		}
 	}
 }
