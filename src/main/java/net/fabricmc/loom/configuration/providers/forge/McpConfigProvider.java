@@ -174,19 +174,23 @@ public class McpConfigProvider extends DependencyProvider {
 
 		protected void execute() throws IOException {
 			String mainClass;
-			try (var jar = new JarFile(mainClasspath)) {
+
+			try (JarFile jar = new JarFile(mainClasspath)) {
 				mainClass = jar.getManifest().getMainAttributes().getValue(Attributes.Name.MAIN_CLASS);
 			}
 
 			ForgeToolExecutor.exec(project, spec -> {
 				List<String> specArgs = new ArrayList<>();
+
 				for (String arg : args) {
 					if (argumentTemplates != null) {
-						final var replacement = argumentTemplates.get(arg);
+						Collection<String> replacement = argumentTemplates.get(arg);
+
 						if (replacement != null) {
 							if (replacement.size() > 1) {
 								specArgs.remove(specArgs.size() - 1);
 							}
+
 							specArgs.addAll(replacement);
 						} else {
 							specArgs.add(arg);

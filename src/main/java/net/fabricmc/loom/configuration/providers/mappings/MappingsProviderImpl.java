@@ -49,12 +49,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.gson.JsonObject;
-
-import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
-
-import net.fabricmc.mappingio.tree.MappingTree;
-
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -65,13 +59,16 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingsProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
+import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.MappingsMerger;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.TinyJarInfo;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.ZipUtils;
@@ -82,6 +79,7 @@ import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
@@ -224,11 +222,13 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 	protected void mergeSrg(Project project, Path tinyMappings, Path tinyMappingsWithSrg) throws IOException {
 		MinecraftVersionMeta versionInfo = LoomGradleExtension.get(project).getMinecraftProvider().getVersionInfo();
 		SrgMerger.ExtraMappings extraMappings;
+
 		if (versionInfo.download(MojangMappingsSpec.MANIFEST_CLIENT_MAPPINGS) == null) {
 			extraMappings = null;
 		} else {
 			extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
 		}
+
 		SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
 	}
 
@@ -257,10 +257,12 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 				// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
 				// So we try to get as close to that by adding the class mappings even if they don't change.
 				BufferedWriter writer = null;
+
 				try {
 					for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
-						final var srg = missingClass.getName("srg");
-						final var named = missingClass.getName("named");
+						String srg = missingClass.getName(MappingsNamespace.SRG.toString());
+						String named = missingClass.getName(MappingsNamespace.NAMED.toString());
+
 						if (srg.equals(named)) {
 							if (writer == null) {
 								writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);

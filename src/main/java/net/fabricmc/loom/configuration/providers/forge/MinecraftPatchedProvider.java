@@ -58,7 +58,9 @@ import java.util.stream.StreamSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
 import dev.architectury.tinyremapper.MetaInfFixer;
 import dev.architectury.tinyremapper.OutputConsumerPath;
@@ -187,9 +189,9 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		initPatchedFiles();
 		checkCache();
 
-		var userdevConfig = getExtension().getForgeUserdevProvider().getConfig();
-		var notchObf = userdevConfig.get("notchObf");
-		var notch = notchObf != null && notchObf.getAsBoolean();
+		JsonObject userdevConfig = getExtension().getForgeUserdevProvider().getConfig();
+		JsonElement notchObf = userdevConfig.get("notchObf");
+		boolean notch = notchObf != null && notchObf.getAsBoolean();
 
 		this.dirty = false;
 
@@ -288,30 +290,31 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 
 	private Path mergeForge(Path input) throws IOException {
 		Path tmpForgeMerged = input.getParent().resolve("minecraft-forge-merged.jar");
-		var forgeJar = getForgeJar();
+		File forgeJar = getForgeJar();
 		Files.deleteIfExists(tmpForgeMerged);
 
 		try (
-				var fs = FileSystemUtil.getJarFileSystem(tmpForgeMerged, true);
-				var minecraftFs = FileSystemUtil.getJarFileSystem(input, false);
-				var forgeFs = FileSystemUtil.getJarFileSystem(forgeJar, false)
+				FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(tmpForgeMerged, true);
+				FileSystemUtil.Delegate minecraftFs = FileSystemUtil.getJarFileSystem(input, false);
+				FileSystemUtil.Delegate forgeFs = FileSystemUtil.getJarFileSystem(forgeJar, false)
 		) {
 			Files.walkFileTree(minecraftFs.get().getPath("."), new SimpleFileVisitor<>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					var out = fs.get().getPath(file.toString());
+					Path out = fs.get().getPath(file.toString());
 					Files.createDirectories(out.getParent());
 					Files.copy(file, out);
 					return FileVisitResult.CONTINUE;
 				}
 			});
 
-			var forgeRoot = forgeFs.get().getPath(".");
+			Path forgeRoot = forgeFs.get().getPath(".");
 			Files.walkFileTree(forgeRoot, new SimpleFileVisitor<>() {
 				private final List<Pattern> patterns;
 
 				{
-					var universalFilters = getExtension().getForgeUserdevProvider().getConfig().getAsJsonArray("universalFilters");
+					JsonArray universalFilters = getExtension().getForgeUserdevProvider().getConfig().getAsJsonArray("universalFilters");
+
 					if (universalFilters == null) {
 						patterns = Collections.emptyList();
 					} else {
@@ -321,24 +324,30 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					var path = forgeRoot.relativize(file).toString();
-					if (!patterns.isEmpty() && patterns.stream().noneMatch(pattern -> pattern.matcher(path).matches()))
-						return FileVisitResult.CONTINUE;
+					String path = forgeRoot.relativize(file).toString();
 
-					var out = fs.get().getPath(path);
+					if (!patterns.isEmpty() && patterns.stream().noneMatch(pattern -> pattern.matcher(path).matches())) {
+						return FileVisitResult.CONTINUE;
+					}
+
+					Path out = fs.get().getPath(path);
+
 					if (Files.notExists(out)) {
 						if (MetaInfFixer.INSTANCE.canTransform(null, out)) {
 							try (InputStream input = Files.newInputStream(file)) {
 								MetaInfFixer.INSTANCE.transform(fs.get().getPath("."), out, input, null);
 							}
 						} else {
-							var parent = out.getParent();
+							Path parent = out.getParent();
+
 							if (parent != null) {
 								Files.createDirectories(parent);
 							}
+
 							Files.copy(file, out);
 						}
 					}
+
 					return FileVisitResult.CONTINUE;
 				}
 			});
@@ -483,11 +492,13 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		Files.deleteIfExists(target.toPath());
 
 		File tmpFile = null;
+
 		try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + getForgeUserdevJar().toURI()), ImmutableMap.of("create", false))) {
 			for (JsonElement at : getExtension().getForgeUserdevProvider().getConfig().getAsJsonArray("ats")) {
 				if (tmpFile == null) {
 					tmpFile = File.createTempFile("at-conf", ".cfg");
 				}
+
 				Files.write(tmpFile.toPath(), Files.readAllBytes(fs.getPath(at.getAsString())), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 			}
 		}
@@ -569,7 +580,7 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 	private void mergeJars(Logger logger) throws IOException {
 		getExtension().getMcpConfigProvider().getMergeAction().execute(getMinecraftClientJar().toPath(), getEffectiveServerJar().toPath(), minecraftVersion(), minecraftMergedJar.toPath());
 
-		var stripped = SpecialSourceExecutor.stripJar(getProject(), minecraftMergedJar.toPath(), getToSrgMappings());
+		Path stripped = SpecialSourceExecutor.stripJar(getProject(), minecraftMergedJar.toPath(), getToSrgMappings());
 		Files.deleteIfExists(minecraftMergedJar.toPath());
 		Files.copy(stripped, minecraftMergedJar.toPath());
 	}
