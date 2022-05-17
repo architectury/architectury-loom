@@ -41,12 +41,11 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
@@ -61,7 +60,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
-import dev.architectury.tinyremapper.InputTag;
+import dev.architectury.tinyremapper.MetaInfFixer;
 import dev.architectury.tinyremapper.OutputConsumerPath;
 import dev.architectury.tinyremapper.TinyRemapper;
 import net.minecraftforge.binarypatcher.ConsoleTool;
@@ -99,9 +98,9 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 
 	// Step 1: Merge (global)
 	private File minecraftMergedJar;
-	// Step 2: Binary Patch
-	private File minecraftMergedPatchedJar;
-	// Step 3: Remap Minecraft to SRG
+	// Step 2: Remap Minecraft to SRG
+	private File minecraftMergedSrgJar;
+	// Step 3: Binary Patch
 	private File minecraftMergedPatchedSrgJar;
 	// Step 4: Access Transform
 	private File minecraftMergedPatchedSrgAtJar;
@@ -138,7 +137,7 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		setJarPrefix(patchId);
 
 		minecraftMergedJar = new File(forgeWorkingDir, "minecraft-merged.jar");
-		minecraftMergedPatchedJar = new File(forgeWorkingDir, "merged-patched.jar");
+		minecraftMergedSrgJar = new File(forgeWorkingDir, "merged-srg.jar");
 		minecraftMergedPatchedSrgJar = new File(forgeWorkingDir, "merged-srg-patched.jar");
 		minecraftMergedPatchedSrgAtJar = new File(forgeWorkingDir, "merged-srg-at-patched.jar");
 		minecraftMergedPatchedAtJar = new File(forgeWorkingDir, "merged-at-patched.jar");
@@ -166,8 +165,8 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 
 	private File[] getGlobalCaches() {
 		return new File[]{
+				minecraftMergedSrgJar,
 				minecraftMergedPatchedSrgJar,
-				minecraftMergedPatchedJar,
 				minecraftMergedJar,
 				minecraftClientExtra,
 				minecraftMergedPatchedSrgAtJar,
@@ -188,6 +187,10 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		initPatchedFiles();
 		checkCache();
 
+		var userdevConfig = getExtension().getForgeUserdevProvider().getConfig();
+		var notchObf = userdevConfig.get("notchObf");
+		var notch = notchObf != null && notchObf.getAsBoolean();
+
 		this.dirty = false;
 
 		if (!minecraftMergedJar.exists()) {
@@ -195,20 +198,40 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 			mergeJars(getProject().getLogger());
 		}
 
-		if (dirty || !minecraftMergedPatchedJar.exists()) {
-			this.dirty = true;
-			patchJar(getProject().getLogger());
-		}
+		if (notch) {
+			minecraftMergedSrgJar = minecraftMergedPatchedSrgJar;
+			minecraftMergedPatchedSrgJar = new File(minecraftMergedSrgJar.getParentFile(), "merged-patched.jar");
 
-		if (dirty || !minecraftMergedPatchedSrgJar.exists()) {
-			this.dirty = true;
-			// Remap official jars to MCPConfig remapped srg jars
-			createSrgJars(getProject().getLogger());
-		}
+			// Reverse the order if it requires the patches to be applied to the non-srg game.
+			if (dirty || !minecraftMergedPatchedSrgJar.exists()) {
+				this.dirty = true;
+				patchJar(minecraftMergedJar, getProject().getLogger());
+			}
 
-		if (!minecraftMergedPatchedSrgAtJar.exists()) {
-			this.dirty = true;
-			accessTransformForge(getProject().getLogger());
+			if (dirty || !minecraftMergedSrgJar.exists()) {
+				this.dirty = true;
+				produceSrgJar(mergeForge(minecraftMergedPatchedSrgJar.toPath()));
+			}
+
+			if (!minecraftMergedPatchedSrgAtJar.exists()) {
+				this.dirty = true;
+				accessTransformForge(minecraftMergedSrgJar, getProject().getLogger());
+			}
+		} else {
+			if (dirty || !minecraftMergedSrgJar.exists()) {
+				this.dirty = true;
+				produceSrgJar(minecraftMergedJar.toPath());
+			}
+
+			if (dirty || !minecraftMergedPatchedSrgJar.exists()) {
+				this.dirty = true;
+				patchJar(minecraftMergedSrgJar, getProject().getLogger());
+			}
+
+			if (!minecraftMergedPatchedSrgAtJar.exists()) {
+				this.dirty = true;
+				accessTransformForge(mergeForge(minecraftMergedPatchedSrgJar.toPath()).toFile(), getProject().getLogger());
+			}
 		}
 	}
 
@@ -256,18 +279,21 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		return remapper;
 	}
 
-	private void createSrgJars(Logger logger) throws Exception {
-		produceSrgJar(minecraftMergedPatchedJar.toPath());
-	}
-
+	// Remap official merged jar to MCPConfig remapped srg jar
 	private void produceSrgJar(Path input) throws IOException {
 		Path tmpSrg = getToSrgMappings();
+		Set<File> mcLibs = getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES).resolve();
+		Files.copy(SpecialSourceExecutor.produceSrgJar(getExtension().getMcpConfigProvider().getRemapAction(), getProject(), "joined", mcLibs, input, tmpSrg), minecraftMergedSrgJar.toPath());
+	}
+
+	private Path mergeForge(Path input) throws IOException {
 		Path tmpForgeMerged = input.getParent().resolve("minecraft-forge-merged.jar");
 		var forgeJar = getForgeJar();
 		Files.deleteIfExists(tmpForgeMerged);
+
 		try (
 				var fs = FileSystemUtil.getJarFileSystem(tmpForgeMerged, true);
-				var minecraftFs = FileSystemUtil.getJarFileSystem(minecraftMergedPatchedJar, false);
+				var minecraftFs = FileSystemUtil.getJarFileSystem(input, false);
 				var forgeFs = FileSystemUtil.getJarFileSystem(forgeJar, false)
 		) {
 			Files.walkFileTree(minecraftFs.get().getPath("."), new SimpleFileVisitor<>() {
@@ -280,25 +306,47 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 				}
 			});
 
-			Files.walkFileTree(forgeFs.get().getPath("."), new SimpleFileVisitor<>() {
-				private final List<Pattern> patterns = StreamSupport.stream(getExtension().getForgeUserdevProvider().getConfig().getAsJsonArray("universalFilters").spliterator(), false).map(filter -> Pattern.compile(filter.getAsString())).collect(Collectors.toList());
+			var forgeRoot = forgeFs.get().getPath(".");
+			Files.walkFileTree(forgeRoot, new SimpleFileVisitor<>() {
+				private final List<Pattern> patterns;
+
+				{
+					var universalFilters = getExtension().getForgeUserdevProvider().getConfig().getAsJsonArray("universalFilters");
+					if (universalFilters == null) {
+						patterns = Collections.emptyList();
+					} else {
+						patterns = StreamSupport.stream(universalFilters.spliterator(), false).map(filter -> Pattern.compile(filter.getAsString())).collect(Collectors.toList());
+					}
+				}
 
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (!patterns.isEmpty() && patterns.stream().noneMatch(pattern -> pattern.matcher(forgeFs.get().getPath(".").relativize(file).toString()).matches()))
+					var path = forgeRoot.relativize(file).toString();
+					if (!patterns.isEmpty() && patterns.stream().noneMatch(pattern -> pattern.matcher(path).matches()))
 						return FileVisitResult.CONTINUE;
 
-					var out = fs.get().getPath(file.toString());
+					var out = fs.get().getPath(path);
 					if (Files.notExists(out)) {
-						Files.createDirectories(out.getParent());
-						Files.copy(file, out);
+						if (MetaInfFixer.INSTANCE.canTransform(null, out)) {
+							try (InputStream input = Files.newInputStream(file)) {
+								MetaInfFixer.INSTANCE.transform(fs.get().getPath("."), out, input, null);
+							}
+						} else {
+							var parent = out.getParent();
+							if (parent != null) {
+								Files.createDirectories(parent);
+							}
+							Files.copy(file, out);
+						}
 					}
 					return FileVisitResult.CONTINUE;
 				}
 			});
 		}
 
-		Files.copy(SpecialSourceExecutor.produceSrgJar(getExtension().getMcpConfigProvider().getRemapAction(), getProject(), "joined", tmpForgeMerged, tmpSrg), minecraftMergedPatchedSrgJar.toPath());
+		copyUserdevFiles(getForgeUserdevJar().toPath().toFile(), tmpForgeMerged.toFile());
+
+		return tmpForgeMerged;
 	}
 
 	private Path getToSrgMappings() throws IOException {
@@ -426,12 +474,11 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		}
 	}
 
-	private void accessTransformForge(Logger logger) throws Exception {
+	private void accessTransformForge(File input, Logger logger) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
 		logger.lifecycle(":access transforming minecraft");
 
-		File input = minecraftMergedPatchedSrgJar;
 		File target = minecraftMergedPatchedSrgAtJar;
 		Files.deleteIfExists(target.toPath());
 
@@ -461,40 +508,34 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		getProject().getLogger().lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
 		Path mcInput = minecraftMergedPatchedSrgAtJar.toPath();
 		Path mcOutput = minecraftMergedPatchedAtJar.toPath();
-		Path forgeUserdevJar = getForgeUserdevJar().toPath();
 		Files.deleteIfExists(mcOutput);
 
 		TinyRemapper remapper = buildRemapper(mcInput);
 
 		try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(mcOutput).build()) {
 			outputConsumer.addNonClassFiles(mcInput);
-
-			InputTag mcTag = remapper.createInputTag();
-			List<CompletableFuture<?>> futures = new ArrayList<>();
-			futures.add(remapper.readInputsAsync(mcTag, mcInput));
-			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-			remapper.apply(outputConsumer, mcTag);
+			remapper.readInputs(mcInput);
+			remapper.apply(outputConsumer);
 		} finally {
 			remapper.finish();
 		}
 
-		copyUserdevFiles(forgeUserdevJar.toFile(), minecraftMergedPatchedAtJar);
 		applyLoomPatchVersion(mcOutput);
 	}
 
-	private void patchJar(Logger logger) throws IOException {
+	private void patchJar(File input, Logger logger) throws IOException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		logger.lifecycle(":patching jar");
 
 		PatchProvider patchProvider = getExtension().getPatchProvider();
-		patchJar(minecraftMergedJar, minecraftMergedPatchedJar, patchProvider.patches);
+		patchJar(input, minecraftMergedPatchedSrgJar, patchProvider.patches);
 
 		try {
-			copyMissingClasses(minecraftMergedJar, minecraftMergedPatchedJar);
-			deleteParameterNames(minecraftMergedPatchedJar);
+			copyMissingClasses(input, minecraftMergedPatchedSrgJar);
+			deleteParameterNames(minecraftMergedPatchedSrgJar);
 
 			if (getExtension().isForgeAndNotOfficial()) {
-				fixParameterAnnotation(minecraftMergedPatchedJar);
+				fixParameterAnnotation(minecraftMergedPatchedSrgJar);
 			}
 		} catch (Exception exception) {
 			throw new RuntimeException(exception);
@@ -526,9 +567,9 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 	}
 
 	private void mergeJars(Logger logger) throws IOException {
-		getExtension().getMcpConfigProvider().getMergeAction().execute(getMinecraftClientJar().toPath(), getMinecraftServerJar().toPath(), minecraftVersion(), minecraftMergedJar.toPath());
+		getExtension().getMcpConfigProvider().getMergeAction().execute(getMinecraftClientJar().toPath(), getEffectiveServerJar().toPath(), minecraftVersion(), minecraftMergedJar.toPath());
 
-		final var stripped = SpecialSourceExecutor.stripJar(getProject(), minecraftMergedJar.toPath(), getToSrgMappings());
+		var stripped = SpecialSourceExecutor.stripJar(getProject(), minecraftMergedJar.toPath(), getToSrgMappings());
 		Files.deleteIfExists(minecraftMergedJar.toPath());
 		Files.copy(stripped, minecraftMergedJar.toPath());
 	}
@@ -599,7 +640,7 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		// If there are multiple name mapping services with the same "understanding" pair
 		// (source -> target namespace pair), modlauncher throws a fit and will crash.
 		// To use our YarnNamingService instead of MCPNamingService, we have to remove this file.
-		Predicate<Path> filter = file -> !file.toString().endsWith(".class") && !file.toString().equals(NAME_MAPPING_SERVICE_PATH);
+		Predicate<Path> filter = file -> !file.toString().equals(NAME_MAPPING_SERVICE_PATH);
 
 		walkFileSystems(source, target, filter, fs -> Collections.singleton(fs.getPath("inject")), (sourceFs, targetFs, sourcePath, targetPath) -> {
 			Path parent = targetPath.getParent();
@@ -633,7 +674,7 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 	}
 
 	public File getMinecraftMergedPatchedJar() {
-		return minecraftMergedPatchedJar;
+		return minecraftMergedPatchedSrgJar;
 	}
 
 	@Override

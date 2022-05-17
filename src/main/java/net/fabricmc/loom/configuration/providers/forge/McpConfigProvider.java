@@ -31,9 +31,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -151,7 +155,7 @@ public class McpConfigProvider extends DependencyProvider {
 		private final FileCollection classpath;
 		private final List<String> args;
 
-		protected Map<String, String> argumentTemplates;
+		protected Map<String, Collection<String>> argumentTemplates;
 
 		public McpStepAction(Project project, JsonObject json) {
 			this.project = project;
@@ -164,21 +168,35 @@ public class McpConfigProvider extends DependencyProvider {
 					.collect(Collectors.toList());
 		}
 
+		protected void setArg(String arg, String value) {
+			argumentTemplates.put(arg, Collections.singleton(value));
+		}
+
 		protected void execute() throws IOException {
 			String mainClass;
 			try (var jar = new JarFile(mainClasspath)) {
 				mainClass = jar.getManifest().getMainAttributes().getValue(Attributes.Name.MAIN_CLASS);
 			}
+
 			ForgeToolExecutor.exec(project, spec -> {
-				spec.setArgs(args.stream().map(arg -> {
+				List<String> specArgs = new ArrayList<>();
+				for (String arg : args) {
 					if (argumentTemplates != null) {
 						final var replacement = argumentTemplates.get(arg);
 						if (replacement != null) {
-							return replacement;
+							if (replacement.size() > 1) {
+								specArgs.remove(specArgs.size() - 1);
+							}
+							specArgs.addAll(replacement);
+						} else {
+							specArgs.add(arg);
 						}
+					} else {
+						specArgs.add(arg);
 					}
-					return arg;
-				}).collect(Collectors.toList()));
+				}
+
+				spec.setArgs(specArgs);
 				spec.getMainClass().set(mainClass);
 				spec.setClasspath(classpath);
 			});
@@ -197,10 +215,10 @@ public class McpConfigProvider extends DependencyProvider {
 
 		public void execute(Path client, Path server, String version, Path output) throws IOException {
 			argumentTemplates = new HashMap<>();
-			argumentTemplates.put("{client}", client.toAbsolutePath().toString());
-			argumentTemplates.put("{server}", server.toAbsolutePath().toString());
-			argumentTemplates.put("{version}", version);
-			argumentTemplates.put("{output}", output.toAbsolutePath().toString());
+			setArg("{client}", client.toAbsolutePath().toString());
+			setArg("{server}", server.toAbsolutePath().toString());
+			setArg("{version}", version);
+			setArg("{output}", output.toAbsolutePath().toString());
 			execute();
 		}
 	}
@@ -210,11 +228,12 @@ public class McpConfigProvider extends DependencyProvider {
 			super(project, json.getAsJsonObject("rename"));
 		}
 
-		public void execute(Path input, Path output, Path mappings) throws IOException {
+		public void execute(Path input, Path output, Path mappings, Set<File> mcLibs) throws IOException {
 			argumentTemplates = new HashMap<>();
-			argumentTemplates.put("{input}", input.toAbsolutePath().toString());
-			argumentTemplates.put("{output}", output.toAbsolutePath().toString());
-			argumentTemplates.put("{mappings}", mappings.toAbsolutePath().toString());
+			setArg("{input}", input.toAbsolutePath().toString());
+			setArg("{output}", output.toAbsolutePath().toString());
+			setArg("{mappings}", mappings.toAbsolutePath().toString());
+			argumentTemplates.put("{libraries}", mcLibs.stream().map(lib -> "-e=" + lib.getAbsolutePath()).collect(Collectors.toList()));
 			execute();
 		}
 	}

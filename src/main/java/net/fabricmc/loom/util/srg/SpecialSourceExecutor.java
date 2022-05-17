@@ -97,7 +97,7 @@ public class SpecialSourceExecutor {
 		return stripped;
 	}
 
-	public static Path produceSrgJar(McpConfigProvider.RemapAction remapAction, Project project, String side, Path officialJar, Path mappings)
+	public static Path produceSrgJar(McpConfigProvider.RemapAction remapAction, Project project, String side, Set<File> mcLibs, Path officialJar, Path mappings)
 			throws IOException {
 		Path output = LoomGradleExtension.get(project).getFiles().getProjectBuildCache().toPath().resolve(officialJar.getFileName().toString().substring(0, officialJar.getFileName().toString().length() - 4) + "-srg-output.jar");
 		Files.deleteIfExists(output);
@@ -105,7 +105,7 @@ public class SpecialSourceExecutor {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
 		project.getLogger().lifecycle(":remapping minecraft (" + remapAction + ", " + side + ", official -> srg)");
-		remapAction.execute(officialJar, output, mappings);
+		remapAction.execute(officialJar, output, mappings, mcLibs);
 		project.getLogger().lifecycle(":remapped minecraft (" + remapAction + ", " + side + ", official -> srg) in " + stopwatch.stop());
 
 		Files.deleteIfExists(officialJar);

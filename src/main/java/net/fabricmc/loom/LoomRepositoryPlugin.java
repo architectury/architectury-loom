@@ -100,6 +100,7 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 			});
 			repo.metadataSources(sources -> {
 				sources.mavenPom();
+				sources.artifact();
 				sources.ignoreGradleMetadataRedirection();
 			});
 		});
