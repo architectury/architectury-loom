@@ -110,8 +110,8 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 	private File minecraftMergedPatchedAtJar;
 	private File minecraftClientExtra;
 
-	private boolean dirty;
 	private boolean serverJarInitialized = false;
+	private boolean notch;
 
 	public static MergedMinecraftProvider createMergedMinecraftProvider(Project project) {
 		return LoomGradleExtension.get(project).isForge() ? new MinecraftPatchedProvider(project) : new MergedMinecraftProvider(project);
@@ -144,6 +144,15 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		minecraftMergedPatchedSrgAtJar = new File(forgeWorkingDir, "merged-srg-at-patched.jar");
 		minecraftMergedPatchedAtJar = new File(forgeWorkingDir, "merged-at-patched.jar");
 		minecraftClientExtra = new File(forgeWorkingDir, "forge-client-extra.jar");
+
+		JsonObject userdevConfig = getExtension().getForgeUserdevProvider().getConfig();
+		JsonElement notchObf = userdevConfig.get("notchObf");
+		notch = notchObf != null && notchObf.getAsBoolean();
+
+		if (notch) {
+			minecraftMergedSrgJar = minecraftMergedPatchedSrgJar;
+			minecraftMergedPatchedSrgJar = new File(minecraftMergedSrgJar.getParentFile(), "merged-patched.jar");
+		}
 	}
 
 	private File getEffectiveServerJar() throws IOException {
@@ -166,7 +175,7 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 	}
 
 	private File[] getGlobalCaches() {
-		return new File[]{
+		return new File[] {
 				minecraftMergedSrgJar,
 				minecraftMergedPatchedSrgJar,
 				minecraftMergedJar,
@@ -189,61 +198,42 @@ public class MinecraftPatchedProvider extends MergedMinecraftProvider {
 		initPatchedFiles();
 		checkCache();
 
-		JsonObject userdevConfig = getExtension().getForgeUserdevProvider().getConfig();
-		JsonElement notchObf = userdevConfig.get("notchObf");
-		boolean notch = notchObf != null && notchObf.getAsBoolean();
-
-		this.dirty = false;
-
 		if (!minecraftMergedJar.exists()) {
-			this.dirty = true;
 			mergeJars(getProject().getLogger());
 		}
 
 		if (notch) {
-			minecraftMergedSrgJar = minecraftMergedPatchedSrgJar;
-			minecraftMergedPatchedSrgJar = new File(minecraftMergedSrgJar.getParentFile(), "merged-patched.jar");
-
 			// Reverse the order if it requires the patches to be applied to the non-srg game.
-			if (dirty || !minecraftMergedPatchedSrgJar.exists()) {
-				this.dirty = true;
+			if (!minecraftMergedPatchedSrgJar.exists()) {
 				patchJar(minecraftMergedJar, getProject().getLogger());
 			}
 
-			if (dirty || !minecraftMergedSrgJar.exists()) {
-				this.dirty = true;
+			if (!minecraftMergedSrgJar.exists()) {
 				produceSrgJar(mergeForge(minecraftMergedPatchedSrgJar.toPath()));
 			}
 
 			if (!minecraftMergedPatchedSrgAtJar.exists()) {
-				this.dirty = true;
 				accessTransformForge(minecraftMergedSrgJar, getProject().getLogger());
 			}
 		} else {
-			if (dirty || !minecraftMergedSrgJar.exists()) {
-				this.dirty = true;
+			if (!minecraftMergedSrgJar.exists()) {
 				produceSrgJar(minecraftMergedJar.toPath());
 			}
 
-			if (dirty || !minecraftMergedPatchedSrgJar.exists()) {
-				this.dirty = true;
+			if (!minecraftMergedPatchedSrgJar.exists()) {
 				patchJar(minecraftMergedSrgJar, getProject().getLogger());
 			}
 
 			if (!minecraftMergedPatchedSrgAtJar.exists()) {
-				this.dirty = true;
 				accessTransformForge(mergeForge(minecraftMergedPatchedSrgJar.toPath()).toFile(), getProject().getLogger());
 			}
 		}
 	}
 
 	public void remapJar() throws Exception {
-		if (dirty) {
-			remapPatchedJar(getProject().getLogger());
-			fillClientExtraJar();
-		}
+		remapPatchedJar(getProject().getLogger());
+		fillClientExtraJar();
 
-		this.dirty = false;
 		DependencyProvider.addDependency(getProject(), minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
 	}
 
