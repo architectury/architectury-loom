@@ -45,6 +45,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DownloadUtil;
 import net.fabricmc.loom.util.ForgeToolExecutor;
 
@@ -190,7 +191,7 @@ public final class McpExecutor {
 
 		@Override
 		public Set<File> getMinecraftLibraries() {
-			return minecraftProvider.getMinecraftLibraries();
+			return project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES).resolve();
 		}
 	}
 }

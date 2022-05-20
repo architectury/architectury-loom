@@ -34,7 +34,7 @@ import net.fabricmc.loom.configuration.decompile.DecompileConfiguration;
 import net.fabricmc.loom.configuration.decompile.SingleJarDecompileConfiguration;
 import net.fabricmc.loom.configuration.decompile.SplitDecompileConfiguration;
 import net.fabricmc.loom.configuration.processors.JarProcessorManager;
-import net.fabricmc.loom.configuration.providers.forge.ForgeMinecraftProvider;
+import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
@@ -43,7 +43,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftPr
 
 public enum MinecraftJarConfiguration {
 	MERGED(
-		ForgeMinecraftProvider::createMergedMinecraftProvider,
+		ForgeMinecraftProvider::createMerged,
 		IntermediaryMinecraftProvider.MergedImpl::new,
 		NamedMinecraftProvider.MergedImpl::new,
 		SrgMinecraftProvider.MergedImpl::new,
@@ -52,7 +52,7 @@ public enum MinecraftJarConfiguration {
 		List.of("client", "server")
 	),
 	SERVER_ONLY(
-		SingleJarMinecraftProvider::server,
+		ForgeMinecraftProvider::createServerOnly,
 		IntermediaryMinecraftProvider.SingleJarImpl::server,
 		NamedMinecraftProvider.SingleJarImpl::server,
 		SrgMinecraftProvider.SingleJarImpl::server,
@@ -61,7 +61,7 @@ public enum MinecraftJarConfiguration {
 		List.of("server")
 	),
 	CLIENT_ONLY(
-		SingleJarMinecraftProvider::client,
+		ForgeMinecraftProvider::createClientOnly,
 		IntermediaryMinecraftProvider.SingleJarImpl::client,
 		NamedMinecraftProvider.SingleJarImpl::client,
 		SrgMinecraftProvider.SingleJarImpl::client,

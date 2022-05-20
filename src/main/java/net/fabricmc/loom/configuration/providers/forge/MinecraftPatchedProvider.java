@@ -42,7 +42,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -78,6 +77,7 @@ import net.fabricmc.loom.configuration.accesstransformer.AccessTransformerJarPro
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigData;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
+import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
@@ -142,10 +142,10 @@ public class MinecraftPatchedProvider {
 
 		minecraftProviderBridge.setJarPrefix(patchId);
 
-		minecraftSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "srg.jar");
-		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "srg-patched.jar");
-		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "srg-at-patched.jar");
-		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "patched.jar");
+		minecraftSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg.jar");
+		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
+		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-at-patched.jar");
+		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
 		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
 	}
 
@@ -590,8 +590,6 @@ public class MinecraftPatchedProvider {
 	public interface MinecraftProviderBridge {
 		File getClientJar();
 		File getRawServerJar();
-		File getEffectiveServerJar() throws IOException;
-		Set<File> getMinecraftLibraries();
 		MinecraftVersionMeta getVersionInfo();
 		void setJarPrefix(String jarPrefix);
 		File dir(String path);

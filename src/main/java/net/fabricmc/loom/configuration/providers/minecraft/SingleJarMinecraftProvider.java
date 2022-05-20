@@ -35,12 +35,12 @@ import org.gradle.api.Project;
 
 import net.fabricmc.loom.configuration.providers.BundleMetadata;
 
-public final class SingleJarMinecraftProvider extends MinecraftProvider {
+public class SingleJarMinecraftProvider extends MinecraftProvider {
 	private final Environment environment;
 
 	private Path minecraftEnvOnlyJar;
 
-	private SingleJarMinecraftProvider(Project project, Environment environment) {
+	protected SingleJarMinecraftProvider(Project project, Environment environment) {
 		super(project);
 		this.environment = environment;
 	}
@@ -68,7 +68,10 @@ public final class SingleJarMinecraftProvider extends MinecraftProvider {
 	@Override
 	public void provide() throws Exception {
 		super.provide();
+		processJar();
+	}
 
+	protected void processJar() throws Exception {
 		boolean requiresRefresh = isRefreshDeps() || Files.notExists(minecraftEnvOnlyJar);
 
 		if (!requiresRefresh) {
@@ -114,13 +117,13 @@ public final class SingleJarMinecraftProvider extends MinecraftProvider {
 		return minecraftEnvOnlyJar;
 	}
 
-	private interface Environment {
+	protected interface Environment {
 		String name();
 
 		Path getInputJar(SingleJarMinecraftProvider provider) throws Exception;
 	}
 
-	private static final class Server implements Environment {
+	public static final class Server implements Environment {
 		@Override
 		public String name() {
 			return "server";
@@ -139,7 +142,7 @@ public final class SingleJarMinecraftProvider extends MinecraftProvider {
 		}
 	}
 
-	private static final class Client implements Environment {
+	public static final class Client implements Environment {
 		@Override
 		public String name() {
 			return "client";

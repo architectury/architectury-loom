@@ -165,8 +165,10 @@ public final class AccessTransformerJarProcessor implements JarProcessor {
 
 	public static void executeAt(Project project, Path input, Path output, AccessTransformerConfiguration configuration) throws IOException {
 		boolean serverBundleMetadataPresent = LoomGradleExtension.get(project).getMinecraftProvider().getServerBundleMetadata() != null;
-		String atDependency = Constants.Dependencies.ACCESS_TRANSFORMERS + (serverBundleMetadataPresent ? Constants.Dependencies.Versions.ACCESS_TRANSFORMERS_NEW : Constants.Dependencies.Versions.ACCESS_TRANSFORMERS);
-		FileCollection classpath = DependencyDownloader.download(project, atDependency);
+		FileCollection classpath = new DependencyDownloader(project)
+				.add(Constants.Dependencies.ACCESS_TRANSFORMERS + (serverBundleMetadataPresent ? Constants.Dependencies.Versions.ACCESS_TRANSFORMERS_NEW : Constants.Dependencies.Versions.ACCESS_TRANSFORMERS))
+				.add(Constants.Dependencies.ASM + Constants.Dependencies.Versions.ASM)
+				.download();
 		List<String> args = new ArrayList<>();
 		args.add("--inJar");
 		args.add(input.toAbsolutePath().toString());
