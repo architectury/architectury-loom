@@ -32,6 +32,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +59,7 @@ public final class McpExecutor {
 	private final Path cache;
 	private final List<McpConfigStep> steps;
 	private final Map<String, McpConfigFunction> functions;
+	private final Map<String, String> extraConfig = new HashMap<>();
 
 	public McpExecutor(Project project, MinecraftPatchedProvider.MinecraftProviderBridge minecraftProvider, Path cache, List<McpConfigStep> steps, Map<String, McpConfigFunction> functions) {
 		this.project = project;
@@ -83,10 +85,6 @@ public final class McpExecutor {
 		return stepCache;
 	}
 
-	private Path getStepOutput(String step) {
-		return getStepCache(step).resolve("output");
-	}
-
 	private String resolve(McpConfigStep step, ConfigValue value) {
 		return value.fold(ConfigValue.Constant::value, variable -> {
 			String name = variable.name();
@@ -99,13 +97,10 @@ public final class McpExecutor {
 				return resolve(step, valueFromStep);
 			}
 
-			if (name.equals(ConfigValue.OUTPUT)) {
-				return getStepOutput(step.name()).toAbsolutePath().toString();
-			} else if (name.endsWith(ConfigValue.PREVIOUS_OUTPUT_SUFFIX)) {
-				String previousStep = name.substring(0, name.length() - ConfigValue.PREVIOUS_OUTPUT_SUFFIX.length());
-				return getStepOutput(previousStep).toAbsolutePath().toString();
-			} else if (name.equals(ConfigValue.SRG_MAPPINGS_NAME)) {
+			if (name.equals(ConfigValue.SRG_MAPPINGS_NAME)) {
 				return LoomGradleExtension.get(project).getSrgProvider().getSrg().toAbsolutePath().toString();
+			} else if (extraConfig.containsKey(name)) {
+				return extraConfig.get(name);
 			}
 
 			throw new IllegalArgumentException("Unknown MCP config variable: " + name);
@@ -113,7 +108,7 @@ public final class McpExecutor {
 	}
 
 	public Path executeUpTo(String step) throws IOException {
-		Path currentOutput = null;
+		extraConfig.clear();
 
 		// Find the total number of steps we need to execute.
 		int totalSteps = CollectionUtil.find(steps, s -> s.name().equals(step))
@@ -127,12 +122,9 @@ public final class McpExecutor {
 			currentStepIndex++;
 			StepLogic stepLogic = getStepLogic(currentStep.type());
 			project.getLogger().log(STEP_LOG_LEVEL, ":step {}/{} - {}", currentStepIndex, totalSteps, stepLogic.getDisplayName(currentStep.name()));
+
 			Stopwatch stopwatch = Stopwatch.createStarted();
-
-			createStepCache(currentStep.name());
-			currentOutput = getStepOutput(step);
 			stepLogic.execute(new ExecutionContextImpl(currentStep));
-
 			project.getLogger().log(STEP_LOG_LEVEL, ":{} done in {}", currentStep.name(), stopwatch.stop());
 
 			if (currentStep.name().equals(step)) {
@@ -140,14 +132,14 @@ public final class McpExecutor {
 			}
 		}
 
-		return currentOutput;
+		return Path.of(extraConfig.get(ConfigValue.OUTPUT));
 	}
 
 	private StepLogic getStepLogic(String type) {
 		return switch (type) {
 		case "downloadManifest", "downloadJson" -> new StepLogic.NoOp();
-		case "downloadClient" -> StepLogic.CopyFile.of(minecraftProvider::getClientJar);
-		case "downloadServer" -> StepLogic.CopyFile.of(minecraftProvider::getRawServerJar);
+		case "downloadClient" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getClientJar().toPath());
+		case "downloadServer" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getRawServerJar().toPath());
 		case "strip" -> new StepLogic.Strip();
 		case "listLibraries" -> new StepLogic.ListLibraries();
 		case "downloadClientMappings" -> new StepLogic.DownloadManifestFile(minecraftProvider.getVersionInfo().download("client_mappings"));
@@ -175,8 +167,17 @@ public final class McpExecutor {
 		}
 
 		@Override
-		public Path output() {
-			return getStepOutput(step.name());
+		public Path setOutput(String fileName) throws IOException {
+			createStepCache(step.name());
+			return setOutput(getStepCache(step.name()).resolve(fileName));
+		}
+
+		@Override
+		public Path setOutput(Path output) {
+			String absolutePath = output.toAbsolutePath().toString();
+			extraConfig.put(ConfigValue.OUTPUT, absolutePath);
+			extraConfig.put(step.name() + ConfigValue.PREVIOUS_OUTPUT_SUFFIX, absolutePath);
+			return output;
 		}
 
 		@Override

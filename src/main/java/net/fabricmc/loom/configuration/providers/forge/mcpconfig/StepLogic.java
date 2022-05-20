@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -47,7 +48,6 @@ import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.HashedDownloadUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
 import net.fabricmc.loom.util.function.CollectionUtil;
-import net.fabricmc.loom.util.function.IoSupplier;
 
 /**
  * The logic for executing a step. This corresponds to the {@code type} key in the step JSON format.
@@ -61,7 +61,8 @@ public interface StepLogic {
 
 	interface ExecutionContext {
 		Logger logger();
-		Path output();
+		Path setOutput(String fileName) throws IOException;
+		Path setOutput(Path output);
 		/** Mappings extracted from {@code data.mappings} in the MCPConfig JSON. */
 		Path mappings();
 		String resolve(ConfigValue value);
@@ -86,6 +87,7 @@ public interface StepLogic {
 
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
+			context.setOutput("output");
 			Path jar = context.download(function.getDownloadUrl());
 			String mainClass;
 
@@ -110,26 +112,6 @@ public interface StepLogic {
 	}
 
 	/**
-	 * Copies a lazily supplied file to the output.
-	 */
-	final class CopyFile implements StepLogic {
-		private final IoSupplier<Path> path;
-
-		private CopyFile(IoSupplier<Path> path) {
-			this.path = path;
-		}
-
-		public static CopyFile of(IoSupplier<File> file) {
-			return new CopyFile(() -> file.get().toPath());
-		}
-
-		@Override
-		public void execute(ExecutionContext context) throws IOException {
-			Files.copy(path.get(), context.output());
-		}
-	}
-
-	/**
 	 * Strips certain classes from the jar.
 	 */
 	final class Strip implements StepLogic {
@@ -142,7 +124,7 @@ public interface StepLogic {
 
 			Path input = Path.of(context.resolve(new ConfigValue.Variable("input")));
 
-			try (FileSystemUtil.Delegate output = FileSystemUtil.getJarFileSystem(context.output(), true)) {
+			try (FileSystemUtil.Delegate output = FileSystemUtil.getJarFileSystem(context.setOutput("stripped.jar"), true)) {
 				try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(input, false)) {
 					ThreadingUtils.TaskCompleter completer = ThreadingUtils.taskCompleter();
 
@@ -189,7 +171,7 @@ public interface StepLogic {
 	final class ListLibraries implements StepLogic {
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
-			try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(context.output()))) {
+			try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(context.setOutput("libraries.txt")))) {
 				for (File lib : context.getMinecraftLibraries()) {
 					writer.println("-e=" + lib.getAbsolutePath());
 				}
@@ -209,7 +191,7 @@ public interface StepLogic {
 
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
-			HashedDownloadUtil.downloadIfInvalid(new URL(download.url()), context.output().toFile(), download.sha1(), context.logger(), false);
+			HashedDownloadUtil.downloadIfInvalid(new URL(download.url()), context.setOutput("output").toFile(), download.sha1(), context.logger(), false);
 		}
 	}
 
@@ -219,6 +201,23 @@ public interface StepLogic {
 	final class NoOp implements StepLogic {
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
+		}
+	}
+
+	/**
+	 * A no-op step logic that is used for steps automatically executed by Loom earlier.
+	 * This one returns a file.
+	 */
+	final class NoOpWithFile implements StepLogic {
+		private final Supplier<Path> path;
+
+		public NoOpWithFile(Supplier<Path> path) {
+			this.path = path;
+		}
+
+		@Override
+		public void execute(ExecutionContext context) throws IOException {
+			context.setOutput(path.get());
 		}
 	}
 }
