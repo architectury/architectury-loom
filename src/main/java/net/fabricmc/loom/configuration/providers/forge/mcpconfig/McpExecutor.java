@@ -26,6 +26,8 @@ package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -46,7 +48,6 @@ import org.jetbrains.annotations.Nullable;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.DownloadUtil;
 import net.fabricmc.loom.util.ForgeToolExecutor;
 import net.fabricmc.loom.util.function.CollectionUtil;
 
@@ -191,8 +192,28 @@ public final class McpExecutor {
 		@Override
 		public Path download(String url) throws IOException {
 			Path path = getDownloadCache().resolve(Hashing.sha256().hashString(url, StandardCharsets.UTF_8).toString().substring(0, 24));
-			DownloadUtil.downloadIfChanged(new URL(url), path.toFile(), project.getLogger(), true);
+			redirectAwareDownload(url, path);
 			return path;
+		}
+
+		// Some of these files linked to the old Forge maven, let's follow the redirects to the new one.
+		private static void redirectAwareDownload(String urlString, Path path) throws IOException {
+			URL url = new URL(urlString);
+
+			if (url.getProtocol().equals("http")) {
+				url = new URL("https", url.getHost(), url.getPort(), url.getFile());
+			}
+
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			connection.connect();
+
+			if (connection.getResponseCode() == HttpURLConnection.HTTP_MOVED_PERM || connection.getResponseCode() == HttpURLConnection.HTTP_MOVED_TEMP) {
+				redirectAwareDownload(connection.getHeaderField("Location"), path);
+			} else {
+				try (InputStream in = connection.getInputStream()) {
+					Files.copy(in, path);
+				}
+			}
 		}
 
 		@Override
