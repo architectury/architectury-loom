@@ -37,11 +37,14 @@ import org.gradle.process.JavaExecSpec;
  * with suppressed output streams to prevent annoying log spam.
  */
 public final class ForgeToolExecutor {
-	public static boolean shouldShowVerboseOutput(Project project) {
-		// if running with INFO or DEBUG logging or stacktraces visible
-		// (stacktrace so errors printed to standard streams show up)
-		return project.getGradle().getStartParameter().getShowStacktrace() != ShowStacktrace.INTERNAL_EXCEPTIONS
-				|| project.getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) < 0;
+	public static boolean shouldShowVerboseStdout(Project project) {
+		// if running with INFO or DEBUG logging
+		return project.getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) < 0;
+	}
+
+	public static boolean shouldShowVerboseStderr(Project project) {
+		// if stdout is shown or stacktraces are visible so that errors printed to stderr show up
+		return shouldShowVerboseStdout(project) || project.getGradle().getStartParameter().getShowStacktrace() != ShowStacktrace.INTERNAL_EXCEPTIONS;
 	}
 
 	/**
@@ -55,11 +58,15 @@ public final class ForgeToolExecutor {
 		return project.javaexec(spec -> {
 			configurator.execute(spec);
 
-			if (shouldShowVerboseOutput(project)) {
+			if (shouldShowVerboseStdout(project)) {
 				spec.setStandardOutput(System.out);
-				spec.setErrorOutput(System.err);
 			} else {
 				spec.setStandardOutput(NullOutputStream.NULL_OUTPUT_STREAM);
+			}
+
+			if (shouldShowVerboseStderr(project)) {
+				spec.setErrorOutput(System.err);
+			} else {
 				spec.setErrorOutput(NullOutputStream.NULL_OUTPUT_STREAM);
 			}
 		});
