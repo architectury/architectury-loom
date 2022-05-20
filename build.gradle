@@ -125,7 +125,6 @@ dependencies {
 
 	// Forge patches
 	implementation ('net.minecraftforge:installertools:1.2.0')
-	implementation ('net.minecraftforge:binarypatcher:1.1.1')
 	implementation ('org.cadixdev:lorenz:0.5.3')
 	implementation ('org.cadixdev:lorenz-asm:0.5.3')
 	implementation ('de.oceanlabs.mcp:mcinjector:3.8.0')
