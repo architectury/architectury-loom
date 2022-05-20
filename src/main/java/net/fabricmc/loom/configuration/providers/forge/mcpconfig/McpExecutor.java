@@ -114,12 +114,13 @@ public final class McpExecutor {
 		Path currentOutput = null;
 
 		for (McpConfigStep currentStep : steps) {
-			project.getLogger().log(STEP_LOG_LEVEL, ":executing " + currentStep.name());
+			StepLogic stepLogic = getStepLogic(currentStep.type());
+			project.getLogger().log(STEP_LOG_LEVEL, ":executing " + stepLogic.getDisplayName(currentStep.name()));
 			Stopwatch stopwatch = Stopwatch.createStarted();
 
 			createStepCache(currentStep.name());
 			currentOutput = getStepOutput(step);
-			getStepLogic(currentStep.type()).execute(new ExecutionContextImpl(currentStep));
+			stepLogic.execute(new ExecutionContextImpl(currentStep));
 
 			project.getLogger().log(STEP_LOG_LEVEL, ":executed " + currentStep.name() + " in " + stopwatch.stop());
 

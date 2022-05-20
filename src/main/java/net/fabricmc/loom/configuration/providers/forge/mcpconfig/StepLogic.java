@@ -55,6 +55,10 @@ import net.fabricmc.loom.util.function.IoSupplier;
 public interface StepLogic {
 	void execute(ExecutionContext context) throws IOException;
 
+	default String getDisplayName(String stepName) {
+		return stepName;
+	}
+
 	interface ExecutionContext {
 		Logger logger();
 		Path output();
@@ -97,6 +101,11 @@ public interface StepLogic {
 				spec.args(context.resolve(function.args()));
 				spec.jvmArgs(context.resolve(function.jvmArgs()));
 			});
+		}
+
+		@Override
+		public String getDisplayName(String stepName) {
+			return stepName + " with " + function.version();
 		}
 	}
 
