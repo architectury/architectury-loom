@@ -48,6 +48,7 @@ import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DownloadUtil;
 import net.fabricmc.loom.util.ForgeToolExecutor;
+import net.fabricmc.loom.util.function.CollectionUtil;
 
 public final class McpExecutor {
 	private static final LogLevel STEP_LOG_LEVEL = LogLevel.LIFECYCLE;
@@ -113,16 +114,25 @@ public final class McpExecutor {
 	public Path executeUpTo(String step) throws IOException {
 		Path currentOutput = null;
 
+		// Find the total number of steps we need to execute.
+		int totalSteps = CollectionUtil.find(steps, s -> s.name().equals(step))
+				.map(s -> steps.indexOf(s) + 1)
+				.orElse(steps.size());
+		int currentStepIndex = 0;
+
+		project.getLogger().log(STEP_LOG_LEVEL, ":executing {} MCP steps", totalSteps);
+
 		for (McpConfigStep currentStep : steps) {
+			currentStepIndex++;
 			StepLogic stepLogic = getStepLogic(currentStep.type());
-			project.getLogger().log(STEP_LOG_LEVEL, ":executing " + stepLogic.getDisplayName(currentStep.name()));
+			project.getLogger().log(STEP_LOG_LEVEL, ":step {}/{} - {}", currentStepIndex, totalSteps, stepLogic.getDisplayName(currentStep.name()));
 			Stopwatch stopwatch = Stopwatch.createStarted();
 
 			createStepCache(currentStep.name());
 			currentOutput = getStepOutput(step);
 			stepLogic.execute(new ExecutionContextImpl(currentStep));
 
-			project.getLogger().log(STEP_LOG_LEVEL, ":executed " + currentStep.name() + " in " + stopwatch.stop());
+			project.getLogger().log(STEP_LOG_LEVEL, ":{} done in {}", currentStep.name(), stopwatch.stop());
 
 			if (currentStep.name().equals(step)) {
 				break;
