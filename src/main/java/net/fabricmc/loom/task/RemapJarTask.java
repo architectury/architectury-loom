@@ -120,6 +120,9 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	@Input
 	public abstract Property<Boolean> getAddNestedDependencies();
 
+	@Input
+	public abstract Property<Boolean> getIncludesClientOnlyClasses();
+
 	/**
 	 * Gets the jar paths to the access wideners that will be converted to ATs for Forge runtime.
 	 * If you specify multiple files, they will be merged into one.
@@ -159,6 +162,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		getClasspath().from(getProject().getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
 		getAddNestedDependencies().convention(true).finalizeValueOnRead();
+		getIncludesClientOnlyClasses().convention(false).finalizeValueOnRead();
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForge()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
 
@@ -221,7 +225,11 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				params.getMappingBuildServiceUuid().set(UnsafeWorkQueueHelper.create(getProject(), MappingsService.createDefault(getProject(), getSourceNamespace().get(), getTargetNamespace().get())));
 			}
 
-			if (extension.areEnvironmentSourceSetsSplit()) {
+			if (getIncludesClientOnlyClasses().get()) {
+				if (!extension.areEnvironmentSourceSetsSplit()) {
+					throw new UnsupportedOperationException("Jar cannot include client only classes as the sources are not split");
+				}
+
 				final List<String> clientOnlyJarEntries = getClientOnlyJarEntries();
 				params.getManifestAttributes().set(Map.of(
 						"Fabric-Loom-Split-Environment", "true",
