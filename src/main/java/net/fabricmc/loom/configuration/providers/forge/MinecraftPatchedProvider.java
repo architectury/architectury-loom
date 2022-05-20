@@ -161,12 +161,8 @@ public class MinecraftPatchedProvider {
 				minecraftPatchedSrgJar,
 				minecraftPatchedSrgAtJar,
 				minecraftPatchedJar,
+				minecraftClientExtra,
 		};
-
-		if (type.hasClient()) {
-			files = Arrays.copyOf(files, files.length + 1);
-			files[files.length - 1] = minecraftClientExtra;
-		}
 
 		return files;
 	}
@@ -207,17 +203,11 @@ public class MinecraftPatchedProvider {
 	public void remapJar() throws Exception {
 		if (dirty) {
 			remapPatchedJar();
-		}
-
-		if (type.hasClient()) {
-			if (dirty) {
-				fillClientExtraJar();
-			}
-
-			DependencyProvider.addDependency(project, minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
+			fillClientExtraJar();
 		}
 
 		this.dirty = false;
+		DependencyProvider.addDependency(project, minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
 	}
 
 	private void fillClientExtraJar() throws IOException {
@@ -580,10 +570,6 @@ public class MinecraftPatchedProvider {
 			this.id = id;
 			this.mcpId = mcpId;
 			this.patches = patches;
-		}
-
-		boolean hasClient() {
-			return this != SERVER_ONLY;
 		}
 	}
 

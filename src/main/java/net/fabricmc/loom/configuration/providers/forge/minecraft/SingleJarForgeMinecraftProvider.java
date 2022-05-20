@@ -38,7 +38,7 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 
 	private SingleJarForgeMinecraftProvider(Project project, SingleJarMinecraftProvider.Environment environment) {
 		super(project, environment);
-		this.patchedProvider = new MinecraftPatchedProvider(project, this, provideClient() ? MinecraftPatchedProvider.Type.CLIENT_ONLY : MinecraftPatchedProvider.Type.SERVER_ONLY);
+		this.patchedProvider = new MinecraftPatchedProvider(project, this, provideServer() ? MinecraftPatchedProvider.Type.SERVER_ONLY : MinecraftPatchedProvider.Type.CLIENT_ONLY);
 	}
 
 	public static SingleJarForgeMinecraftProvider server(Project project) {
@@ -47,6 +47,12 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 
 	public static SingleJarForgeMinecraftProvider client(Project project) {
 		return new SingleJarForgeMinecraftProvider(project, new Client());
+	}
+
+	@Override
+	protected boolean provideClient() {
+		// the client jar is needed for client-extra which the Forge userdev launch thing always checks for
+		return true;
 	}
 
 	@Override
