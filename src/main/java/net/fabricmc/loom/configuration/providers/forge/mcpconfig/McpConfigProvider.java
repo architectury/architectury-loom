@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.forge;
+package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -36,7 +36,7 @@ import com.google.gson.JsonObject;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigData;
+import net.fabricmc.loom.configuration.providers.forge.DependencyProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipUtils;
 
