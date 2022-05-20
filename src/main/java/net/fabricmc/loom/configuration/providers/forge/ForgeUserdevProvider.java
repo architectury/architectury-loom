@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2021 FabricMC
+ * Copyright (c) 2020-2022 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,7 @@ import org.gradle.api.attributes.Attribute;
 import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.provider.Provider;
 
+import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.api.ForgeLocalMod;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
@@ -66,10 +67,13 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.PropertyUtil;
+import net.fabricmc.loom.util.ZipUtils;
 
 public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
 	private JsonObject json;
+	Path joinedPatches;
+	BinaryPatcherConfig binaryPatcherConfig;
 
 	public ForgeUserdevProvider(Project project) {
 		super(project);
@@ -89,6 +93,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		}
 
 		userdevJar = new File(getExtension().getForgeProvider().getGlobalCache(), "forge-userdev.jar");
+		joinedPatches = getExtension().getForgeProvider().getGlobalCache().toPath().resolve("patches-joined.lzma");
 		Path configJson = getExtension().getForgeProvider().getGlobalCache().toPath().resolve("forge-config.json");
 
 		if (!userdevJar.exists() || Files.notExists(configJson) || isRefreshDeps()) {
@@ -132,8 +137,12 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			}
 		}
 
-		// TODO: Should I copy the patches from here as well?
-		//       That'd require me to run the "MCP environment" fully up to merging.
+		if (Files.notExists(joinedPatches)) {
+			Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), json.get("binpatches").getAsString()));
+		}
+
+		binaryPatcherConfig = BinaryPatcherConfig.fromJson(json.getAsJsonObject("binpatcher"));
+
 		for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("runs").entrySet()) {
 			LaunchProviderSettings launchSettings = getExtension().getLaunchConfigs().findByName(entry.getKey());
 			RunConfigSettings settings = getExtension().getRunConfigs().findByName(entry.getKey());
@@ -306,5 +315,13 @@ public class ForgeUserdevProvider extends DependencyProvider {
 	@Override
 	public String getTargetConfig() {
 		return Constants.Configurations.FORGE_USERDEV;
+	}
+
+	public record BinaryPatcherConfig(String dependency, List<String> args) {
+		public static BinaryPatcherConfig fromJson(JsonObject json) {
+			String dependency = json.get("version").getAsString();
+			List<String> args = List.of(LoomGradlePlugin.GSON.fromJson(json.get("args"), String[].class));
+			return new BinaryPatcherConfig(dependency, args);
+		}
 	}
 }

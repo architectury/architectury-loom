@@ -56,10 +56,11 @@ import net.fabricmc.loom.configuration.providers.forge.ForgeProvider;
 import net.fabricmc.loom.configuration.providers.forge.ForgeUniversalProvider;
 import net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider;
 import net.fabricmc.loom.configuration.providers.forge.McpConfigProvider;
-import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.PatchProvider;
+import net.fabricmc.loom.configuration.providers.forge.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
 import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
+import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarConfiguration;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
@@ -276,7 +277,7 @@ public final class CompileConfiguration {
 		// Provide the vanilla mc jars -- TODO share across projects.
 		final MinecraftProvider minecraftProvider = jarConfiguration.getMinecraftProviderFunction().apply(project);
 
-		if (extension.isForge() && !(minecraftProvider instanceof MinecraftPatchedProvider)) {
+		if (extension.isForge() && !(minecraftProvider instanceof MergedMinecraftProvider)) {
 			throw new UnsupportedOperationException("Using Forge with split or server-only jars is not currently supported!");
 		}
 
@@ -288,8 +289,8 @@ public final class CompileConfiguration {
 		extension.setMappingsProvider(mappingsProvider);
 		mappingsProvider.applyToProject(project, mappingsDep);
 
-		if (minecraftProvider instanceof MinecraftPatchedProvider patched) {
-			patched.remapJar();
+		if (minecraftProvider instanceof ForgeMinecraftProvider patched) {
+			patched.getPatchedProvider().remapJar();
 		}
 
 		// Provide the remapped mc jars

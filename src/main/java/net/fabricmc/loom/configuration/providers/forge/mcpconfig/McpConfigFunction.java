@@ -1,0 +1,81 @@
+/*
+ * This file is part of fabric-loom, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) 2022 FabricMC
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
+
+import java.util.List;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import net.fabricmc.loom.util.function.CollectionUtil;
+
+/**
+ * An executable program for {@linkplain McpConfigStep steps}.
+ *
+ * @param version the Gradle-style dependency string of the program
+ * @param args    the command-line arguments
+ * @param jvmArgs the JVM arguments
+ * @param repo    the Maven repository to download the dependency from
+ */
+public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, String repo) {
+	private static final String VERSION_KEY = "version";
+	private static final String ARGS_KEY = "args";
+	private static final String JVM_ARGS_KEY = "jvmargs";
+	private static final String REPO_KEY = "repo";
+
+	public String getDownloadUrl() {
+		String[] parts = version.split(":");
+		StringBuilder builder = new StringBuilder();
+		builder.append(repo);
+		// Group:
+		builder.append(parts[0].replace('.', '/')).append('/');
+		// Name:
+		builder.append(parts[1]).append('/');
+		// Version:
+		builder.append(parts[2]).append('/');
+		// Artifact:
+		builder.append(parts[1]).append('-').append(parts[2]);
+
+		// Classifier:
+		if (parts.length >= 4) {
+			builder.append('-').append(parts[3]);
+		}
+
+		builder.append(".jar");
+		return builder.toString();
+	}
+
+	public static McpConfigFunction fromJson(JsonObject json) {
+		String version = json.get(VERSION_KEY).getAsString();
+		List<ConfigValue> args = configValuesFromJson(json.getAsJsonArray(ARGS_KEY));
+		List<ConfigValue> jvmArgs = configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY));
+		String repo = json.get(REPO_KEY).getAsString();
+		return new McpConfigFunction(version, args, jvmArgs, repo);
+	}
+
+	private static List<ConfigValue> configValuesFromJson(JsonArray json) {
+		return CollectionUtil.map(json, child -> ConfigValue.of(child.getAsString()));
+	}
+}

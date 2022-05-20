@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
@@ -53,7 +54,7 @@ public abstract class DependencyProvider {
 	}
 
 	static Dependency addDependency(Project project, Object object, String target) {
-		if (object instanceof File) {
+		if (object instanceof File || object instanceof Path) {
 			object = project.files(object);
 		}
 

@@ -34,7 +34,7 @@ import net.fabricmc.loom.configuration.decompile.DecompileConfiguration;
 import net.fabricmc.loom.configuration.decompile.SingleJarDecompileConfiguration;
 import net.fabricmc.loom.configuration.decompile.SplitDecompileConfiguration;
 import net.fabricmc.loom.configuration.processors.JarProcessorManager;
-import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
+import net.fabricmc.loom.configuration.providers.forge.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
@@ -43,7 +43,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftPr
 
 public enum MinecraftJarConfiguration {
 	MERGED(
-		MinecraftPatchedProvider::createMergedMinecraftProvider,
+		ForgeMinecraftProvider::createMergedMinecraftProvider,
 		IntermediaryMinecraftProvider.MergedImpl::new,
 		NamedMinecraftProvider.MergedImpl::new,
 		SrgMinecraftProvider.MergedImpl::new,

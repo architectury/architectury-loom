@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2021 FabricMC
+ * Copyright (c) 2020-2022 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,38 +24,27 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
-import java.util.jar.Attributes;
-import java.util.jar.Manifest;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.gradle.api.Project;
-import org.gradle.api.file.FileCollection;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigData;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.ZipUtils;
 
 public class McpConfigProvider extends DependencyProvider {
 	private Path mcp;
 	private Path configJson;
 	private Path mappings;
-	private Boolean official;
-	private String mappingsPath;
-	private RemapAction remapAction;
+	private McpConfigData data;
 
 	public McpConfigProvider(Project project) {
 		super(project);
@@ -78,24 +67,7 @@ public class McpConfigProvider extends DependencyProvider {
 			json = new Gson().fromJson(reader, JsonObject.class);
 		}
 
-		official = json.has("official") && json.getAsJsonPrimitive("official").getAsBoolean();
-		mappingsPath = json.get("data").getAsJsonObject().get("mappings").getAsString();
-
-		if (json.has("functions")) {
-			JsonObject functions = json.getAsJsonObject("functions");
-
-			if (functions.has("rename")) {
-				remapAction = new ConfigDefinedRemapAction(getProject(), functions.getAsJsonObject("rename"));
-			}
-		}
-
-		if (remapAction == null) {
-			throw new RuntimeException("Could not find remap action, this is probably a version Architectury Loom does not support!");
-		}
-	}
-
-	public RemapAction getRemapAction() {
-		return remapAction;
+		data = McpConfigData.fromJson(json);
 	}
 
 	private void init(String version) throws IOException {
@@ -126,11 +98,11 @@ public class McpConfigProvider extends DependencyProvider {
 	}
 
 	public boolean isOfficial() {
-		return official;
+		return data.official();
 	}
 
 	public String getMappingsPath() {
-		return mappingsPath;
+		return data.mappingsPath();
 	}
 
 	@Override
@@ -138,94 +110,7 @@ public class McpConfigProvider extends DependencyProvider {
 		return Constants.Configurations.MCP_CONFIG;
 	}
 
-	public interface RemapAction {
-		FileCollection getClasspath();
-
-		String getMainClass();
-
-		List<String> getArgs(Path input, Path output, Path mappings, FileCollection libraries);
-	}
-
-	public static class ConfigDefinedRemapAction implements RemapAction {
-		private final Project project;
-		private final String name;
-		private final File mainClasspath;
-		private final FileCollection classpath;
-		private final List<String> args;
-		private boolean hasLibraries;
-
-		public ConfigDefinedRemapAction(Project project, JsonObject json) {
-			this.project = project;
-			this.name = json.get("version").getAsString();
-			this.mainClasspath = DependencyDownloader.download(project, this.name, false, true)
-					.getSingleFile();
-			this.classpath = DependencyDownloader.download(project, this.name, true, true);
-			this.args = StreamSupport.stream(json.getAsJsonArray("args").spliterator(), false)
-					.map(JsonElement::getAsString)
-					.collect(Collectors.toList());
-			for (int i = 1; i < this.args.size(); i++) {
-				if (this.args.get(i).equals("{libraries}")) {
-					this.args.remove(i);
-					this.args.remove(i - 1);
-					this.hasLibraries = true;
-					break;
-				}
-			}
-		}
-
-		@Override
-		public FileCollection getClasspath() {
-			return classpath;
-		}
-
-		@Override
-		public String getMainClass() {
-			try {
-				byte[] manifestBytes = ZipUtils.unpackNullable(mainClasspath.toPath(), "META-INF/MANIFEST.MF");
-
-				if (manifestBytes == null) {
-					throw new RuntimeException("Could not find MANIFEST.MF in " + mainClasspath + "!");
-				}
-
-				Manifest manifest = new Manifest(new ByteArrayInputStream(manifestBytes));
-				Attributes attributes = manifest.getMainAttributes();
-				String value = attributes.getValue(Attributes.Name.MAIN_CLASS);
-
-				if (value == null) {
-					throw new RuntimeException("Could not find main class in " + mainClasspath + "!");
-				} else {
-					return value;
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		@Override
-		public List<String> getArgs(Path input, Path output, Path mappings, FileCollection libraries) {
-			List<String> args = this.args.stream()
-					.map(str -> {
-						return switch (str) {
-						case "{input}" -> input.toAbsolutePath().toString();
-						case "{output}" -> output.toAbsolutePath().toString();
-						case "{mappings}" -> mappings.toAbsolutePath().toString();
-						default -> str;
-						};
-					})
-					.collect(Collectors.toList());
-
-			if (hasLibraries) {
-				for (File file : libraries) {
-					args.add("-e=" + file.getAbsolutePath());
-				}
-			}
-
-			return args;
-		}
-
-		@Override
-		public String toString() {
-			return this.name;
-		}
+	public McpConfigData getData() {
+		return data;
 	}
 }

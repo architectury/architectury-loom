@@ -25,7 +25,6 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
@@ -203,19 +202,16 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 		}
 
 		Visitor visitor = new Visitor(Opcodes.ASM9);
+		Path patchedSrgJar = MinecraftPatchedProvider.get(project).getMinecraftPatchedSrgJar();
+		FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
+		completer.onComplete(value -> system.close());
 
-		for (MinecraftPatchedProvider.Environment environment : MinecraftPatchedProvider.Environment.values()) {
-			File patchedSrgJar = environment.patchedSrgJar.apply(MinecraftPatchedProvider.get(project));
-			FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
-			completer.onComplete(value -> system.close());
-
-			for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
-				if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
-					completer.add(() -> {
-						byte[] bytes = Files.readAllBytes(fsPath);
-						new ClassReader(bytes).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-					});
-				}
+		for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
+			if (Files.isRegularFile(fsPath) && fsPath.toString().endsWith(".class")) {
+				completer.add(() -> {
+					byte[] bytes = Files.readAllBytes(fsPath);
+					new ClassReader(bytes).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+				});
 			}
 		}
 
