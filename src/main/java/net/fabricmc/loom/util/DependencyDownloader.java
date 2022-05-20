@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021 FabricMC
+ * Copyright (c) 2021-2022 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ package net.fabricmc.loom.util;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -36,30 +37,58 @@ import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.file.FileCollection;
 
 /**
- * Simplified dependency downloading.
+ * Simplified but powerful dependency downloading.
  *
  * @author Juuz
  */
 public final class DependencyDownloader {
+	private final Project project;
+	private final Set<String> dependencies = new HashSet<>();
+
+	public DependencyDownloader(Project project) {
+		this.project = project;
+	}
+
+	/**
+	 * Adds a dependency to download.
+	 *
+	 * @param dependencyNotation the dependency notation
+	 * @return this downloader
+	 */
+	public DependencyDownloader add(String dependencyNotation) {
+		dependencies.add(dependencyNotation);
+		return this;
+	}
+
+	/**
+	 * Resolves the dependencies as well as their transitive dependencies into a {@link FileCollection}.
+	 *
+	 * @return the resolved files
+	 */
+	public FileCollection download() {
+		return download(true, false);
+	}
+
 	/**
 	 * Resolves a dependency as well as its transitive dependencies into a {@link FileCollection}.
 	 *
-	 * @param project            the project needing these files
-	 * @param dependencyNotation the dependency notation
+	 * @param transitive whether to include transitive dependencies
+	 * @param resolve    whether to eagerly resolve the file collection
 	 * @return the resolved files
 	 */
-	public static FileCollection download(Project project, String dependencyNotation) {
-		return download(project, dependencyNotation, true, false);
-	}
+	public FileCollection download(boolean transitive, boolean resolve) {
+		Dependency[] dependencies = this.dependencies.stream()
+				.map(notation -> {
+					Dependency dependency = project.getDependencies().create(notation);
 
-	public static FileCollection download(Project project, String dependencyNotation, boolean transitive, boolean resolve) {
-		Dependency dependency = project.getDependencies().create(dependencyNotation);
+					if (dependency instanceof ModuleDependency md) {
+						md.setTransitive(transitive);
+					}
 
-		if (dependency instanceof ModuleDependency) {
-			((ModuleDependency) dependency).setTransitive(transitive);
-		}
+					return dependency;
+				}).toArray(Dependency[]::new);
 
-		Configuration config = project.getConfigurations().detachedConfiguration(dependency);
+		Configuration config = project.getConfigurations().detachedConfiguration(dependencies);
 		config.setTransitive(transitive);
 		FileCollection files = config.fileCollection(dep -> true);
 
@@ -68,6 +97,21 @@ public final class DependencyDownloader {
 		}
 
 		return files;
+	}
+
+	/**
+	 * Resolves a dependency as well as its transitive dependencies into a {@link FileCollection}.
+	 *
+	 * @param project            the project needing these files
+	 * @param dependencyNotation the dependency notation
+	 * @return the resolved files
+	 */
+	public static FileCollection download(Project project, String dependencyNotation) {
+		return new DependencyDownloader(project).add(dependencyNotation).download();
+	}
+
+	public static FileCollection download(Project project, String dependencyNotation, boolean transitive, boolean resolve) {
+		return new DependencyDownloader(project).add(dependencyNotation).download(transitive, resolve);
 	}
 
 	private static List<Dependency> collectDependencies(Configuration configuration) {
