@@ -69,8 +69,8 @@ public record McpConfigFunction(String version, List<ConfigValue> args, List<Con
 
 	public static McpConfigFunction fromJson(JsonObject json) {
 		String version = json.get(VERSION_KEY).getAsString();
-		List<ConfigValue> args = configValuesFromJson(json.getAsJsonArray(ARGS_KEY));
-		List<ConfigValue> jvmArgs = configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY));
+		List<ConfigValue> args = json.has(ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(ARGS_KEY)) : List.of();
+		List<ConfigValue> jvmArgs = json.has(JVM_ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY)) : List.of();
 		String repo = json.get(REPO_KEY).getAsString();
 		return new McpConfigFunction(version, args, jvmArgs, repo);
 	}
