@@ -79,7 +79,6 @@ import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
 import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -99,7 +98,7 @@ public class MinecraftPatchedProvider {
 
 	private final Project project;
 	private final Logger logger;
-	private final MinecraftProviderBridge minecraftProviderBridge;
+	private final MinecraftProvider minecraftProvider;
 	private final Type type;
 
 	// Step 1: Remap Minecraft to SRG, merge if needed
@@ -124,10 +123,10 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	public MinecraftPatchedProvider(Project project, MinecraftProviderBridge minecraftProviderBridge, Type type) {
+	public MinecraftPatchedProvider(Project project, MinecraftProvider minecraftProvider, Type type) {
 		this.project = project;
 		this.logger = project.getLogger();
-		this.minecraftProviderBridge = minecraftProviderBridge;
+		this.minecraftProvider = minecraftProvider;
 		this.type = type;
 	}
 
@@ -137,10 +136,10 @@ public class MinecraftPatchedProvider {
 
 	private void initPatchedFiles() {
 		String forgeVersion = getExtension().getForgeProvider().getVersion().getCombined();
-		Path forgeWorkingDir = minecraftProviderBridge.dir("forge/" + forgeVersion).toPath();
+		Path forgeWorkingDir = minecraftProvider.dir("forge/" + forgeVersion).toPath();
 		String patchId = "forge-" + forgeVersion + "-";
 
-		minecraftProviderBridge.setJarPrefix(patchId);
+		minecraftProvider.setJarPrefix(patchId);
 
 		minecraftSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg.jar");
 		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
@@ -184,7 +183,7 @@ public class MinecraftPatchedProvider {
 			this.dirty = true;
 			McpConfigData data = getExtension().getMcpConfigProvider().getData();
 			List<McpConfigStep> steps = data.steps().get(type.mcpId);
-			McpExecutor executor = new McpExecutor(project, minecraftProviderBridge, Files.createTempDirectory("loom-mcp"), steps, data.functions());
+			McpExecutor executor = new McpExecutor(project, minecraftProvider, Files.createTempDirectory("loom-mcp"), steps, data.functions());
 			Path output = executor.executeUpTo("rename");
 			Files.copy(output, minecraftSrgJar);
 		}
@@ -214,7 +213,7 @@ public class MinecraftPatchedProvider {
 		Files.deleteIfExists(minecraftClientExtra);
 		FileSystemUtil.getJarFileSystem(minecraftClientExtra, true).close();
 
-		copyNonClassFiles(minecraftProviderBridge.getClientJar().toPath(), minecraftClientExtra);
+		copyNonClassFiles(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientExtra);
 	}
 
 	private TinyRemapper buildRemapper(Path input) throws IOException {
@@ -571,13 +570,5 @@ public class MinecraftPatchedProvider {
 			this.mcpId = mcpId;
 			this.patches = patches;
 		}
-	}
-
-	public interface MinecraftProviderBridge {
-		File getClientJar();
-		File getRawServerJar();
-		MinecraftVersionMeta getVersionInfo();
-		void setJarPrefix(String jarPrefix);
-		File dir(String path);
 	}
 }

@@ -47,7 +47,7 @@ import org.gradle.process.JavaExecSpec;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ForgeToolExecutor;
 import net.fabricmc.loom.util.function.CollectionUtil;
@@ -55,13 +55,13 @@ import net.fabricmc.loom.util.function.CollectionUtil;
 public final class McpExecutor {
 	private static final LogLevel STEP_LOG_LEVEL = LogLevel.LIFECYCLE;
 	private final Project project;
-	private final MinecraftPatchedProvider.MinecraftProviderBridge minecraftProvider;
+	private final MinecraftProvider minecraftProvider;
 	private final Path cache;
 	private final List<McpConfigStep> steps;
 	private final Map<String, McpConfigFunction> functions;
 	private final Map<String, String> extraConfig = new HashMap<>();
 
-	public McpExecutor(Project project, MinecraftPatchedProvider.MinecraftProviderBridge minecraftProvider, Path cache, List<McpConfigStep> steps, Map<String, McpConfigFunction> functions) {
+	public McpExecutor(Project project, MinecraftProvider minecraftProvider, Path cache, List<McpConfigStep> steps, Map<String, McpConfigFunction> functions) {
 		this.project = project;
 		this.minecraftProvider = minecraftProvider;
 		this.cache = cache;
@@ -138,8 +138,8 @@ public final class McpExecutor {
 	private StepLogic getStepLogic(String type) {
 		return switch (type) {
 		case "downloadManifest", "downloadJson" -> new StepLogic.NoOp();
-		case "downloadClient" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getClientJar().toPath());
-		case "downloadServer" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getRawServerJar().toPath());
+		case "downloadClient" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getMinecraftClientJar().toPath());
+		case "downloadServer" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getMinecraftServerJar().toPath());
 		case "strip" -> new StepLogic.Strip();
 		case "listLibraries" -> new StepLogic.ListLibraries();
 		case "downloadClientMappings" -> new StepLogic.DownloadManifestFile(minecraftProvider.getVersionInfo().download("client_mappings"));

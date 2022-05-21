@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.configuration.providers.forge.minecraft;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -34,7 +33,7 @@ import org.gradle.api.Project;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 
-public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider implements ForgeMinecraftProvider, MinecraftPatchedProvider.MinecraftProviderBridge {
+public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider implements ForgeMinecraftProvider {
 	private final MinecraftPatchedProvider patchedProvider;
 
 	public MergedForgeMinecraftProvider(Project project) {
@@ -46,16 +45,6 @@ public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider 
 	public void provide() throws Exception {
 		super.provide();
 		patchedProvider.provide();
-	}
-
-	@Override
-	public File getClientJar() {
-		return super.getMinecraftClientJar();
-	}
-
-	@Override
-	public File getRawServerJar() {
-		return getMinecraftServerJar();
 	}
 
 	@Override

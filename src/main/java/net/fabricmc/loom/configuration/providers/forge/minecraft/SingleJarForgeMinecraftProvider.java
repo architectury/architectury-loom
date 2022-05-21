@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.configuration.providers.forge.minecraft;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -33,7 +32,7 @@ import org.gradle.api.Project;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftProvider;
 
-public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftProvider implements ForgeMinecraftProvider, MinecraftPatchedProvider.MinecraftProviderBridge {
+public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftProvider implements ForgeMinecraftProvider {
 	private final MinecraftPatchedProvider patchedProvider;
 
 	private SingleJarForgeMinecraftProvider(Project project, SingleJarMinecraftProvider.Environment environment) {
@@ -58,16 +57,6 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 	@Override
 	protected void processJar() throws Exception {
 		patchedProvider.provide();
-	}
-
-	@Override
-	public File getClientJar() {
-		return getMinecraftClientJar();
-	}
-
-	@Override
-	public File getRawServerJar() {
-		return getMinecraftServerJar();
 	}
 
 	@Override
