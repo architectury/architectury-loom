@@ -652,7 +652,8 @@ public class MinecraftPatchedProvider {
 	public class UserdevFilter implements OutputConsumerPath.ResourceRemapper {
 		@Override
 		public boolean canTransform(TinyRemapper tinyRemapper, Path path) {
-			return getExtension().getForgeUserdevProvider().getUniversalFilters().stream().noneMatch(pattern -> pattern.matcher(path.toString()).matches());
+			List<Pattern> patterns = getExtension().getForgeUserdevProvider().getUniversalFilters();
+			return !patterns.isEmpty() && patterns.stream().noneMatch(pattern -> pattern.matcher(path.toString()).matches());
 		}
 
 		@Override
