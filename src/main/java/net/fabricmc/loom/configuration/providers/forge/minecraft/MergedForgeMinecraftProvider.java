@@ -66,4 +66,9 @@ public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider 
 	public MinecraftPatchedProvider getPatchedProvider() {
 		return patchedProvider;
 	}
+
+	@Override
+	public boolean requiresPatchProvider() {
+		return false;
+	}
 }

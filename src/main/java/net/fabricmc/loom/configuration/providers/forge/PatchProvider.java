@@ -24,8 +24,6 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -42,7 +40,6 @@ import net.fabricmc.loom.util.Constants;
 public class PatchProvider extends DependencyProvider {
 	public Path clientPatches;
 	public Path serverPatches;
-	public Path projectCacheFolder;
 
 	public PatchProvider(Project project) {
 		super(project);
@@ -50,7 +47,9 @@ public class PatchProvider extends DependencyProvider {
 
 	@Override
 	public void provide(DependencyInfo dependency) throws Exception {
-		init(dependency.getDependency().getVersion());
+		Path cacheFolder = getExtension().getForgeProvider().getGlobalCache().toPath();
+		clientPatches = cacheFolder.resolve("patches-client.lzma");
+		serverPatches = cacheFolder.resolve("patches-server.lzma");
 
 		if (Files.notExists(clientPatches) || Files.notExists(serverPatches) || isRefreshDeps()) {
 			getProject().getLogger().info(":extracting forge patches");
@@ -62,22 +61,6 @@ public class PatchProvider extends DependencyProvider {
 				Files.copy(fs.getPath("data", "server.lzma"), serverPatches, StandardCopyOption.REPLACE_EXISTING);
 			}
 		}
-	}
-
-	private void init(String forgeVersion) {
-		projectCacheFolder = getMinecraftProvider().dir("forge/" + forgeVersion).toPath();
-		clientPatches = projectCacheFolder.resolve("patches-client.lzma");
-		serverPatches = projectCacheFolder.resolve("patches-server.lzma");
-
-		try {
-			Files.createDirectories(projectCacheFolder);
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
-
-	public Path getProjectCacheFolder() {
-		return projectCacheFolder;
 	}
 
 	@Override

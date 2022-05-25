@@ -43,7 +43,15 @@ public class ForgeProvider extends DependencyProvider {
 	@Override
 	public void provide(DependencyInfo dependency) throws Exception {
 		version = new ForgeVersion(dependency.getResolvedVersion());
-		addDependency(dependency.getDepString() + ":userdev", Constants.Configurations.FORGE_USERDEV);
+		String userdevClassifier;
+
+		if (Runtime.Version.parse(version.getMinecraftVersion()).compareTo(Runtime.Version.parse("1.13")) < 0) {
+			userdevClassifier = "userdev3";
+		} else {
+			userdevClassifier = "userdev";
+		}
+
+		addDependency(dependency.getDepString() + ":" + userdevClassifier, Constants.Configurations.FORGE_USERDEV);
 		addDependency(dependency.getDepString() + ":installer", Constants.Configurations.FORGE_INSTALLER);
 	}
 

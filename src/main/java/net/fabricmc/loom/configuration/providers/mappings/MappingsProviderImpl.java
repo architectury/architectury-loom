@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.mappings;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -36,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,13 +60,16 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingsProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
+import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.MappingsMerger;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.TinyJarInfo;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.ZipUtils;
@@ -75,6 +80,7 @@ import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
@@ -213,15 +219,27 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 		if (extension.shouldGenerateSrgTiny()) {
 			if (Files.notExists(tinyMappingsWithSrg) || isRefreshDeps()) {
-				// Merge tiny mappings with srg
 				Stopwatch stopwatch = Stopwatch.createStarted();
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
+				mergeSrg(project, tinyMappings, tinyMappingsWithSrg);
 				project.getLogger().info(":merged srg mappings in " + stopwatch.stop());
 			}
 
 			mappingTreeWithSrg = Suppliers.memoize(() -> readMappings(tinyMappingsWithSrg));
 		}
+	}
+
+	protected void mergeSrg(Project project, Path tinyMappings, Path tinyMappingsWithSrg) throws IOException {
+		MinecraftVersionMeta versionInfo = LoomGradleExtension.get(project).getMinecraftProvider().getVersionInfo();
+		SrgMerger.ExtraMappings extraMappings;
+
+		if (versionInfo.download(MojangMappingsSpec.MANIFEST_CLIENT_MAPPINGS) == null) {
+			extraMappings = null;
+		} else {
+			extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
+		}
+
+		// Merge tiny mappings with srg
+		SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
 	}
 
 	public void applyToProject(Project project, DependencyInfo dependency) throws IOException {
@@ -245,6 +263,33 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 			if (Files.notExists(srgToNamedSrg) || isRefreshDeps()) {
 				SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, getMappingsWithSrg(), "srg", "named");
+
+				// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
+				// So we try to get as close to that by adding the class mappings even if they don't change.
+				BufferedWriter writer = null;
+
+				try {
+					for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
+						String srg = missingClass.getName(MappingsNamespace.SRG.toString());
+						String named = missingClass.getName(MappingsNamespace.NAMED.toString());
+
+						if (srg.equals(named)) {
+							if (writer == null) {
+								writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);
+							}
+
+							writer.write("CL: ");
+							writer.write(srg);
+							writer.write(' ');
+							writer.write(named);
+							writer.write('\n');
+						}
+					}
+				} finally {
+					if (writer != null) {
+						writer.close();
+					}
+				}
 			}
 		}
 

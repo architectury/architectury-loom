@@ -35,9 +35,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -70,8 +72,11 @@ import net.fabricmc.loom.util.PropertyUtil;
 import net.fabricmc.loom.util.ZipUtils;
 
 public class ForgeUserdevProvider extends DependencyProvider {
+	private List<Pattern> filters;
 	private File userdevJar;
 	private JsonObject json;
+	private Path accessTransformerConfig;
+	private boolean notchObfPatches;
 	Path joinedPatches;
 	BinaryPatcherConfig binaryPatcherConfig;
 
@@ -137,6 +142,26 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			}
 		}
 
+		if (json.has("universalFilters")) {
+			filters = new ArrayList<>();
+
+			for (JsonElement element : json.getAsJsonArray("universalFilters")) {
+				filters.add(Pattern.compile(element.getAsString()));
+			}
+		}
+
+		accessTransformerConfig = getExtension().getForgeProvider().getGlobalCache().toPath().resolve("at-conf.cfg");
+
+		if (Files.notExists(accessTransformerConfig)) {
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(userdevJar.toPath(), false)) {
+				for (JsonElement element : json.getAsJsonArray("ats")) {
+					Files.write(accessTransformerConfig, fs.readAllBytes(element.getAsString()), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				}
+			}
+		}
+
+		notchObfPatches = json.has("notchObf") && json.getAsJsonPrimitive("notchObf").getAsBoolean();
+
 		if (Files.notExists(joinedPatches)) {
 			Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), json.get("binpatches").getAsString()));
 		}
@@ -188,6 +213,18 @@ public class ForgeUserdevProvider extends DependencyProvider {
 				});
 			}
 		}
+	}
+
+	public Path getAccessTransformerConfig() {
+		return accessTransformerConfig;
+	}
+
+	public boolean isNotchObfPatches() {
+		return notchObfPatches;
+	}
+
+	public List<Pattern> getUniversalFilters() {
+		return filters == null ? Collections.emptyList() : filters;
 	}
 
 	public abstract static class RemoveNameProvider implements TransformAction<TransformParameters.None> {
@@ -272,6 +309,8 @@ public class ForgeUserdevProvider extends DependencyProvider {
 				string = String.join(File.pathSeparator, modClasses);
 			} else if (key.equals("mcp_mappings")) {
 				string = "loom.stub";
+			} else if (key.equals("mcp_to_srg")) {
+				string = getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString();
 			} else if (json.has(key)) {
 				JsonElement element = json.get(key);
 

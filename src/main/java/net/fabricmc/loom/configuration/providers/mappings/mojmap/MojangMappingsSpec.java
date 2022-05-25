@@ -30,8 +30,8 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 
 public record MojangMappingsSpec(SilenceLicenseOption silenceLicense, boolean nameSyntheticMembers) implements MappingsSpec<MojangMappingLayer> {
 	// Keys in dependency manifest
-	private static final String MANIFEST_CLIENT_MAPPINGS = "client_mappings";
-	private static final String MANIFEST_SERVER_MAPPINGS = "server_mappings";
+	public static final String MANIFEST_CLIENT_MAPPINGS = "client_mappings";
+	public static final String MANIFEST_SERVER_MAPPINGS = "server_mappings";
 
 	public MojangMappingsSpec(SilenceLicenseSupplier supplier, boolean nameSyntheticMembers) {
 		this(new SilenceLicenseOption(supplier), nameSyntheticMembers);

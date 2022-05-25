@@ -38,6 +38,8 @@ import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftPro
 public interface ForgeMinecraftProvider {
 	MinecraftPatchedProvider getPatchedProvider();
 
+	boolean requiresPatchProvider();
+
 	static MergedMinecraftProvider createMerged(Project project) {
 		return LoomGradleExtension.get(project).isForge() ? new MergedForgeMinecraftProvider(project) : new MergedMinecraftProvider(project);
 	}

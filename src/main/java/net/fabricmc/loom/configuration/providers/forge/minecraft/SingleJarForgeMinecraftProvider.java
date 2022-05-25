@@ -65,6 +65,11 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 	}
 
 	@Override
+	public boolean requiresPatchProvider() {
+		return true;
+	}
+
+	@Override
 	public Path getMinecraftEnvOnlyJar() {
 		return patchedProvider.getMinecraftPatchedJar();
 	}

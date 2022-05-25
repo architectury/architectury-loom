@@ -60,7 +60,6 @@ import net.fabricmc.loom.configuration.providers.mappings.MappingsProviderImpl;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
-import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -80,8 +79,8 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 	@Override
 	protected void setup(Project project, MinecraftProvider minecraftProvider, Path inputJar) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		PatchProvider patchProvider = extension.getPatchProvider();
-		migratedFieldsCache = patchProvider.getProjectCacheFolder().resolve("migrated-fields.json");
+		ForgeProvider forgeProvider = extension.getForgeProvider();
+		migratedFieldsCache = forgeProvider.getGlobalCache().toPath().resolve("migrated-fields.json");
 		migratedFields.clear();
 
 		if (LoomGradlePlugin.refreshDeps) {
@@ -114,9 +113,7 @@ public class FieldMigratedMappingsProvider extends MappingsProviderImpl {
 
 		if (extension.shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || isRefreshDeps()) {
-				// Merge tiny mappings with srg
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), rawTinyMappings, rawTinyMappingsWithSrg, extraMappings, true);
+				mergeSrg(project, rawTinyMappings, rawTinyMappingsWithSrg);
 			}
 		}
 
