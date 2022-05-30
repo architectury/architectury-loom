@@ -107,7 +107,6 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 	private final Path mcpToSrg;
 	private final Path unpickDefinitions;
 
-
 	private boolean hasUnpickDefinitions;
 	private UnpickMetadata unpickMetadata;
 	private Map<String, String> signatureFixes;
@@ -162,6 +161,7 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 			try {
 				Files.copy(srgToNamedSrg, mcpToSrg, StandardCopyOption.REPLACE_EXISTING);
+
 				for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
 					String srg = missingClass.getName(MappingsNamespace.SRG.toString());
 					String named = missingClass.getName(MappingsNamespace.NAMED.toString());

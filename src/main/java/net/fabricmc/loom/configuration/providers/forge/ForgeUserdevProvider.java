@@ -50,11 +50,6 @@ import com.google.common.collect.MultimapBuilder;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import net.fabricmc.loom.api.ModSettings;
-
-import net.fabricmc.loom.util.gradle.SourceSetHelper;
-
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -69,6 +64,7 @@ import org.gradle.api.provider.Provider;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.api.ForgeLocalMod;
+import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.launch.LaunchProviderSettings;
@@ -77,6 +73,7 @@ import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.PropertyUtil;
 import net.fabricmc.loom.util.ZipUtils;
+import net.fabricmc.loom.util.gradle.SourceSetHelper;
 
 public class ForgeUserdevProvider extends DependencyProvider {
 	private List<Pattern> filters;
