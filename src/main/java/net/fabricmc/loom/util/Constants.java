@@ -134,6 +134,8 @@ public class Constants {
 		public static final String UNPROTECT = "io.github.juuxel:unprotect:";
 		// Used to upgrade the ASM version for the AT tool.
 		public static final String ASM = "org.ow2.asm:asm:";
+		// Forge versions with the `notchObf` version enabled in their userdev config(typically < 1.13) require an extra remapping step that uses this.
+		public static final String SPECIAL_SOURCE = "net.md-5:SpecialSource:1.10.0:shaded";
 
 		private Dependencies() {
 		}

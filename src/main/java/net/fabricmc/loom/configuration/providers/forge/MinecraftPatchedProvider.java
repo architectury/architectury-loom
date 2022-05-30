@@ -241,7 +241,7 @@ public class MinecraftPatchedProvider {
 
 		if (isNotchObf) {
 			if (dirty || Files.notExists(minecraftPatchedSrgJar)) {
-				File specialSource = DependencyDownloader.download(project, "net.md-5:SpecialSource:1.10.0:shaded", false, false).getSingleFile();
+				File specialSource = DependencyDownloader.download(project, Constants.Dependencies.SPECIAL_SOURCE, false, false).getSingleFile();
 				String mainClass;
 
 				try (JarFile jarFile = new JarFile(specialSource)) {
