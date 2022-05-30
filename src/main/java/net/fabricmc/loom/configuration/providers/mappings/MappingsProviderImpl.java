@@ -50,6 +50,7 @@ import java.util.function.Supplier;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.gson.JsonObject;
+import org.apache.commons.io.IOUtils;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -103,7 +104,9 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 	public Path tinyMappingsWithSrg;
 	public final Map<String, Path> mixinTinyMappings; // The mixin mappings have other names in intermediary.
 	public final Path srgToNamedSrg; // FORGE: srg to named in srg file format
+	private final Path mcpToSrg;
 	private final Path unpickDefinitions;
+
 
 	private boolean hasUnpickDefinitions;
 	private UnpickMetadata unpickMetadata;
@@ -122,6 +125,7 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 		this.tinyMappingsWithSrg = mappingsWorkingDir.resolve("mappings-srg.tiny");
 		this.mixinTinyMappings = new HashMap<>();
 		this.srgToNamedSrg = mappingsWorkingDir.resolve("mappings-srg-named.srg");
+		this.mcpToSrg = mappingsWorkingDir.resolve("mcp_to_srg.srg");
 
 		this.intermediaryService = intermediaryService;
 	}
@@ -148,6 +152,40 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 	public MemoryMappingTree getMappingsWithSrg() throws IOException {
 		return Objects.requireNonNull(mappingTreeWithSrg, "Cannot get mappings before they have been read").get();
+	}
+
+	public Path getMcpToSrg() {
+		if (Files.notExists(mcpToSrg)) {
+			// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
+			// So we try to get as close to that by adding the class mappings even if they don't change.
+			BufferedWriter writer = null;
+
+			try {
+				Files.copy(srgToNamedSrg, mcpToSrg, StandardCopyOption.REPLACE_EXISTING);
+				for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
+					String srg = missingClass.getName(MappingsNamespace.SRG.toString());
+					String named = missingClass.getName(MappingsNamespace.NAMED.toString());
+
+					if (srg.equals(named)) {
+						if (writer == null) {
+							writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);
+						}
+
+						writer.write("CL: ");
+						writer.write(srg);
+						writer.write(' ');
+						writer.write(named);
+						writer.write('\n');
+					}
+				}
+			} catch (IOException exception) {
+				throw new UncheckedIOException("Failed to create SRG file for the mcp_to_srg template argument", exception);
+			} finally {
+				IOUtils.closeQuietly(writer);
+			}
+		}
+
+		return mcpToSrg;
 	}
 
 	private static MappingsProviderImpl create(Project project, DependencyInfo dependency, MinecraftProvider minecraftProvider, Supplier<IntermediateMappingsService> intermediaryService) {
@@ -263,33 +301,6 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 
 			if (Files.notExists(srgToNamedSrg) || isRefreshDeps()) {
 				SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, getMappingsWithSrg(), "srg", "named");
-
-				// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
-				// So we try to get as close to that by adding the class mappings even if they don't change.
-				BufferedWriter writer = null;
-
-				try {
-					for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
-						String srg = missingClass.getName(MappingsNamespace.SRG.toString());
-						String named = missingClass.getName(MappingsNamespace.NAMED.toString());
-
-						if (srg.equals(named)) {
-							if (writer == null) {
-								writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);
-							}
-
-							writer.write("CL: ");
-							writer.write(srg);
-							writer.write(' ');
-							writer.write(named);
-							writer.write('\n');
-						}
-					}
-				} finally {
-					if (writer != null) {
-						writer.close();
-					}
-				}
 			}
 		}
 
@@ -503,8 +514,8 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 	private void suggestFieldNames(MergedMinecraftProvider minecraftProvider, Path oldMappings, Path newMappings) {
 		Command command = new CommandProposeFieldNames();
 		runCommand(command, minecraftProvider.getMergedJar().toFile().getAbsolutePath(),
-						oldMappings.toAbsolutePath().toString(),
-						newMappings.toAbsolutePath().toString());
+				oldMappings.toAbsolutePath().toString(),
+				newMappings.toAbsolutePath().toString());
 	}
 
 	private void runCommand(Command command, String... args) {

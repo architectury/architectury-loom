@@ -45,9 +45,16 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.MultimapBuilder;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import net.fabricmc.loom.api.ModSettings;
+
+import net.fabricmc.loom.util.gradle.SourceSetHelper;
+
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -295,7 +302,16 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			} else if (key.equals("natives")) {
 				string = getExtension().getFiles().getNativesDirectory(getProject()).getAbsolutePath();
 			} else if (key.equals("source_roots")) {
-				List<String> modClasses = new ArrayList<>();
+				// Use a set-valued multimap for deduplicating paths.
+				// It could be done using Stream.distinct before but that doesn't work if
+				// you have *both* a ModSettings and a ForgeLocalMod with the same name.
+				Multimap<String, String> modClasses = MultimapBuilder.hashKeys().linkedHashSetValues().build();
+
+				for (ModSettings mod : getExtension().getMods()) {
+					for (File file : SourceSetHelper.getClasspath(mod, getProject())) {
+						modClasses.put(mod.getName(), file.getAbsolutePath());
+					}
+				}
 
 				for (ForgeLocalMod localMod : getExtension().getForge().getLocalMods()) {
 					String sourceSetName = localMod.getName();
@@ -303,14 +319,16 @@ public class ForgeUserdevProvider extends DependencyProvider {
 					localMod.getSourceSets().flatMap(sourceSet -> Stream.concat(
 							Stream.of(sourceSet.getOutput().getResourcesDir()),
 							sourceSet.getOutput().getClassesDirs().getFiles().stream())
-					).map(File::getAbsolutePath).distinct().map(s -> sourceSetName + "%%" + s).collect(Collectors.toCollection(() -> modClasses));
+					).map(File::getAbsolutePath).forEach(path -> modClasses.put(sourceSetName, path));
 				}
 
-				string = String.join(File.pathSeparator, modClasses);
+				string = modClasses.entries().stream()
+						.map(entry -> entry.getKey() + "%%" + entry.getValue())
+						.collect(Collectors.joining(File.pathSeparator));
 			} else if (key.equals("mcp_mappings")) {
 				string = "loom.stub";
 			} else if (key.equals("mcp_to_srg")) {
-				string = getExtension().getMappingsProvider().srgToNamedSrg.toAbsolutePath().toString();
+				string = getExtension().getMappingsProvider().getMcpToSrg().toAbsolutePath().toString();
 			} else if (json.has(key)) {
 				JsonElement element = json.get(key);
 

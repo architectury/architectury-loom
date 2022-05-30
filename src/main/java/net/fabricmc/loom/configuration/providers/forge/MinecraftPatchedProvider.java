@@ -468,8 +468,7 @@ public class MinecraftPatchedProvider {
 
 		copyUserdevFiles(forgeUserdevJar, output);
 
-		Files.delete(input);
-		Files.copy(output, input);
+		Files.copy(output, input, StandardCopyOption.REPLACE_EXISTING);
 	}
 
 	private void remapPatchedJar() throws Exception {

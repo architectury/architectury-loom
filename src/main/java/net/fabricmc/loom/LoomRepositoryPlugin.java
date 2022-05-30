@@ -99,8 +99,8 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 				descriptor.excludeGroup("org.ow2.asm");
 			});
 			repo.metadataSources(sources -> {
-				sources.artifact();
 				sources.mavenPom();
+				sources.artifact();
 				sources.ignoreGradleMetadataRedirection();
 			});
 		});

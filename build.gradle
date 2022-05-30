@@ -114,7 +114,6 @@ dependencies {
 	// source code remapping
 	implementation ('dev.architectury:mercury:0.1.1.11')
 
-
 	// Kotlin
 	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.4.2') {
 		transitive = false
