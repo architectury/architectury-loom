@@ -159,7 +159,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		if (Files.notExists(accessTransformerConfig)) {
 			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(userdevJar.toPath(), false)) {
 				for (JsonElement element : json.getAsJsonArray("ats")) {
-					Files.write(accessTransformerConfig, fs.readAllBytes(element.getAsString()), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+					Files.write(accessTransformerConfig, fs.readAllBytes(element.getAsString()), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
 				}
 			}
 		}

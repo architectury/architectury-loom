@@ -106,12 +106,12 @@ public class MinecraftPatchedProvider {
 	// OR Step 1: Merge without remapping
 	private Path minecraftMergedJar;
 	// Step 2: Binary Patch, remap if needed
-	private Path minecraftBinPatchedJar;
+	private Path minecraftPatchedJar;
 	private Path minecraftPatchedSrgJar;
 	// Step 3: Access Transform
 	private Path minecraftPatchedSrgAtJar;
 	// Step 4: Remap Patched AT & Forge to official
-	private Path minecraftPatchedJar;
+	private Path minecraftPatchedOfficialJar;
 	private Path minecraftClientExtra;
 
 	private boolean dirty = false;
@@ -154,14 +154,14 @@ public class MinecraftPatchedProvider {
 			}
 
 			minecraftMergedJar = forgeWorkingDir.resolve("minecraft-" + Type.MERGED.id + ".jar");
-			minecraftBinPatchedJar = forgeWorkingDir.resolve("minecraft-" + Type.MERGED.id + "-bin-patched.jar");
+			minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + Type.MERGED.id + "-patched.jar");
 		} else {
 			minecraftSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg.jar");
 		}
 
 		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
 		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-at-patched.jar");
-		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
+		minecraftPatchedOfficialJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-official--patched.jar");
 		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
 	}
 
@@ -175,10 +175,10 @@ public class MinecraftPatchedProvider {
 		if (isNotchObf) {
 			return new Path[] {
 					minecraftMergedJar,
-					minecraftBinPatchedJar,
+					minecraftPatchedJar,
 					minecraftPatchedSrgJar,
 					minecraftPatchedSrgAtJar,
-					minecraftPatchedJar,
+					minecraftPatchedOfficialJar,
 					minecraftClientExtra,
 			};
 		}
@@ -187,21 +187,21 @@ public class MinecraftPatchedProvider {
 				minecraftSrgJar,
 				minecraftPatchedSrgJar,
 				minecraftPatchedSrgAtJar,
-				minecraftPatchedJar,
+				minecraftPatchedOfficialJar,
 				minecraftClientExtra,
 		};
 	}
 
 	private void checkCache() throws IOException {
 		if (LoomGradlePlugin.refreshDeps || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
-				|| !isPatchedJarUpToDate(minecraftPatchedJar)) {
+				|| !isPatchedJarUpToDate(minecraftPatchedOfficialJar)) {
 			cleanAllCache();
 		}
 	}
 
 	private void executeMcp(String step, Path outputPath) throws IOException {
 		McpConfigData data = getExtension().getMcpConfigProvider().getData();
-		List<McpConfigStep> steps = data.steps().get(Type.MERGED.mcpId);
+		List<McpConfigStep> steps = data.steps().get(type.mcpId);
 		McpExecutor executor = new McpExecutor(project, minecraftProvider, Files.createTempDirectory("loom-mcp"), steps, data.functions());
 		Path output = executor.executeUpTo(step);
 		Files.copy(output, outputPath);
@@ -223,7 +223,7 @@ public class MinecraftPatchedProvider {
 			}
 
 			patchInput = minecraftMergedJar;
-			patchOutput = minecraftBinPatchedJar;
+			patchOutput = minecraftPatchedJar;
 		} else {
 			if (Files.notExists(minecraftSrgJar)) {
 				this.dirty = true;
@@ -254,7 +254,7 @@ public class MinecraftPatchedProvider {
 					spec.classpath(specialSource);
 					spec.getMainClass().set(mainClass);
 					spec.args(
-							"--in-jar", minecraftBinPatchedJar.toAbsolutePath().toString(),
+							"--in-jar", minecraftPatchedJar.toAbsolutePath().toString(),
 							"--out-jar", minecraftPatchedSrgJar.toAbsolutePath().toString(),
 							"--srg-in", getExtension().getMcpConfigProvider().getMappings().toAbsolutePath().toString()
 					);
@@ -286,14 +286,17 @@ public class MinecraftPatchedProvider {
 	}
 
 	private TinyRemapper buildRemapper(Path input) throws IOException {
+		return buildRemapper(input, getExtension().getMappingsProvider().getMappingsWithSrg(), "srg", "official");
+	}
+
+	private TinyRemapper buildRemapper(Path input, MemoryMappingTree mappingsWithSrg, String from, String to) throws IOException {
 		Path[] libraries = TinyRemapperHelper.getMinecraftDependencies(project);
-		MemoryMappingTree mappingsWithSrg = getExtension().getMappingsProvider().getMappingsWithSrg();
 
 		TinyRemapper remapper = TinyRemapper.newRemapper()
 				.logger(logger::lifecycle)
 				.logUnknownInvokeDynamic(false)
-				.withMappings(TinyRemapperHelper.create(mappingsWithSrg, "srg", "official", true))
-				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappingsWithSrg, "srg", "official"))
+				.withMappings(TinyRemapperHelper.create(mappingsWithSrg, from, to, true))
+				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappingsWithSrg, from, to))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true)
 				.build();
@@ -474,7 +477,7 @@ public class MinecraftPatchedProvider {
 	private void remapPatchedJar() throws Exception {
 		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
 		Path mcInput = minecraftPatchedSrgAtJar;
-		Path mcOutput = minecraftPatchedJar;
+		Path mcOutput = minecraftPatchedOfficialJar;
 		Files.deleteIfExists(mcOutput);
 
 		TinyRemapper remapper = buildRemapper(mcInput);
@@ -629,7 +632,7 @@ public class MinecraftPatchedProvider {
 	}
 
 	public Path getMinecraftPatchedJar() {
-		return minecraftPatchedJar;
+		return minecraftPatchedOfficialJar;
 	}
 
 	public enum Type {
@@ -648,7 +651,7 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	public class UserdevFilter implements OutputConsumerPath.ResourceRemapper {
+	private final class UserdevFilter implements OutputConsumerPath.ResourceRemapper {
 		@Override
 		public boolean canTransform(TinyRemapper tinyRemapper, Path path) {
 			List<Pattern> patterns = getExtension().getForgeUserdevProvider().getUniversalFilters();

@@ -25,15 +25,14 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
-import java.util.Arrays;
 
+import net.minecraftforge.srgutils.MinecraftVersion;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 
 public class ForgeProvider extends DependencyProvider {
-	private static final int[] MC_1_13 = {1, 13};
 	private ForgeVersion version = new ForgeVersion(null);
 	private File globalCache;
 	private File projectCache;
@@ -46,16 +45,8 @@ public class ForgeProvider extends DependencyProvider {
 	public void provide(DependencyInfo dependency) throws Exception {
 		version = new ForgeVersion(dependency.getResolvedVersion());
 		String userdevClassifier;
-		boolean legacy;
 
-		try {
-			int[] parts = Arrays.stream(version.getMinecraftVersion().split("\\.")).mapToInt(Integer::parseInt).toArray();
-			legacy = Arrays.compare(parts, MC_1_13) < 0;
-		} catch (NumberFormatException exception) {
-			legacy = false;
-		}
-
-		if (legacy) {
+		if (MinecraftVersion.from(version.getMinecraftVersion()).compareTo(MinecraftVersion.from("1.13")) < 0) {
 			userdevClassifier = "userdev3";
 		} else {
 			userdevClassifier = "userdev";
