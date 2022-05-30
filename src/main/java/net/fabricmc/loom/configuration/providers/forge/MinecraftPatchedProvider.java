@@ -111,7 +111,7 @@ public class MinecraftPatchedProvider {
 	// Step 3: Access Transform
 	private Path minecraftPatchedSrgAtJar;
 	// Step 4: Remap Patched AT & Forge to official
-	private Path minecraftPatchedOfficialJar;
+	private Path minecraftPatchedAtJar;
 	private Path minecraftClientExtra;
 
 	private boolean dirty = false;
@@ -161,7 +161,7 @@ public class MinecraftPatchedProvider {
 
 		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
 		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-at-patched.jar");
-		minecraftPatchedOfficialJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-official--patched.jar");
+		minecraftPatchedAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-at-patched.jar");
 		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
 	}
 
@@ -178,7 +178,7 @@ public class MinecraftPatchedProvider {
 					minecraftPatchedJar,
 					minecraftPatchedSrgJar,
 					minecraftPatchedSrgAtJar,
-					minecraftPatchedOfficialJar,
+					minecraftPatchedAtJar,
 					minecraftClientExtra,
 			};
 		}
@@ -187,14 +187,14 @@ public class MinecraftPatchedProvider {
 				minecraftSrgJar,
 				minecraftPatchedSrgJar,
 				minecraftPatchedSrgAtJar,
-				minecraftPatchedOfficialJar,
+				minecraftPatchedAtJar,
 				minecraftClientExtra,
 		};
 	}
 
 	private void checkCache() throws IOException {
 		if (LoomGradlePlugin.refreshDeps || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
-				|| !isPatchedJarUpToDate(minecraftPatchedOfficialJar)) {
+				|| !isPatchedJarUpToDate(minecraftPatchedAtJar)) {
 			cleanAllCache();
 		}
 	}
@@ -477,7 +477,7 @@ public class MinecraftPatchedProvider {
 	private void remapPatchedJar() throws Exception {
 		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
 		Path mcInput = minecraftPatchedSrgAtJar;
-		Path mcOutput = minecraftPatchedOfficialJar;
+		Path mcOutput = minecraftPatchedAtJar;
 		Files.deleteIfExists(mcOutput);
 
 		TinyRemapper remapper = buildRemapper(mcInput);
@@ -632,7 +632,7 @@ public class MinecraftPatchedProvider {
 	}
 
 	public Path getMinecraftPatchedJar() {
-		return minecraftPatchedOfficialJar;
+		return minecraftPatchedAtJar;
 	}
 
 	public enum Type {
