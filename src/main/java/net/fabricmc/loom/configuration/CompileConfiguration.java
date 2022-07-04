@@ -135,9 +135,7 @@ public final class CompileConfiguration {
 			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA, project);
 		}
 
-		if (extension.supportsInclude()) {
-			extension.createLazyConfiguration(Constants.Configurations.INCLUDE, configuration -> configuration.setTransitive(false)); // Dont get transitive deps
-		}
+		extension.createLazyConfiguration(Constants.Configurations.INCLUDE, configuration -> configuration.setTransitive(false)); // Dont get transitive deps
 
 		extension.createLazyConfiguration(Constants.Configurations.MAPPING_CONSTANTS);
 		extension.createLazyConfiguration(Constants.Configurations.NAMED_ELEMENTS, configuration -> {

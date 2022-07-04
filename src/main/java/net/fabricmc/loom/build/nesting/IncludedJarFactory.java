@@ -26,9 +26,12 @@ package net.fabricmc.loom.build.nesting;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -45,8 +48,10 @@ import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.TaskDependency;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,6 +59,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.task.RemapTaskConfiguration;
 import net.fabricmc.loom.util.ModUtils;
+import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ZipUtils;
 
 public final class IncludedJarFactory {
@@ -67,16 +73,34 @@ public final class IncludedJarFactory {
 		return project.provider(() -> {
 			final ConfigurableFileCollection files = project.files();
 			final Set<String> visited = Sets.newHashSet();
+			final Set<Task> builtBy = Sets.newHashSet();
 
-			files.from(getProjectDeps(configuration, visited));
-			files.from(getFileDeps(configuration, visited));
+			files.from(getProjectDeps(configuration, visited, builtBy).stream().map(Pair::right).toArray());
+			files.from(getFileDeps(configuration, visited, builtBy).stream().map(Pair::right).toArray());
 			files.builtBy(configuration.getBuildDependencies());
 			return files;
 		});
 	}
 
-	private ConfigurableFileCollection getFileDeps(Configuration configuration, Set<String> visited) {
-		final ConfigurableFileCollection files = project.files();
+	public Provider<Pair<List<Pair<Metadata, RegularFileProperty>>, TaskDependency>> getForgeNestedJars(final Configuration configuration) {
+		return project.provider(() -> {
+			final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
+			final Set<String> visited = Sets.newHashSet();
+			final Set<Task> builtBy = Sets.newHashSet();
+
+			files.addAll(getProjectDeps(configuration, visited, builtBy));
+			files.addAll(getFileDeps(configuration, visited, builtBy));
+			return new Pair<>(files, task -> {
+				TaskDependency dependencies = configuration.getBuildDependencies();
+				Set<Task> tasks = (Set<Task>) dependencies.getDependencies(task);
+				tasks.addAll(builtBy);
+				return tasks;
+			});
+		});
+	}
+
+	private List<Pair<Metadata, RegularFileProperty>> getFileDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
 
 		final ResolvedConfiguration resolvedConfiguration = configuration.getResolvedConfiguration();
 		final Set<ResolvedDependency> dependencies = resolvedConfiguration.getFirstLevelModuleDependencies();
@@ -94,15 +118,15 @@ public final class IncludedJarFactory {
 						artifact.getClassifier()
 				);
 
-				files.from(project.provider(() -> getNestableJar(artifact.getFile(), metadata)));
+				files.add(new Pair<>(metadata, project.getObjects().fileProperty().fileProvider(project.provider(() -> getNestableJar(artifact.getFile(), metadata)))));
 			}
 		}
 
 		return files;
 	}
 
-	private ConfigurableFileCollection getProjectDeps(Configuration configuration, Set<String> visited) {
-		final ConfigurableFileCollection files = project.files();
+	private List<Pair<Metadata, RegularFileProperty>> getProjectDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
 
 		for (Dependency dependency : configuration.getDependencies()) {
 			if (dependency instanceof ProjectDependency projectDependency) {
@@ -130,8 +154,8 @@ public final class IncludedJarFactory {
 						);
 
 						Provider<File> provider = archiveTask.getArchiveFile().map(regularFile -> getNestableJar(regularFile.getAsFile(), metadata));
-						files.from(provider);
-						files.builtBy(task);
+						files.add(new Pair<>(metadata, project.getObjects().fileProperty().fileProvider(provider)));
+						builtBy.add(task);
 					} else {
 						throw new UnsupportedOperationException("Cannot nest none AbstractArchiveTask task: " + task.getName());
 					}
@@ -201,7 +225,7 @@ public final class IncludedJarFactory {
 		return LoomGradlePlugin.GSON.toJson(jsonObject);
 	}
 
-	private record Metadata(String group, String name, String version, @Nullable String classifier) {
+	public record Metadata(String group, String name, String version, @Nullable String classifier) implements Serializable {
 		@Override
 		public String classifier() {
 			if (classifier == null) {

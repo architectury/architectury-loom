@@ -42,6 +42,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,12 +75,14 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.TaskDependency;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,6 +119,9 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 	@InputFiles
 	public abstract ConfigurableFileCollection getNestedJars();
+
+	@Internal
+	public abstract ListProperty<Pair<IncludedJarFactory.Metadata, RegularFileProperty>> getForgeNestedJars();
 
 	@Input
 	public abstract Property<Boolean> getAddNestedDependencies();
@@ -166,9 +172,15 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForge()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
 
-		if (LoomGradleExtension.get(getProject()).supportsInclude()) {
-			Configuration includeConfiguration = getProject().getConfigurations().getByName(Constants.Configurations.INCLUDE);
-			getNestedJars().from(new IncludedJarFactory(getProject()).getNestedJars(includeConfiguration));
+		Configuration includeConfiguration = getProject().getConfigurations().getByName(Constants.Configurations.INCLUDE);
+		IncludedJarFactory factory = new IncludedJarFactory(getProject());
+
+		if (!LoomGradleExtension.get(getProject()).isForge()) {
+			getNestedJars().from(factory.getNestedJars(includeConfiguration));
+		} else {
+			Provider<Pair<List<Pair<IncludedJarFactory.Metadata, RegularFileProperty>>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
+			getForgeNestedJars().value(forgeNestedJars.map(Pair::left));
+			getNestedJars().builtBy(forgeNestedJars.map(Pair::right));
 		}
 
 		setupPreparationTask();
@@ -195,8 +207,13 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		final LoomGradleExtension extension = LoomGradleExtension.get(getProject());
 
 		submitWork(RemapAction.class, params -> {
-			if (extension.supportsInclude() && getAddNestedDependencies().get()) {
+			if (getAddNestedDependencies().get()) {
 				params.getNestedJars().from(getNestedJars());
+
+				if (extension.isForge()) {
+					params.getForgeNestedJars().set(getForgeNestedJars()
+							.map(pairs -> pairs.stream().map(pair -> new Pair<>(pair.left(), pair.right().get().getAsFile())).toList()));
+				}
 			}
 
 			params.getJarManifestService().set(JarManifestService.get(getProject()));
@@ -336,6 +353,9 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 	public interface RemapParams extends AbstractRemapParams {
 		ConfigurableFileCollection getNestedJars();
+
+		ListProperty<Pair<IncludedJarFactory.Metadata, File>> getForgeNestedJars();
+
 		ConfigurableFileCollection getRemapClasspath();
 
 		Property<ModPlatform> getPlatform();
@@ -346,14 +366,18 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		Property<Boolean> getUseMixinExtension();
 
-		record RefmapData(List<String> mixinConfigs, String refmapName) implements Serializable { }
+		record RefmapData(List<String> mixinConfigs, String refmapName) implements Serializable {}
+
 		ListProperty<RefmapData> getMixinData();
 
 		Property<JarManifestService> getJarManifestService();
+
 		Property<String> getTinyRemapperBuildServiceUuid();
+
 		Property<String> getMappingBuildServiceUuid();
 
 		MapProperty<String, String> getManifestAttributes();
+
 		ListProperty<String> getClientOnlyClasses();
 	}
 
@@ -527,13 +551,16 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		private void addNestedJars() {
 			FileCollection nestedJars = getParameters().getNestedJars();
+			ListProperty<Pair<IncludedJarFactory.Metadata, File>> forgeNestedJars = getParameters().getForgeNestedJars();
 
-			if (nestedJars.isEmpty()) {
+			if (nestedJars.isEmpty() && (!forgeNestedJars.isPresent() || forgeNestedJars.get().isEmpty())) {
 				LOGGER.info("No jars to nest");
 				return;
 			}
 
-			JarNester.nestJars(nestedJars.getFiles(), outputFile.toFile(), getParameters().getPlatform().get(), LOGGER);
+			Set<File> jars = new HashSet<>(nestedJars.getFiles());
+			jars.addAll(forgeNestedJars.get().stream().map(Pair::right).toList());
+			JarNester.nestJars(jars, forgeNestedJars.getOrElse(List.of()), outputFile.toFile(), getParameters().getPlatform().get(), LOGGER);
 		}
 
 		private void modifyJarManifest() throws IOException {

@@ -159,8 +159,6 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 		return isForge() && !getMcpConfigProvider().isOfficial();
 	}
 
-	boolean supportsInclude();
-
 	DependencyProviders getDependencyProviders();
 
 	void setDependencyProviders(DependencyProviders dependencyProviders);

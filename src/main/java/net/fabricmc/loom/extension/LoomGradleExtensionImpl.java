@@ -58,7 +58,6 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMi
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftProvider;
 import net.fabricmc.loom.util.ModPlatform;
-import net.fabricmc.loom.util.function.LazyBool;
 
 public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implements LoomGradleExtension {
 	private final Project project;
@@ -84,8 +83,6 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	// +-------------------+
 	// | Architectury Loom |
 	// +-------------------+
-	private static final String INCLUDE_PROPERTY = "loom.forge.include";
-	private final LazyBool supportsInclude;
 	private DependencyProviders dependencyProviders;
 
 	public LoomGradleExtensionImpl(Project project, LoomFiles files) {
@@ -96,7 +93,6 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
 		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
-		this.supportsInclude = new LazyBool(() -> Boolean.parseBoolean(Objects.toString(project.findProperty(INCLUDE_PROPERTY))));
 
 		// Setup the default intermediate mappings provider.
 		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
@@ -280,11 +276,6 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	public ForgeExtensionAPI getForge() {
 		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
 		return forgeExtension.get();
-	}
-
-	@Override
-	public boolean supportsInclude() {
-		return !isForge() || supportsInclude.getAsBoolean();
 	}
 
 	@Override
