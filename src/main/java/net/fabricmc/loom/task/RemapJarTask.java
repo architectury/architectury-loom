@@ -120,8 +120,8 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	@InputFiles
 	public abstract ConfigurableFileCollection getNestedJars();
 
-	@Internal
-	public abstract ListProperty<Pair<IncludedJarFactory.Metadata, RegularFileProperty>> getForgeNestedJars();
+	@Input
+	public abstract ListProperty<Pair<IncludedJarFactory.Metadata, File>> getForgeNestedJars();
 
 	@Input
 	public abstract Property<Boolean> getAddNestedDependencies();
@@ -179,7 +179,11 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			getNestedJars().from(factory.getNestedJars(includeConfiguration));
 		} else {
 			Provider<Pair<List<Pair<IncludedJarFactory.Metadata, RegularFileProperty>>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
-			getForgeNestedJars().value(forgeNestedJars.map(Pair::left));
+			getForgeNestedJars().value(forgeNestedJars.map(Pair::left).map(pairs -> {
+				return pairs.stream()
+						.map(pair -> new Pair<>(pair.left(), pair.right().get().getAsFile()))
+						.toList();
+			}));
 			getNestedJars().builtBy(forgeNestedJars.map(Pair::right));
 		}
 
@@ -211,8 +215,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				params.getNestedJars().from(getNestedJars());
 
 				if (extension.isForge()) {
-					params.getForgeNestedJars().set(getForgeNestedJars()
-							.map(pairs -> pairs.stream().map(pair -> new Pair<>(pair.left(), pair.right().get().getAsFile())).toList()));
+					params.getForgeNestedJars().set(getForgeNestedJars());
 				}
 			}
 
@@ -366,18 +369,14 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		Property<Boolean> getUseMixinExtension();
 
-		record RefmapData(List<String> mixinConfigs, String refmapName) implements Serializable {}
-
+		record RefmapData(List<String> mixinConfigs, String refmapName) implements Serializable { }
 		ListProperty<RefmapData> getMixinData();
 
 		Property<JarManifestService> getJarManifestService();
-
 		Property<String> getTinyRemapperBuildServiceUuid();
-
 		Property<String> getMappingBuildServiceUuid();
 
 		MapProperty<String, String> getManifestAttributes();
-
 		ListProperty<String> getClientOnlyClasses();
 	}
 
