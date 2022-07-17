@@ -47,6 +47,7 @@ import net.fabricmc.loom.configuration.RemappedConfigurationEntry;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.ModUtils;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.mappingio.MappingReader;
@@ -65,6 +66,13 @@ public final class ModJavadocProcessor implements JarProcessor, GenerateSourcesT
 	@Nullable
 	public static ModJavadocProcessor create(Project project) {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		final ModPlatform platform = extension.getPlatform().get();
+
+		// Not supported on Forge.
+		if (platform == ModPlatform.FORGE) {
+			return null;
+		}
+
 		final List<ModJavadoc> javadocs = new ArrayList<>();
 
 		for (RemappedConfigurationEntry entry : Constants.MOD_COMPILE_ENTRIES) {
@@ -73,7 +81,7 @@ public final class ModJavadocProcessor implements JarProcessor, GenerateSourcesT
 					.resolve();
 
 			for (File artifact : artifacts) {
-				if (!ModUtils.isMod(artifact.toPath(), extension.getPlatform().get())) {
+				if (!ModUtils.isMod(artifact.toPath(), platform)) {
 					continue;
 				}
 

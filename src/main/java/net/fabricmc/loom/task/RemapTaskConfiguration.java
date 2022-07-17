@@ -53,7 +53,7 @@ public class RemapTaskConfiguration {
 		final TaskContainer tasks = project.getTasks();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
-		if (!extension.getRemapArchives().get()) {
+		if (getBooleanProperty(project, "fabric.loom.dontRemap")) {
 			extension.getUnmappedModCollection().from(project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
 			return;
 		}
@@ -103,7 +103,7 @@ public class RemapTaskConfiguration {
 			}
 		});
 
-		if (!extension.getSetupRemappedVariants().get()) {
+		if (getBooleanProperty(project, "fabric.loom.disableRemappedVariants")) {
 			return;
 		}
 
@@ -154,7 +154,7 @@ public class RemapTaskConfiguration {
 
 		tasks.named(BasePlugin.ASSEMBLE_TASK_NAME).configure(task -> task.dependsOn(remapSourcesTask));
 
-		if (!extension.getSetupRemappedVariants().get()) {
+		if (getBooleanProperty(project, "fabric.loom.disableRemappedVariants")) {
 			return;
 		}
 
@@ -176,5 +176,16 @@ public class RemapTaskConfiguration {
 				project.getLogger().warn("Not publishing sources jar as it was not found. Use java.withSourcesJar() to fix.");
 			}
 		});
+	}
+
+	private static boolean getBooleanProperty(Project project, String key) {
+		return project.getProviders().gradleProperty(key).map(string -> {
+			try {
+				return Boolean.parseBoolean(string);
+			} catch (final IllegalArgumentException ex) {
+				return false;
+			}
+		})
+		.getOrElse(false);
 	}
 }

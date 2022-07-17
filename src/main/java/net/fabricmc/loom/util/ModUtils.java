@@ -48,7 +48,7 @@ public final class ModUtils {
 		if (platform == ModPlatform.FORGE) {
 			return ZipUtils.contains(input, "META-INF/mods.toml");
 		} else if (platform == ModPlatform.QUILT) {
-			return ZipUtils.contains(input, "quilt.mod.json");
+			return ZipUtils.contains(input, "quilt.mod.json") || isMod(input, ModPlatform.FABRIC);
 		}
 
 		return ZipUtils.contains(input, "fabric.mod.json");
@@ -77,11 +77,6 @@ public final class ModUtils {
 
 		if (platform == ModPlatform.FORGE) {
 			logger.lifecycle(":could not find forge mod in " + config + " but forcing: {}", id);
-			return true;
-		}
-
-		if (platform == ModPlatform.QUILT && isMod(input, ModPlatform.FABRIC)) {
-			logger.lifecycle(":found fabric mod on quilt {} in {}", id, config);
 			return true;
 		}
 
