@@ -31,6 +31,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -82,9 +83,9 @@ public final class IncludedJarFactory {
 		});
 	}
 
-	public Provider<Pair<List<Pair<Metadata, RegularFileProperty>>, TaskDependency>> getForgeNestedJars(final Configuration configuration) {
+	public Provider<Pair<List<Pair<Metadata, Provider<File>>>, TaskDependency>> getForgeNestedJars(final Configuration configuration) {
 		return project.provider(() -> {
-			final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
+			final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
 			final Set<String> visited = Sets.newHashSet();
 			final Set<Task> builtBy = Sets.newHashSet();
 
@@ -92,15 +93,15 @@ public final class IncludedJarFactory {
 			files.addAll(getFileDeps(configuration, visited, builtBy));
 			return new Pair<>(files, task -> {
 				TaskDependency dependencies = configuration.getBuildDependencies();
-				Set<Task> tasks = (Set<Task>) dependencies.getDependencies(task);
+				Set<Task> tasks = new HashSet<>(dependencies.getDependencies(task));
 				tasks.addAll(builtBy);
 				return tasks;
 			});
 		});
 	}
 
-	private List<Pair<Metadata, RegularFileProperty>> getFileDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
-		final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
+	private List<Pair<Metadata, Provider<File>>> getFileDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
 
 		final ResolvedConfiguration resolvedConfiguration = configuration.getResolvedConfiguration();
 		final Set<ResolvedDependency> dependencies = resolvedConfiguration.getFirstLevelModuleDependencies();
@@ -118,15 +119,15 @@ public final class IncludedJarFactory {
 						artifact.getClassifier()
 				);
 
-				files.add(new Pair<>(metadata, project.getObjects().fileProperty().fileProvider(project.provider(() -> getNestableJar(artifact.getFile(), metadata)))));
+				files.add(new Pair<>(metadata, project.provider(() -> getNestableJar(artifact.getFile(), metadata))));
 			}
 		}
 
 		return files;
 	}
 
-	private List<Pair<Metadata, RegularFileProperty>> getProjectDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
-		final List<Pair<Metadata, RegularFileProperty>> files = new ArrayList<>();
+	private List<Pair<Metadata, Provider<File>>> getProjectDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
 
 		for (Dependency dependency : configuration.getDependencies()) {
 			if (dependency instanceof ProjectDependency projectDependency) {
@@ -154,7 +155,7 @@ public final class IncludedJarFactory {
 						);
 
 						Provider<File> provider = archiveTask.getArchiveFile().map(regularFile -> getNestableJar(regularFile.getAsFile(), metadata));
-						files.add(new Pair<>(metadata, project.getObjects().fileProperty().fileProvider(provider)));
+						files.add(new Pair<>(metadata, provider));
 						builtBy.add(task);
 					} else {
 						throw new UnsupportedOperationException("Cannot nest none AbstractArchiveTask task: " + task.getName());

@@ -64,7 +64,7 @@ public class JarNester {
 			}).collect(Collectors.toList()));
 
 			if (platform == ModPlatform.FORGE) {
-				handleForgeJarJar(jars, forgeJars, modJar, logger);
+				handleForgeJarJar(forgeJars, modJar, logger);
 				return;
 			}
 
@@ -140,7 +140,7 @@ public class JarNester {
 		}
 	}
 
-	private static void handleForgeJarJar(Collection<File> jars, List<Pair<IncludedJarFactory.Metadata, File>> forgeJars, File modJar, Logger logger) throws IOException {
+	private static void handleForgeJarJar(List<Pair<IncludedJarFactory.Metadata, File>> forgeJars, File modJar, Logger logger) throws IOException {
 		JsonObject json = new JsonObject();
 		JsonArray nestedJars = new JsonArray();
 

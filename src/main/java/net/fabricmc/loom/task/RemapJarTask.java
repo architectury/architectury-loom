@@ -178,10 +178,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		if (!LoomGradleExtension.get(getProject()).isForge()) {
 			getNestedJars().from(factory.getNestedJars(includeConfiguration));
 		} else {
-			Provider<Pair<List<Pair<IncludedJarFactory.Metadata, RegularFileProperty>>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
+			Provider<Pair<List<Pair<IncludedJarFactory.Metadata, Provider<File>>>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
 			getForgeNestedJars().value(forgeNestedJars.map(Pair::left).map(pairs -> {
 				return pairs.stream()
-						.map(pair -> new Pair<>(pair.left(), pair.right().get().getAsFile()))
+						.map(pair -> new Pair<>(pair.left(), pair.right().get()))
 						.toList();
 			}));
 			getNestedJars().builtBy(forgeNestedJars.map(Pair::right));
