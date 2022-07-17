@@ -40,13 +40,14 @@ import org.gradle.api.UncheckedIOException;
 import org.slf4j.Logger;
 
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.build.nesting.IncludedJarFactory.NestedFile;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.ModUtils;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ZipUtils;
 
 public class JarNester {
-	public static void nestJars(Collection<File> jars, List<Pair<IncludedJarFactory.Metadata, File>> forgeJars, File modJar, ModPlatform platform, Logger logger) {
+	public static void nestJars(Collection<File> jars, List<NestedFile> forgeJars, File modJar, ModPlatform platform, Logger logger) {
 		if (jars.isEmpty()) {
 			logger.debug("Nothing to nest into " + modJar.getName());
 			return;
@@ -140,13 +141,13 @@ public class JarNester {
 		}
 	}
 
-	private static void handleForgeJarJar(List<Pair<IncludedJarFactory.Metadata, File>> forgeJars, File modJar, Logger logger) throws IOException {
+	private static void handleForgeJarJar(List<NestedFile> forgeJars, File modJar, Logger logger) throws IOException {
 		JsonObject json = new JsonObject();
 		JsonArray nestedJars = new JsonArray();
 
-		for (Pair<IncludedJarFactory.Metadata, File> pair : forgeJars) {
-			IncludedJarFactory.Metadata metadata = pair.left();
-			File file = pair.right();
+		for (NestedFile nestedFile : forgeJars) {
+			IncludedJarFactory.Metadata metadata = nestedFile.metadata();
+			File file = nestedFile.file();
 			String nestedJarPath = "META-INF/jars/" + file.getName();
 			Preconditions.checkArgument(ModUtils.isMod(file, ModPlatform.FORGE), "Cannot nest none mod jar: " + file.getName());
 

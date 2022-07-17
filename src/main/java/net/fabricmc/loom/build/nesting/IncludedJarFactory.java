@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
@@ -49,7 +50,6 @@ import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.file.ConfigurableFileCollection;
-import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskDependency;
@@ -76,16 +76,16 @@ public final class IncludedJarFactory {
 			final Set<String> visited = Sets.newHashSet();
 			final Set<Task> builtBy = Sets.newHashSet();
 
-			files.from(getProjectDeps(configuration, visited, builtBy).stream().map(Pair::right).toArray());
-			files.from(getFileDeps(configuration, visited, builtBy).stream().map(Pair::right).toArray());
+			files.from(getProjectDeps(configuration, visited, builtBy).stream().map(LazyNestedFile::file).toArray());
+			files.from(getFileDeps(configuration, visited, builtBy).stream().map(LazyNestedFile::file).toArray());
 			files.builtBy(configuration.getBuildDependencies());
 			return files;
 		});
 	}
 
-	public Provider<Pair<List<Pair<Metadata, Provider<File>>>, TaskDependency>> getForgeNestedJars(final Configuration configuration) {
+	public Provider<Pair<List<LazyNestedFile>, TaskDependency>> getForgeNestedJars(final Configuration configuration) {
 		return project.provider(() -> {
-			final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
+			final List<LazyNestedFile> files = new ArrayList<>();
 			final Set<String> visited = Sets.newHashSet();
 			final Set<Task> builtBy = Sets.newHashSet();
 
@@ -100,8 +100,8 @@ public final class IncludedJarFactory {
 		});
 	}
 
-	private List<Pair<Metadata, Provider<File>>> getFileDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
-		final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
+	private List<LazyNestedFile> getFileDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<LazyNestedFile> files = new ArrayList<>();
 
 		final ResolvedConfiguration resolvedConfiguration = configuration.getResolvedConfiguration();
 		final Set<ResolvedDependency> dependencies = resolvedConfiguration.getFirstLevelModuleDependencies();
@@ -119,15 +119,15 @@ public final class IncludedJarFactory {
 						artifact.getClassifier()
 				);
 
-				files.add(new Pair<>(metadata, project.provider(() -> getNestableJar(artifact.getFile(), metadata))));
+				files.add(new LazyNestedFile(project, metadata, () -> getNestableJar(artifact.getFile(), metadata)));
 			}
 		}
 
 		return files;
 	}
 
-	private List<Pair<Metadata, Provider<File>>> getProjectDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
-		final List<Pair<Metadata, Provider<File>>> files = new ArrayList<>();
+	private List<LazyNestedFile> getProjectDeps(Configuration configuration, Set<String> visited, Set<Task> builtBy) {
+		final List<LazyNestedFile> files = new ArrayList<>();
 
 		for (Dependency dependency : configuration.getDependencies()) {
 			if (dependency instanceof ProjectDependency projectDependency) {
@@ -155,7 +155,7 @@ public final class IncludedJarFactory {
 						);
 
 						Provider<File> provider = archiveTask.getArchiveFile().map(regularFile -> getNestableJar(regularFile.getAsFile(), metadata));
-						files.add(new Pair<>(metadata, provider));
+						files.add(new LazyNestedFile(metadata, provider));
 						builtBy.add(task);
 					} else {
 						throw new UnsupportedOperationException("Cannot nest none AbstractArchiveTask task: " + task.getName());
@@ -234,6 +234,18 @@ public final class IncludedJarFactory {
 			} else {
 				return "_" + classifier;
 			}
+		}
+	}
+
+	public record NestedFile(Metadata metadata, File file) implements Serializable { }
+
+	public record LazyNestedFile(Metadata metadata, Provider<File> file) implements Serializable {
+		public LazyNestedFile(Project project, Metadata metadata, Supplier<File> file) {
+			this(metadata, project.provider(file::get));
+		}
+
+		public NestedFile resolve() {
+			return new NestedFile(metadata, file.get());
 		}
 	}
 }

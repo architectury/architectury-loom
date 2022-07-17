@@ -94,6 +94,8 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.build.MixinRefmapHelper;
 import net.fabricmc.loom.build.nesting.IncludedJarFactory;
+import net.fabricmc.loom.build.nesting.IncludedJarFactory.LazyNestedFile;
+import net.fabricmc.loom.build.nesting.IncludedJarFactory.NestedFile;
 import net.fabricmc.loom.build.nesting.JarNester;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
@@ -121,7 +123,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	public abstract ConfigurableFileCollection getNestedJars();
 
 	@Input
-	public abstract ListProperty<Pair<IncludedJarFactory.Metadata, File>> getForgeNestedJars();
+	public abstract ListProperty<NestedFile> getForgeNestedJars();
 
 	@Input
 	public abstract Property<Boolean> getAddNestedDependencies();
@@ -178,10 +180,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		if (!LoomGradleExtension.get(getProject()).isForge()) {
 			getNestedJars().from(factory.getNestedJars(includeConfiguration));
 		} else {
-			Provider<Pair<List<Pair<IncludedJarFactory.Metadata, Provider<File>>>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
+			Provider<Pair<List<LazyNestedFile>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
 			getForgeNestedJars().value(forgeNestedJars.map(Pair::left).map(pairs -> {
 				return pairs.stream()
-						.map(pair -> new Pair<>(pair.left(), pair.right().get()))
+						.map(LazyNestedFile::resolve)
 						.toList();
 			}));
 			getNestedJars().builtBy(forgeNestedJars.map(Pair::right));
@@ -357,7 +359,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	public interface RemapParams extends AbstractRemapParams {
 		ConfigurableFileCollection getNestedJars();
 
-		ListProperty<Pair<IncludedJarFactory.Metadata, File>> getForgeNestedJars();
+		ListProperty<NestedFile> getForgeNestedJars();
 
 		ConfigurableFileCollection getRemapClasspath();
 
@@ -550,7 +552,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		private void addNestedJars() {
 			FileCollection nestedJars = getParameters().getNestedJars();
-			ListProperty<Pair<IncludedJarFactory.Metadata, File>> forgeNestedJars = getParameters().getForgeNestedJars();
+			ListProperty<NestedFile> forgeNestedJars = getParameters().getForgeNestedJars();
 
 			if (nestedJars.isEmpty() && (!forgeNestedJars.isPresent() || forgeNestedJars.get().isEmpty())) {
 				LOGGER.info("No jars to nest");
@@ -558,7 +560,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			}
 
 			Set<File> jars = new HashSet<>(nestedJars.getFiles());
-			jars.addAll(forgeNestedJars.get().stream().map(Pair::right).toList());
+			jars.addAll(forgeNestedJars.get().stream().map(NestedFile::file).toList());
 			JarNester.nestJars(jars, forgeNestedJars.getOrElse(List.of()), outputFile.toFile(), getParameters().getPlatform().get(), LOGGER);
 		}
 
