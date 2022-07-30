@@ -37,7 +37,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -50,7 +49,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.gson.JsonObject;
-import org.apache.commons.io.IOUtils;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -81,7 +79,7 @@ import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
-import net.fabricmc.mappingio.tree.MappingTree;
+import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
@@ -157,31 +155,61 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 		if (Files.notExists(mcpToSrg)) {
 			// Forge outputs a srg file that includes class names, even if they match srg(which they would if using mcp mappings)
 			// So we try to get as close to that by adding the class mappings even if they don't change.
-			BufferedWriter writer = null;
+			// This can't use SrgWriter either, as that doesn't add unmapped class mappings.
+			try (BufferedWriter writer = Files.newBufferedWriter(mcpToSrg)) {
+				MappingTreeView mappings = getMappingsWithSrg();
 
-			try {
-				Files.copy(srgToNamedSrg, mcpToSrg, StandardCopyOption.REPLACE_EXISTING);
+				int sourceNamespace = mappings.getNamespaceId(MappingsNamespace.SRG.toString());
+				int targetNamespace = mappings.getNamespaceId(MappingsNamespace.NAMED.toString());
 
-				for (MappingTree.ClassMapping missingClass : getMappingsWithSrg().getClasses()) {
-					String srg = missingClass.getName(MappingsNamespace.SRG.toString());
-					String named = missingClass.getName(MappingsNamespace.NAMED.toString());
+				for (MappingTreeView.ClassMappingView classMapping : mappings.getClasses()) {
+					String srg = classMapping.getName(sourceNamespace);
+					String named = classMapping.getName(targetNamespace);
 
-					if (srg.equals(named)) {
-						if (writer == null) {
-							writer = Files.newBufferedWriter(srgToNamedSrg, StandardOpenOption.APPEND);
-						}
+					writer.write("CL: ");
+					writer.write(srg);
+					writer.write(' ');
+					writer.write(named);
+					writer.write('\n');
 
-						writer.write("CL: ");
+					for (MappingTreeView.FieldMappingView fieldMapping : classMapping.getFields()) {
+						writer.write("FD: ");
+
 						writer.write(srg);
+						writer.write('/');
+						writer.write(fieldMapping.getName(sourceNamespace));
+
 						writer.write(' ');
+
 						writer.write(named);
+						writer.write('/');
+						writer.write(fieldMapping.getName(targetNamespace));
+
+						writer.write('\n');
+					}
+
+					for (MappingTreeView.MethodMappingView methodMapping : classMapping.getMethods()) {
+						writer.write("MD: ");
+
+						writer.write(srg);
+						writer.write('/');
+						writer.write(methodMapping.getName(sourceNamespace));
+						writer.write(' ');
+						writer.write(methodMapping.getDesc(sourceNamespace));
+
+						writer.write(' ');
+
+						writer.write(named);
+						writer.write('/');
+						writer.write(methodMapping.getName(targetNamespace));
+						writer.write(' ');
+						writer.write(methodMapping.getDesc(targetNamespace));
+
 						writer.write('\n');
 					}
 				}
 			} catch (IOException exception) {
 				throw new UncheckedIOException("Failed to create SRG file for the mcp_to_srg template argument", exception);
-			} finally {
-				IOUtils.closeQuietly(writer);
 			}
 		}
 
