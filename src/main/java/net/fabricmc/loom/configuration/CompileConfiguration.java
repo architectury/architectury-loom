@@ -212,6 +212,7 @@ public final class CompileConfiguration {
 
 				mavenArtifactRepository.metadataSources(sources -> {
 					sources.mavenPom();
+					sources.artifact();
 
 					try {
 						MavenArtifactRepository.MetadataSources.class.getDeclaredMethod("ignoreGradleMetadataRedirection")
