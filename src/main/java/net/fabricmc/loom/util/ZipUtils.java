@@ -93,6 +93,23 @@ public class ZipUtils {
 		}
 	}
 
+	// TODO: PR into upstream?
+	public static void unpackDirectory(Path zip, String directory, Path output) throws IOException {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(zip, false);
+				Stream<Path> walk = Files.walk(fs.get().getPath(directory))) {
+			Iterator<Path> iterator = walk.iterator();
+
+			while (iterator.hasNext()) {
+				Path fsPath = iterator.next();
+				if (!Files.isRegularFile(fsPath)) continue;
+				Path dstPath = output.resolve(fs.get().getPath(directory).relativize(fsPath).toString());
+				Path dstPathParent = dstPath.getParent();
+				if (dstPathParent != null) Files.createDirectories(dstPathParent);
+				Files.copy(fsPath, dstPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+			}
+		}
+	}
+
 	public static byte @Nullable [] unpackNullable(Path zip, String path) throws IOException {
 		try {
 			return unpack(zip, path);

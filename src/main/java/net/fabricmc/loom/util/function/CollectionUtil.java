@@ -56,6 +56,24 @@ public final class CollectionUtil {
 	}
 
 	/**
+	 * Finds the index of the first element matching the predicate.
+	 *
+	 * @param list   the list to be searched
+	 * @param filter the predicate to be matched
+	 * @param <E>    the element type
+	 * @return the index of the first matching element, or -1 if none match
+	 */
+	public static <E> int indexOf(List<? extends E> list, Predicate<? super E> filter) {
+		for (int i = 0; i < list.size(); i++) {
+			if (filter.test(list.get(i))) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	/**
 	 * Transforms the collection with a function.
 	 *
 	 * @param collection the source collection

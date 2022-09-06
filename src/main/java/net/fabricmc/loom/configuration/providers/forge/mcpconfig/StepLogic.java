@@ -62,6 +62,7 @@ public interface StepLogic {
 		Logger logger();
 		Path setOutput(String fileName) throws IOException;
 		Path setOutput(Path output);
+		Path cache() throws IOException;
 		/** Mappings extracted from {@code data.mappings} in the MCPConfig JSON. */
 		Path mappings();
 		String resolve(ConfigValue value);

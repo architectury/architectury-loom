@@ -35,14 +35,22 @@ import com.google.gson.JsonObject;
 /**
  * Data extracted from the MCPConfig JSON file.
  *
+ * @param data         the value of the {@code data} property
  * @param mappingsPath the path to srg mappings inside the MCP zip
  * @param official     the value of the {@code official} property
  * @param steps        the MCP step definitions by environment type
  * @param functions    the MCP function definitions by name
  */
-public record McpConfigData(String mappingsPath, boolean official, Map<String, List<McpConfigStep>> steps, Map<String, McpConfigFunction> functions) {
+public record McpConfigData(
+		JsonObject data,
+		String mappingsPath,
+		boolean official,
+		Map<String, List<McpConfigStep>> steps,
+		Map<String, McpConfigFunction> functions
+) {
 	public static McpConfigData fromJson(JsonObject json) {
-		String mappingsPath = json.getAsJsonObject("data").get("mappings").getAsString();
+		JsonObject data = json.getAsJsonObject("data");
+		String mappingsPath = data.get("mappings").getAsString();
 		boolean official = json.has("official") && json.getAsJsonPrimitive("official").getAsBoolean();
 
 		JsonObject stepsJson = json.getAsJsonObject("steps");
@@ -65,6 +73,6 @@ public record McpConfigData(String mappingsPath, boolean official, Map<String, L
 			functionsBuilder.put(key, McpConfigFunction.fromJson(functionsJson.getAsJsonObject(key)));
 		}
 
-		return new McpConfigData(mappingsPath, official, stepsBuilder.build(), functionsBuilder.build());
+		return new McpConfigData(data, mappingsPath, official, stepsBuilder.build(), functionsBuilder.build());
 	}
 }

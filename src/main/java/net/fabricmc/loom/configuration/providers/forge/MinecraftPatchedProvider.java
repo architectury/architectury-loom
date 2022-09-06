@@ -74,7 +74,7 @@ import org.objectweb.asm.tree.ClassNode;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.accesstransformer.AccessTransformerJarProcessor;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigData;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
 import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
@@ -180,9 +180,7 @@ public class MinecraftPatchedProvider {
 
 		if (Files.notExists(minecraftSrgJar)) {
 			this.dirty = true;
-			McpConfigData data = getExtension().getMcpConfigProvider().getData();
-			List<McpConfigStep> steps = data.steps().get(type.mcpId);
-			McpExecutor executor = new McpExecutor(project, minecraftProvider, Files.createTempDirectory("loom-mcp"), steps, data.functions());
+			McpExecutor executor = createMcpExecutor(Files.createTempDirectory("loom-mcp"));
 			Path output = executor.executeUpTo("rename");
 			Files.copy(output, minecraftSrgJar);
 		}
@@ -545,6 +543,16 @@ public class MinecraftPatchedProvider {
 				manifest.write(stream);
 			}
 		}
+	}
+
+	public McpExecutor createMcpExecutor(Path cache) {
+		McpConfigProvider provider = getExtension().getMcpConfigProvider();
+		McpConfigData data = provider.getData();
+		return new McpExecutor(project, minecraftProvider, cache, provider, type.mcpId);
+	}
+
+	public Path getMinecraftSrgJar() {
+		return minecraftSrgJar;
 	}
 
 	public Path getMinecraftPatchedSrgJar() {

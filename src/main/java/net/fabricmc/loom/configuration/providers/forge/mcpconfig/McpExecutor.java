@@ -35,10 +35,15 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
@@ -60,14 +65,49 @@ public final class McpExecutor {
 	private final Path cache;
 	private final List<McpConfigStep> steps;
 	private final Map<String, McpConfigFunction> functions;
+	private final Map<String, String> config = new HashMap<>();
 	private final Map<String, String> extraConfig = new HashMap<>();
 
-	public McpExecutor(Project project, MinecraftProvider minecraftProvider, Path cache, List<McpConfigStep> steps, Map<String, McpConfigFunction> functions) {
+	public McpExecutor(Project project, MinecraftProvider minecraftProvider, Path cache, McpConfigProvider provider, String environment) {
 		this.project = project;
 		this.minecraftProvider = minecraftProvider;
 		this.cache = cache;
-		this.steps = steps;
-		this.functions = functions;
+		this.steps = provider.getData().steps().get(environment);
+		this.functions = provider.getData().functions();
+
+		addDefaultFiles(provider, environment);
+	}
+
+	private void addDefaultFiles(McpConfigProvider provider, String environment) {
+		for (Map.Entry<String, JsonElement> entry : provider.getData().data().entrySet()) {
+			if (entry.getValue().isJsonPrimitive()) {
+				addDefaultFile(provider, entry.getKey(), entry.getValue().getAsString());
+			} else if (entry.getValue().isJsonObject()) {
+				JsonObject json = entry.getValue().getAsJsonObject();
+
+				if (json.has(environment) && json.get(environment).isJsonPrimitive()) {
+					addDefaultFile(provider, entry.getKey(), json.getAsJsonPrimitive(environment).getAsString());
+				}
+			}
+		}
+	}
+
+	private void addDefaultFile(McpConfigProvider provider, String key, String value) {
+		Path path = provider.getUnpackedZip().resolve(value).toAbsolutePath();
+
+		if (!path.startsWith(provider.getUnpackedZip().toAbsolutePath())) {
+			// This is probably not what we're looking for since it falls outside the directory.
+			return;
+		} else if (Files.notExists(path)) {
+			// Not a real file, let's continue.
+			return;
+		}
+
+		addConfig(key, path.toString());
+	}
+
+	public void addConfig(String key, String value) {
+		config.put(key, value);
 	}
 
 	private Path getDownloadCache() throws IOException {
@@ -98,8 +138,8 @@ public final class McpExecutor {
 				return resolve(step, valueFromStep);
 			}
 
-			if (name.equals(ConfigValue.SRG_MAPPINGS_NAME)) {
-				return LoomGradleExtension.get(project).getSrgProvider().getSrg().toAbsolutePath().toString();
+			if (config.containsKey(name)) {
+				return config.get(name);
 			} else if (extraConfig.containsKey(name)) {
 				return extraConfig.get(name);
 			} else if (name.equals(ConfigValue.LOG)) {
@@ -110,13 +150,41 @@ public final class McpExecutor {
 		});
 	}
 
+	private static Predicate<McpConfigStep> byName(String name) {
+		return s -> s.name().equals(name);
+	}
+
+	public Optional<McpConfigStep> getStep(String name) {
+		return CollectionUtil.find(steps, byName(name));
+	}
+
+	public McpConfigStep getStepOrThrow(String name) {
+		return getStep(name).orElseThrow(() -> new NoSuchElementException("Missing MCP config step '" + name + "'"));
+	}
+
+	public List<McpConfigStep> getStepRange(String start, String end) {
+		int startIndex = CollectionUtil.indexOf(steps, byName(start));
+		if (startIndex < 0) missingStep(start);
+		int endIndex = CollectionUtil.indexOf(steps, byName(end));
+		if (endIndex < 0) missingStep(end);
+		if (startIndex > endIndex) throw new IndexOutOfBoundsException("Start step '" + start + "' is after end step '" + end + "'");
+		return steps.subList(startIndex, endIndex + 1);
+	}
+
+	public List<McpConfigStep> getStepsUpTo(String step) {
+		int endIndex = CollectionUtil.indexOf(steps, byName(step));
+		if (endIndex < 0) missingStep(step);
+		return steps.subList(0, endIndex + 1);
+	}
+
 	public Path executeUpTo(String step) throws IOException {
+		return executeSteps(getStepsUpTo(step));
+	}
+
+	public Path executeSteps(List<McpConfigStep> steps) throws IOException {
 		extraConfig.clear();
 
-		// Find the total number of steps we need to execute.
-		int totalSteps = CollectionUtil.find(steps, s -> s.name().equals(step))
-				.map(s -> steps.indexOf(s) + 1)
-				.orElse(steps.size());
+		int totalSteps = steps.size();
 		int currentStepIndex = 0;
 
 		project.getLogger().log(STEP_LOG_LEVEL, ":executing {} MCP steps", totalSteps);
@@ -129,13 +197,13 @@ public final class McpExecutor {
 			Stopwatch stopwatch = Stopwatch.createStarted();
 			stepLogic.execute(new ExecutionContextImpl(currentStep));
 			project.getLogger().log(STEP_LOG_LEVEL, ":{} done in {}", currentStep.name(), stopwatch.stop());
-
-			if (currentStep.name().equals(step)) {
-				break;
-			}
 		}
 
 		return Path.of(extraConfig.get(ConfigValue.OUTPUT));
+	}
+
+	private static void missingStep(String stepName) {
+		throw new NoSuchElementException("Step '" + stepName + "' not found in MCP config");
 	}
 
 	private StepLogic getStepLogic(String type) {
@@ -147,6 +215,8 @@ public final class McpExecutor {
 		case "listLibraries" -> new StepLogic.ListLibraries();
 		case "downloadClientMappings" -> new StepLogic.DownloadManifestFile(minecraftProvider.getVersionInfo().download("client_mappings"));
 		case "downloadServerMappings" -> new StepLogic.DownloadManifestFile(minecraftProvider.getVersionInfo().download("server_mappings"));
+		case "inject" -> new InjectLogic();
+		case "patch" -> new PatchLogic();
 		default -> {
 			if (functions.containsKey(type)) {
 				yield new StepLogic.OfFunction(functions.get(type));
@@ -171,8 +241,7 @@ public final class McpExecutor {
 
 		@Override
 		public Path setOutput(String fileName) throws IOException {
-			createStepCache(step.name());
-			return setOutput(getStepCache(step.name()).resolve(fileName));
+			return setOutput(cache().resolve(fileName));
 		}
 
 		@Override
@@ -181,6 +250,11 @@ public final class McpExecutor {
 			extraConfig.put(ConfigValue.OUTPUT, absolutePath);
 			extraConfig.put(step.name() + ConfigValue.PREVIOUS_OUTPUT_SUFFIX, absolutePath);
 			return output;
+		}
+
+		@Override
+		public Path cache() throws IOException {
+			return createStepCache(step.name());
 		}
 
 		@Override
