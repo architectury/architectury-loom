@@ -68,6 +68,7 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.accesswidener.TransitiveAccessWidenerMappingsProcessor;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.configuration.processors.ModJavadocProcessor;
+import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.decompilers.LineNumberRemapper;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -146,6 +147,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			throw new RuntimeException("Failed to shutdown log receiver", e);
 		} finally {
 			Files.deleteIfExists(ipcPath);
+		}
+
+		// Inject Forge's own sources
+		if (getExtension().isForge()) {
+			ForgeSourcesRemapper.addForgeSources(getProject(), getOutputJar().get().getAsFile().toPath());
 		}
 	}
 
