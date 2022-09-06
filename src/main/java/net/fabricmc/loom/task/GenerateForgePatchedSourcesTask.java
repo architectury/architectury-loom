@@ -48,7 +48,7 @@ import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
 import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.util.SourceRemapper;
 
-public abstract class GenerateForgeSourcesTask extends AbstractLoomTask {
+public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 	/**
 	 * The SRG Minecraft file produced by the MCP executor.
 	 */
@@ -67,7 +67,7 @@ public abstract class GenerateForgeSourcesTask extends AbstractLoomTask {
 	@OutputFile
 	public abstract RegularFileProperty getOutputJar();
 
-	public GenerateForgeSourcesTask() {
+	public GenerateForgePatchedSourcesTask() {
 		getOutputs().upToDateWhen((o) -> false);
 		getOutputJar().fileProvider(getProject().provider(() -> GenerateSourcesTask.getMappedJarFileWithSuffix(getRuntimeJar(), "-sources.jar")));
 	}

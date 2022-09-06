@@ -33,7 +33,7 @@ import org.gradle.api.Project;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
-import net.fabricmc.loom.task.GenerateForgeSourcesTask;
+import net.fabricmc.loom.task.GenerateForgePatchedSourcesTask;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.Constants;
 
@@ -86,7 +86,7 @@ public class SingleJarDecompileConfiguration extends DecompileConfiguration<Mapp
 		});
 
 		if (LoomGradleExtension.get(project).isForge()) {
-			project.getTasks().register("genForgePatchedSources", GenerateForgeSourcesTask.class, task -> {
+			project.getTasks().register("genForgePatchedSources", GenerateForgePatchedSourcesTask.class, task -> {
 				task.setDescription("Decompile Minecraft using Forge's toolchain.");
 				task.setGroup(Constants.TaskGroup.FABRIC);
 
