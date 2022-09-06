@@ -45,6 +45,7 @@ import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.ConfigValue;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
+import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.util.SourceRemapper;
 
 public abstract class GenerateForgeSourcesTask extends AbstractLoomTask {
@@ -76,14 +77,14 @@ public abstract class GenerateForgeSourcesTask extends AbstractLoomTask {
 		// TODO: Test with client-only/server-only
 		Path cache = Files.createTempDirectory("loom-decompilation");
 		// Step 1: decompile and patch with MCP patches
-		getLogger().lifecycle(":decompiling and applying MCP patches");
 		Path rawDecompiled = decompileAndPatch(cache);
 		// Step 2: patch with Forge patches
 		getLogger().lifecycle(":applying Forge patches");
 		Path patched = sourcePatch(cache, rawDecompiled);
 		// Step 3: remap
-		getLogger().lifecycle(":remapping sources from SRG to named");
 		remap(patched);
+		// Step 4: add Forge's own sources
+		ForgeSourcesRemapper.addForgeSources(getProject(), getOutputJar().get().getAsFile().toPath());
 	}
 
 	private Path decompileAndPatch(Path cache) throws IOException {
