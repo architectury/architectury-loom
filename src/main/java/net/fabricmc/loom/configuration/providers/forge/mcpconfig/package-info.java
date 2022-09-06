@@ -24,7 +24,5 @@
 
 /**
  * A simple implementation for executing MCPConfig steps.
- * Doesn't support all steps, just the ones up to {@code rename}
- * and all custom functions.
  */
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
