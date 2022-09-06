@@ -72,7 +72,6 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 
 	@TaskAction
 	public void run() throws IOException {
-		// TODO: Test with client-only/server-only
 		Path cache = Files.createTempDirectory("loom-decompilation");
 		// Step 1: decompile and patch with MCP patches
 		Path rawDecompiled = decompileAndPatch(cache);
