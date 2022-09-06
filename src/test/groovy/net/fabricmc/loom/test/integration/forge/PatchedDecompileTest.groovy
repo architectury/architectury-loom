@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021 FabricMC
+ * Copyright (c) 2022 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,30 +31,27 @@ import spock.lang.Unroll
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class ForgeTest extends Specification implements GradleProjectTestTrait {
+class PatchedDecompileTest extends Specification implements GradleProjectTestTrait {
 	@Unroll
-    def "build #mcVersion #forgeVersion #mappings"() {
+    def "decompile #mcVersion #forgeVersion"() {
 		setup:
 			def gradle = gradleProject(project: "forge/simple", version: DEFAULT_GRADLE)
 			gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@FORGEVERSION@', forgeVersion)
-				.replace('@MAPPINGS@', mappings)
+				.replace('@MAPPINGS@', 'loom.officialMojangMappings()')
 
 		when:
-			def result = gradle.run(task: "build")
+			def result = gradle.run(task: "genForgePatchedSources")
 
 		then:
-			result.task(":build").outcome == SUCCESS
+			result.task(":genForgePatchedSources").outcome == SUCCESS
 
 		where:
-			mcVersion | forgeVersion | mappings
-			'1.18.1'  | "39.0.63"    | "loom.officialMojangMappings()"
-			'1.18.1'  | "39.0.63"    | "\"net.fabricmc:yarn:1.18.1+build.22:v2\""
-			'1.17.1'  | "37.0.67"    | "loom.officialMojangMappings()"
-			'1.17.1'  | "37.0.67"    | "\"net.fabricmc:yarn:1.17.1+build.61:v2\""
-			'1.16.5'  | "36.2.4"     | "loom.officialMojangMappings()"
-			'1.16.5'  | "36.2.4"     | "\"net.fabricmc:yarn:1.16.5+build.5:v2\""
-			'1.14.4'  | "28.2.23"    | "loom.officialMojangMappings()"
-			'1.14.4'  | "28.2.23"    | "\"net.fabricmc:yarn:1.14.4+build.18:v2\""
+			mcVersion | forgeVersion
+			'1.19.2'  | "43.1.1"
+			'1.18.1'  | "39.0.63"
+			'1.17.1'  | "37.0.67"
+			'1.16.5'  | "36.2.4"
+			'1.14.4'  | "28.2.23"
 	}
 }
