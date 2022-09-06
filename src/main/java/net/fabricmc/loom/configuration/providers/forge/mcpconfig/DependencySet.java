@@ -42,7 +42,6 @@ import java.util.stream.Collectors;
 
 import net.fabricmc.loom.util.function.CollectionUtil;
 
-// TODO: Unit test
 public final class DependencySet {
 	private final Map<String, McpConfigStep> allSteps;
 	private final List<String> stepNames;
