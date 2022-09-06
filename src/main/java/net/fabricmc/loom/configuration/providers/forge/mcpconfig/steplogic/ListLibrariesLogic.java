@@ -22,37 +22,25 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
+package net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 
-import codechicken.diffpatch.cli.CliOperation;
-import codechicken.diffpatch.cli.PatchOperation;
-import codechicken.diffpatch.util.LoggingOutputStream;
-import codechicken.diffpatch.util.PatchMode;
-import org.gradle.api.logging.LogLevel;
-
-public final class PatchLogic implements StepLogic {
+/**
+ * Lists the Minecraft libraries into the output file.
+ */
+public final class ListLibrariesLogic implements StepLogic {
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
-		Path input = Path.of(context.resolve(new ConfigValue.Variable("input")));
-		Path patches = Path.of(context.resolve(new ConfigValue.Variable("patches")));
-		Path output = context.setOutput("output.jar");
-		Path rejects = context.cache().resolve("rejects");
+		context.logger().lifecycle(":downloading minecraft libraries, this may take a while...");
 
-		CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
-				.logTo(new LoggingOutputStream(context.logger(), LogLevel.INFO))
-				.basePath(input)
-				.patchesPath(patches)
-				.outputPath(output)
-				.mode(PatchMode.OFFSET)
-				.rejectsPath(rejects)
-				.build()
-				.operate();
-
-		if (result.exit != 0) {
-			throw new RuntimeException("Could not patch " + input + "; rejects saved to " + rejects.toAbsolutePath());
+		try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(context.setOutput("libraries.txt")))) {
+			for (File lib : context.getMinecraftLibraries()) {
+				writer.println("-e=" + lib.getAbsolutePath());
+			}
 		}
 	}
 }

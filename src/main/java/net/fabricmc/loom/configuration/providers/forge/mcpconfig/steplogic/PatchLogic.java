@@ -22,40 +22,39 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
+package net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic;
 
 import java.io.IOException;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.Iterator;
-import java.util.stream.Stream;
 
-import net.fabricmc.loom.util.FileSystemUtil;
+import codechicken.diffpatch.cli.CliOperation;
+import codechicken.diffpatch.cli.PatchOperation;
+import codechicken.diffpatch.util.LoggingOutputStream;
+import codechicken.diffpatch.util.PatchMode;
+import org.gradle.api.logging.LogLevel;
 
-public final class InjectLogic implements StepLogic {
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.ConfigValue;
+
+public final class PatchLogic implements StepLogic {
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
-		Path injectedFiles = Path.of(context.resolve(new ConfigValue.Variable("inject")));
 		Path input = Path.of(context.resolve(new ConfigValue.Variable("input")));
+		Path patches = Path.of(context.resolve(new ConfigValue.Variable("patches")));
 		Path output = context.setOutput("output.jar");
-		Files.copy(input, output, StandardCopyOption.REPLACE_EXISTING);
+		Path rejects = context.cache().resolve("rejects");
 
-		try (FileSystemUtil.Delegate targetFs = FileSystemUtil.getJarFileSystem(output, false)) {
-			FileSystem fs = targetFs.get();
+		CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+				.logTo(new LoggingOutputStream(context.logger(), LogLevel.INFO))
+				.basePath(input)
+				.patchesPath(patches)
+				.outputPath(output)
+				.mode(PatchMode.OFFSET)
+				.rejectsPath(rejects)
+				.build()
+				.operate();
 
-			try (Stream<Path> paths = Files.walk(injectedFiles)) {
-				Iterator<Path> iter = paths.filter(Files::isRegularFile).iterator();
-
-				while (iter.hasNext()) {
-					Path from = iter.next();
-					Path relative = injectedFiles.relativize(from);
-					Path to = fs.getPath(relative.toString().replace(relative.getFileSystem().getSeparator(), "/"));
-					Files.createDirectories(to.getParent());
-					Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING);
-				}
-			}
+		if (result.exit != 0) {
+			throw new RuntimeException("Could not patch " + input + "; rejects saved to " + rejects.toAbsolutePath());
 		}
 	}
 }
