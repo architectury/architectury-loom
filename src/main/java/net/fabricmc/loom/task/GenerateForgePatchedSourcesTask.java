@@ -42,7 +42,7 @@ import org.gradle.api.tasks.TaskAction;
 import net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.StepLogic;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.ConstantLogic;
 import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.util.SourceRemapper;
 
@@ -93,7 +93,7 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 		McpExecutor mcp = patchedProvider.createMcpExecutor(mcpCache);
 		mcp.setStepLogicProvider((name, type) -> {
 			if (name.equals("rename")) {
-				return Optional.of(new StepLogic.NoOpWithFile(() -> getInputJar().get().getAsFile().toPath()));
+				return Optional.of(new ConstantLogic(() -> getInputJar().get().getAsFile().toPath()));
 			}
 
 			return Optional.empty();
