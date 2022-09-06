@@ -24,8 +24,6 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
-import net.fabricmc.loom.util.FileSystemUtil;
-
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -33,6 +31,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Iterator;
 import java.util.stream.Stream;
+
+import net.fabricmc.loom.util.FileSystemUtil;
 
 public final class InjectLogic implements StepLogic {
 	@Override
@@ -47,6 +47,7 @@ public final class InjectLogic implements StepLogic {
 
 			try (Stream<Path> paths = Files.walk(injectedFiles)) {
 				Iterator<Path> iter = paths.filter(Files::isRegularFile).iterator();
+
 				while (iter.hasNext()) {
 					Path from = iter.next();
 					Path relative = injectedFiles.relativize(from);

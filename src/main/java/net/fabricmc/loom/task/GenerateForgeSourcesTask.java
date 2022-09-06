@@ -29,7 +29,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.PatchOperation;
@@ -88,7 +87,6 @@ public abstract class GenerateForgeSourcesTask extends AbstractLoomTask {
 	}
 
 	private Path decompileAndPatch(Path cache) throws IOException {
-		getExtension().getMappingsProvider()
 		Path mcpCache = cache.resolve("mcp");
 		Files.createDirectory(mcpCache);
 

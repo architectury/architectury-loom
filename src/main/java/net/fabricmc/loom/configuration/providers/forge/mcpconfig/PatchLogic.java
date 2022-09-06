@@ -24,14 +24,14 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
+import java.io.IOException;
+import java.nio.file.Path;
+
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.PatchOperation;
 import codechicken.diffpatch.util.LoggingOutputStream;
 import codechicken.diffpatch.util.PatchMode;
 import org.gradle.api.logging.LogLevel;
-
-import java.io.IOException;
-import java.nio.file.Path;
 
 public final class PatchLogic implements StepLogic {
 	@Override
