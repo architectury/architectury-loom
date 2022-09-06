@@ -32,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.jar.Attributes;
@@ -58,6 +59,10 @@ public interface StepLogic {
 		return stepName;
 	}
 
+	default boolean hasNoContext() {
+		return false;
+	}
+
 	interface ExecutionContext {
 		Logger logger();
 		Path setOutput(String fileName) throws IOException;
@@ -74,6 +79,11 @@ public interface StepLogic {
 		default List<String> resolve(List<ConfigValue> configValues) {
 			return CollectionUtil.map(configValues, this::resolve);
 		}
+	}
+
+	@FunctionalInterface
+	interface Provider {
+		Optional<StepLogic> getStepLogic(String name, String type);
 	}
 
 	/**
@@ -207,6 +217,11 @@ public interface StepLogic {
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
 		}
+
+		@Override
+		public boolean hasNoContext() {
+			return true;
+		}
 	}
 
 	/**
@@ -223,6 +238,11 @@ public interface StepLogic {
 		@Override
 		public void execute(ExecutionContext context) throws IOException {
 			context.setOutput(path.get());
+		}
+
+		@Override
+		public boolean hasNoContext() {
+			return true;
 		}
 	}
 }

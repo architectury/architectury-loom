@@ -32,13 +32,13 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
+import java.util.SortedSet;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
@@ -64,9 +64,11 @@ public final class McpExecutor {
 	private final MinecraftProvider minecraftProvider;
 	private final Path cache;
 	private final List<McpConfigStep> steps;
+	private final DependencySet dependencySet;
 	private final Map<String, McpConfigFunction> functions;
 	private final Map<String, String> config = new HashMap<>();
 	private final Map<String, String> extraConfig = new HashMap<>();
+	private @Nullable StepLogic.Provider stepLogicProvider = null;
 
 	public McpExecutor(Project project, MinecraftProvider minecraftProvider, Path cache, McpConfigProvider provider, String environment) {
 		this.project = project;
@@ -74,6 +76,9 @@ public final class McpExecutor {
 		this.cache = cache;
 		this.steps = provider.getData().steps().get(environment);
 		this.functions = provider.getData().functions();
+		this.dependencySet = new DependencySet(this.steps);
+		this.dependencySet.skip(step -> getStepLogic(step.name(), step.type()) instanceof StepLogic.NoOp);
+		this.dependencySet.setIgnoreDependenciesFilter(step -> getStepLogic(step.name(), step.type()).hasNoContext());
 
 		addDefaultFiles(provider, environment);
 	}
@@ -150,37 +155,42 @@ public final class McpExecutor {
 		});
 	}
 
-	private static Predicate<McpConfigStep> byName(String name) {
-		return s -> s.name().equals(name);
+	/**
+	 * Enqueues a step and its dependencies to be executed.
+	 *
+	 * @param step the name of the step
+	 * @return this executor
+	 */
+	public McpExecutor enqueue(String step) {
+		dependencySet.add(step);
+		return this;
 	}
 
-	public Optional<McpConfigStep> getStep(String name) {
-		return CollectionUtil.find(steps, byName(name));
+	/**
+	 * Executes all queued steps and their dependencies.
+	 *
+	 * @return the output file of the last executed step
+	 */
+	public Path execute() throws IOException {
+		SortedSet<String> stepNames = dependencySet.buildExecutionSet();
+		dependencySet.clear();
+		List<McpConfigStep> toExecute = new ArrayList<>();
+
+		for (String stepName : stepNames) {
+			McpConfigStep step = CollectionUtil.find(steps, s -> s.name().equals(stepName))
+					.orElseThrow(() -> new NoSuchElementException("Step '" + stepName + "' not found in MCP config"));
+			toExecute.add(step);
+		}
+
+		return executeSteps(toExecute);
 	}
 
-	public McpConfigStep getStepOrThrow(String name) {
-		return getStep(name).orElseThrow(() -> new NoSuchElementException("Missing MCP config step '" + name + "'"));
-	}
-
-	public List<McpConfigStep> getStepRange(String start, String end) {
-		int startIndex = CollectionUtil.indexOf(steps, byName(start));
-		if (startIndex < 0) missingStep(start);
-		int endIndex = CollectionUtil.indexOf(steps, byName(end));
-		if (endIndex < 0) missingStep(end);
-		if (startIndex > endIndex) throw new IndexOutOfBoundsException("Start step '" + start + "' is after end step '" + end + "'");
-		return steps.subList(startIndex, endIndex + 1);
-	}
-
-	public List<McpConfigStep> getStepsUpTo(String step) {
-		int endIndex = CollectionUtil.indexOf(steps, byName(step));
-		if (endIndex < 0) missingStep(step);
-		return steps.subList(0, endIndex + 1);
-	}
-
-	public Path executeUpTo(String step) throws IOException {
-		return executeSteps(getStepsUpTo(step));
-	}
-
+	/**
+	 * Executes the specified steps.
+	 *
+	 * @param steps the steps to execute
+	 * @return the output file of the last executed step
+	 */
 	public Path executeSteps(List<McpConfigStep> steps) throws IOException {
 		extraConfig.clear();
 
@@ -191,7 +201,7 @@ public final class McpExecutor {
 
 		for (McpConfigStep currentStep : steps) {
 			currentStepIndex++;
-			StepLogic stepLogic = getStepLogic(currentStep.type());
+			StepLogic stepLogic = getStepLogic(currentStep.name(), currentStep.type());
 			project.getLogger().log(STEP_LOG_LEVEL, ":step {}/{} - {}", currentStepIndex, totalSteps, stepLogic.getDisplayName(currentStep.name()));
 
 			Stopwatch stopwatch = Stopwatch.createStarted();
@@ -202,11 +212,21 @@ public final class McpExecutor {
 		return Path.of(extraConfig.get(ConfigValue.OUTPUT));
 	}
 
-	private static void missingStep(String stepName) {
-		throw new NoSuchElementException("Step '" + stepName + "' not found in MCP config");
+	/**
+	 * Sets the custom step logic provider of this executor.
+	 *
+	 * @param stepLogicProvider the provider, or null to disable
+	 */
+	public void setStepLogicProvider(@Nullable StepLogic.Provider stepLogicProvider) {
+		this.stepLogicProvider = stepLogicProvider;
 	}
 
-	private StepLogic getStepLogic(String type) {
+	private StepLogic getStepLogic(String name, String type) {
+		if (stepLogicProvider != null) {
+			final @Nullable StepLogic custom = stepLogicProvider.getStepLogic(name, type).orElse(null);
+			if (custom != null) return custom;
+		}
+
 		return switch (type) {
 		case "downloadManifest", "downloadJson" -> new StepLogic.NoOp();
 		case "downloadClient" -> new StepLogic.NoOpWithFile(() -> minecraftProvider.getMinecraftClientJar().toPath());

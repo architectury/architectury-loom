@@ -27,8 +27,7 @@ package net.fabricmc.loom.task;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.PatchOperation;
@@ -42,9 +41,8 @@ import org.gradle.api.tasks.TaskAction;
 
 import net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.ConfigValue;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.StepLogic;
 import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.util.SourceRemapper;
 
@@ -93,12 +91,16 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 
 		MinecraftPatchedProvider patchedProvider = MinecraftPatchedProvider.get(getProject());
 		McpExecutor mcp = patchedProvider.createMcpExecutor(mcpCache);
-		mcp.addConfig("rename" + ConfigValue.PREVIOUS_OUTPUT_SUFFIX, getInputJar().get().getAsFile().getAbsolutePath());
-		List<McpConfigStep> steps = new ArrayList<>();
-		mcp.getStep("mcinject").ifPresent(steps::add); // This is the decompiled jar on <=1.16.5
-		steps.add(mcp.getStepOrThrow("listLibraries"));
-		steps.addAll(mcp.getStepRange("decompile", "patch"));
-		return mcp.executeSteps(steps);
+		mcp.setStepLogicProvider((name, type) -> {
+			if (name.equals("rename")) {
+				return Optional.of(new StepLogic.NoOpWithFile(() -> getInputJar().get().getAsFile().toPath()));
+			}
+
+			return Optional.empty();
+		});
+		mcp.enqueue("decompile");
+		mcp.enqueue("patch");
+		return mcp.execute();
 	}
 
 	private Path sourcePatch(Path cache, Path rawDecompiled) throws IOException {
