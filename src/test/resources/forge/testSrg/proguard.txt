@@ -3,6 +3,7 @@ test.FakeClass -> a:
     int fakeField -> a
     int getFakeField() -> a
     void evilUnobfMethod() -> evilUnobfMethod
+    void setFakeField(int) -> a
 test.FakeSubclass -> b:
     void <init>() -> <init>
     void evilUnobfMethod() -> evilUnobfMethod

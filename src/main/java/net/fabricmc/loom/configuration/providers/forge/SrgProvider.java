@@ -31,19 +31,14 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.gradle.api.Project;
@@ -56,6 +51,7 @@ import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingLayer;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.srg.Tsrg2Utils;
 import net.fabricmc.loom.util.srg.Tsrg2Writer;
 import net.fabricmc.mappingio.MappingReader;
@@ -83,10 +79,7 @@ public class SrgProvider extends DependencyProvider {
 
 		if (!Files.exists(srg) || refreshDeps()) {
 			Path srgZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve srg")).toPath();
-
-			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + srgZip.toUri()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config", "joined.tsrg"), srg, StandardCopyOption.REPLACE_EXISTING);
-			}
+			Files.write(srg, ZipUtils.unpack(srgZip, "config/joined.tsrg"));
 		}
 
 		try (BufferedReader reader = Files.newBufferedReader(srg)) {

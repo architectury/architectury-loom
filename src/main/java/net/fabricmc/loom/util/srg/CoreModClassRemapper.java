@@ -27,10 +27,7 @@ package net.fabricmc.loom.util.srg;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -40,12 +37,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.gradle.api.logging.Logger;
 
+import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.mappingio.tree.MappingTree;
 
@@ -58,7 +55,7 @@ public final class CoreModClassRemapper {
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("^(.*')((?:com\\.mojang\\.|net\\.minecraft\\.)[A-Za-z0-9.-_$]+)('.*)$");
 
 	public static void remapJar(Path jar, MappingTree mappings, Logger logger) throws IOException {
-		try (FileSystem fs = FileSystems.newFileSystem(URI.create("jar:" + jar.toUri()), ImmutableMap.of("create", false))) {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(jar, false)) {
 			Path coremodsJsonPath = fs.getPath("META-INF", "coremods.json");
 
 			if (Files.notExists(coremodsJsonPath)) {

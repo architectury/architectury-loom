@@ -26,15 +26,11 @@ package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
 import java.io.Reader;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.gradle.api.Project;
@@ -63,10 +59,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		if (!userdevJar.exists() || Files.notExists(configJson) || refreshDeps()) {
 			File resolved = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge userdev"));
 			Files.copy(resolved.toPath(), userdevJar.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-			try (FileSystem fs = FileSystems.newFileSystem(new URI("jar:" + resolved.toURI()), ImmutableMap.of("create", false))) {
-				Files.copy(fs.getPath("config.json"), configJson, StandardCopyOption.REPLACE_EXISTING);
-			}
+			Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "config.json"));
 		}
 
 		try (Reader reader = Files.newBufferedReader(configJson)) {

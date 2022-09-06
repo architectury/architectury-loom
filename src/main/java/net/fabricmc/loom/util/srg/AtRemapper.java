@@ -26,10 +26,7 @@ package net.fabricmc.loom.util.srg;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -37,10 +34,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
-import com.google.common.collect.ImmutableMap;
 import org.gradle.api.logging.Logger;
 
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.mappingio.tree.MappingTree;
 
@@ -51,7 +48,7 @@ import net.fabricmc.mappingio.tree.MappingTree;
  */
 public final class AtRemapper {
 	public static void remap(Logger logger, Path jar, MappingTree mappings) throws IOException {
-		try (FileSystem fs = FileSystems.newFileSystem(URI.create("jar:" + jar.toUri()), ImmutableMap.of("create", false))) {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(jar, false)) {
 			Path atPath = fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
 			if (Files.exists(atPath)) {

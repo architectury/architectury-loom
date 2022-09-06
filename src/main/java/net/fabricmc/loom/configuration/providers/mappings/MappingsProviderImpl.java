@@ -31,7 +31,6 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -197,8 +196,8 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 		if (Files.notExists(tinyMappings) || minecraftProvider.refreshDeps()) {
 			storeMappings(project, minecraftProvider, inputJar);
 		} else {
-			try (FileSystem fileSystem = FileSystems.newFileSystem(inputJar, (ClassLoader) null)) {
-				extractExtras(fileSystem);
+			try (FileSystemUtil.Delegate fileSystem = FileSystemUtil.getJarFileSystem(inputJar, false)) {
+				extractExtras(fileSystem.get());
 			}
 		}
 
@@ -359,7 +358,7 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 	}
 
 	private boolean isMCP(Path path) throws IOException {
-		try (FileSystem fs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(path, false)) {
 			return Files.exists(fs.getPath("fields.csv")) && Files.exists(fs.getPath("methods.csv"));
 		}
 	}

@@ -145,9 +145,11 @@ public final class SrgMerger {
 		for (MappingTree.ClassMapping srgClass : srg.getClasses()) {
 			String[] dstNames = createDstNameArray(srgClass);
 			MappingTree.ClassMapping tinyClass = src.getClass(srgClass.getSrcName());
+			String comment = null;
 
 			if (tinyClass != null) {
 				copyDstNames(dstNames, tinyClass);
+				comment = tinyClass.getComment();
 			} else if (lenient) {
 				// Tiny class not found, we'll just use srg names
 				fillMappings(dstNames, srgClass);
@@ -156,6 +158,7 @@ public final class SrgMerger {
 			}
 
 			flatOutput.visitClass(srgClass.getSrcName(), dstNames);
+			if (comment != null) flatOutput.visitClassComment(srgClass.getSrcName(), comment);
 
 			for (MappingTree.FieldMapping field : srgClass.getFields()) {
 				mergeField(srgClass, field, tinyClass);
@@ -175,6 +178,7 @@ public final class SrgMerger {
 		String[] dstNames = createDstNameArray(srgField);
 		MappingTree.FieldMapping tinyField = null;
 		String srcDesc = srgField.getSrcDesc();
+		String comment = null;
 
 		if (tinyClass != null) {
 			if (srcDesc != null) {
@@ -189,12 +193,14 @@ public final class SrgMerger {
 		if (tinyField != null) {
 			copyDstNames(dstNames, tinyField);
 			srcDesc = tinyField.getSrcDesc();
+			comment = tinyField.getComment();
 		} else {
 			fillMappings(dstNames, srgField);
 		}
 
 		if (srcDesc != null) {
 			flatOutput.visitField(srgClass.getSrcName(), srgField.getSrcName(), srcDesc, dstNames);
+			if (comment != null) flatOutput.visitFieldComment(srgClass.getSrcName(), srgField.getSrcName(), srcDesc, comment);
 		} else if (!lenient) {
 			throw new MappingException("Could not find descriptor for field " + srgClass.getDstName(0) + '.' + srgField.getDstName(0));
 		}
@@ -204,6 +210,7 @@ public final class SrgMerger {
 		String[] dstNames = createDstNameArray(srgMethod);
 		MappingTree.MethodMapping tinyMethod = null;
 		String intermediaryName, namedName;
+		String comment = null;
 
 		if (tinyClass != null) {
 			tinyMethod = tinyClass.getMethod(srgMethod.getSrcName(), srgMethod.getSrcDesc());
@@ -215,6 +222,7 @@ public final class SrgMerger {
 			copyDstNames(dstNames, tinyMethod);
 			intermediaryName = tinyMethod.getName("intermediary");
 			namedName = tinyMethod.getName("named");
+			comment = tinyMethod.getComment();
 		} else {
 			if (srgMethod.getSrcName().equals(srgMethod.getDstName(0))) {
 				// These are only methods like <init> or toString which have the same name in every NS.
@@ -251,6 +259,26 @@ public final class SrgMerger {
 		}
 
 		flatOutput.visitMethod(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(), dstNames);
+		if (comment != null) flatOutput.visitMethodComment(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(), comment);
+
+		if (tinyMethod != null) {
+			for (MappingTree.MethodArgMapping arg : tinyMethod.getArgs()) {
+				String[] argDstNames = new String[output.getDstNamespaces().size()];
+				copyDstNames(argDstNames, arg);
+				flatOutput.visitMethodArg(
+						srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(),
+						arg.getArgPosition(), arg.getLvIndex(), arg.getSrcName(), argDstNames
+				);
+
+				if (arg.getComment() != null) {
+					flatOutput.visitMethodArgComment(
+							srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(),
+							arg.getArgPosition(), arg.getLvIndex(), arg.getSrcName(),
+							arg.getComment()
+					);
+				}
+			}
+		}
 	}
 
 	/**
@@ -334,8 +362,9 @@ public final class SrgMerger {
 	 * The SRG names will add a new namespace called {@code srg} so that the final namespaces
 	 * are {@code official, srg, intermediary, named}.
 	 *
-	 * <p>This method does not care about method parameters, local variables or javadoc comments.
-	 * As such, it shouldn't be used for remapping the game jar.
+	 * <p>This method does not include local variables in the output.
+	 * It can, however, be used for remapping the game jar since it has all
+	 * classes, methods, fields, parameters and javadoc comments.
 	 *
 	 * <p>If {@code lenient} is true, the merger will not error when encountering names not present
 	 * in the tiny mappings. Instead, the names will be filled from the {@code official} namespace.

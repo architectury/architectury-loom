@@ -1,8 +1,14 @@
 tiny	2	0	official	intermediary	named
 c	a	class_1	test/SomeClass
+	c	commented class
 	f	I	a	field_1	myInt
+		c	commented field
 	m	()I	a	method_1	getMyInt
 	m	()V	evilUnobfMethod	method_2	differentNamedName
+	m	(I)V	a	method_5	setMyInt
+		c	commented method
+		p	1			myInt
+			c	commented param
 c	b	class_2	test/SomeSubclass
 c	c	class_3	test/RelatedA
 	m	()V	a	method_3	fromClassA

@@ -1,8 +1,14 @@
 tiny	2	0	official	srg	intermediary	named
 c	a	test/FakeClass	class_1	test/SomeClass
+	c	commented class
 	f	I	a	f_1_	field_1	myInt
+		c	commented field
 	m	()I	a	m_1_	method_1	getMyInt
 	m	()V	evilUnobfMethod	m_3_	method_2	differentNamedName
+	m	(I)V	a	m_5_	method_5	setMyInt
+		c	commented method
+		p	1				myInt
+			c	commented param
 c	b	test/FakeSubclass	class_2	test/SomeSubclass
 c	test/DeObfClass	test/DeObfClass	test/DeObfClass	test/DeObfClass
 	m	()V	iAmNotObfuscated	m_2_	iAmNotObfuscated	iAmNotObfuscated

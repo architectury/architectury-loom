@@ -28,8 +28,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -52,6 +50,7 @@ import org.cadixdev.lorenz.model.MethodMapping;
 import org.cadixdev.lorenz.model.TopLevelClassMapping;
 import org.jetbrains.annotations.Nullable;
 
+import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
@@ -237,7 +236,7 @@ public class MCPReader {
 			}
 		}
 
-		try (FileSystem fs = FileSystems.newFileSystem(mcpJar, (ClassLoader) null)) {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(mcpJar, false)) {
 			Path fields = fs.getPath("fields.csv");
 			Path methods = fs.getPath("methods.csv");
 			Path params = fs.getPath("params.csv");

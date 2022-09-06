@@ -4,6 +4,7 @@ a test/FakeClass
 	a I fakeField
 	a ()I getFakeField
 	evilUnobfMethod ()V evilUnobfMethod
+	a (I)V setFakeField
 b test/FakeSubclass
 	<init> ()V <init>
 	evilUnobfMethod ()V evilUnobfMethod

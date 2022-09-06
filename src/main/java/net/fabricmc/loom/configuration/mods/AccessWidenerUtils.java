@@ -80,6 +80,10 @@ public class AccessWidenerUtils {
 
 		JsonObject jsonObject = LoomGradlePlugin.GSON.fromJson(new String(modJsonBytes, StandardCharsets.UTF_8), JsonObject.class);
 
+		if (!jsonObject.has(fieldName)) {
+			return null;
+		}
+
 		String accessWidenerPath;
 
 		if (fieldName.equals("access_widener") && jsonObject.get(fieldName).isJsonArray()) {
