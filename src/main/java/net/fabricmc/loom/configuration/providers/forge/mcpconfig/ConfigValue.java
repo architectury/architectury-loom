@@ -38,7 +38,6 @@ import java.util.function.Function;
 public sealed interface ConfigValue {
 	String OUTPUT = "output";
 	String PREVIOUS_OUTPUT_SUFFIX = "Output";
-	String SRG_MAPPINGS_NAME = "mappings";
 	/**
 	 * A special config value that is the path to a log file if absent.
 	 */
