@@ -70,6 +70,8 @@ import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.configuration.processors.ModJavadocProcessor;
 import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.decompilers.LineNumberRemapper;
+import net.fabricmc.loom.decompilers.linemap.LineMapClassFilter;
+import net.fabricmc.loom.decompilers.linemap.LineMapVisitor;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.IOStringConsumer;
@@ -174,6 +176,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			}
 
 			params.getClassPath().setFrom(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_DEPENDENCIES));
+
+			// Architectury
+			params.getForge().set(getExtension().isForge());
 		});
 
 		try {
@@ -223,6 +228,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		RegularFileProperty getIPCPath();
 
 		ConfigurableFileCollection getClassPath();
+
+		// Architectury
+		Property<Boolean> getForge();
 	}
 
 	public abstract static class DecompileAction implements WorkAction<DecompileParams> {
@@ -287,6 +295,16 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			}
 
 			if (Files.exists(linemap)) {
+				if (getParameters().getForge().get()) {
+					try {
+						// Remove Forge classes from linemap
+						// TODO: We should instead not decompile Forge's classes at all
+						LineMapVisitor.process(linemap, next -> new LineMapClassFilter(next, name -> !name.startsWith("net/minecraftforge/")));
+					} catch (IOException e) {
+						throw new UncheckedIOException("Failed to process linemap", e);
+					}
+				}
+
 				try {
 					// Line map the actually jar used to run the game, not the one used to decompile
 					remapLineNumbers(metadata.logger(), runtimeJar, linemap, linemapJar);
