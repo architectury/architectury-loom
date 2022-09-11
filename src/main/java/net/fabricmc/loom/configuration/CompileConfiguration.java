@@ -283,15 +283,18 @@ public final class CompileConfiguration {
 		extension.setMinecraftProvider(minecraftProvider);
 		minecraftProvider.provideFirst();
 
+		if (!extension.isForge()) {
+			minecraftProvider.provide();
+		}
+
 		final DependencyInfo mappingsDep = DependencyInfo.create(project, Constants.Configurations.MAPPINGS);
 		final MappingsProviderImpl mappingsProvider = MappingsProviderImpl.getInstance(project, extension, mappingsDep, minecraftProvider);
 		extension.setMappingsProvider(mappingsProvider);
 
 		if (extension.isForge()) {
 			ForgeLibrariesProvider.provide(mappingsProvider, project);
+			minecraftProvider.provide();
 		}
-
-		minecraftProvider.provide();
 
 		mappingsProvider.setupPost(project);
 		mappingsProvider.applyToProject(project, mappingsDep);

@@ -312,6 +312,16 @@ public class MappingsProviderImpl implements MappingsProvider, SharedService {
 			// These are unmerged v2 mappings
 			MappingsMerger.mergeAndSaveMappings(baseTinyMappings, tinyMappings, intermediaryService.get());
 		} else {
+			if (LoomGradleExtension.get(project).isForge()) {
+				// (2022-09-11) This is due to ordering issues.
+				// To complete V1 mappings, we need the full MC jar.
+				// On Forge, producing the full MC jar needs the list of all Forge dependencies
+				//   -> needs our remapped dependency from srg to named class names (1.19+)
+				//   -> needs the mappings
+				//   = a circular dependency
+				throw new UnsupportedOperationException("Forge cannot be used with V1 mappings!");
+			}
+
 			final List<Path> minecraftJars = minecraftProvider.getMinecraftJars();
 
 			if (minecraftJars.size() != 1) {
