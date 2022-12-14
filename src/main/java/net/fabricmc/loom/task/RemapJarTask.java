@@ -158,7 +158,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	public RemapJarTask() {
 		super();
 
+		// Lazy provider because minecraftNamed is not available at this point
 		getClasspath().from(getProject().provider(() -> getProject().getConfigurations().getByName("minecraftNamed").copy()));
+		getClasspath().from(getProject().getConfigurations().getByName("modCompileClasspath"));
+
 		getAddNestedDependencies().convention(true).finalizeValueOnRead();
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForge()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
