@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,137 +30,176 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.function.Supplier;
+import java.util.ArrayList;
+import java.util.List;
 
-import com.google.common.base.Suppliers;
-import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.gson.JsonElement;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
-import org.gradle.api.artifacts.transform.InputArtifact;
-import org.gradle.api.artifacts.transform.TransformAction;
-import org.gradle.api.artifacts.transform.TransformOutputs;
-import org.gradle.api.artifacts.transform.TransformParameters;
-import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
-import org.gradle.api.attributes.Attribute;
-import org.gradle.api.file.FileSystemLocation;
-import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.Property;
-import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFile;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
+import org.gradle.api.artifacts.ResolvedArtifact;
+import org.gradle.api.artifacts.ResolvedConfiguration;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.configuration.mods.ModConfigurationRemapper;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.PropertyUtil;
 import net.fabricmc.loom.util.srg.RemapObjectHolderVisitor;
 import net.fabricmc.loom.util.srg.SrgMerger;
-import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class ForgeLibrariesProvider {
+	private static final String FML_LOADER_GROUP = "net.minecraftforge";
+	private static final String FML_LOADER_NAME = "fmlloader";
+
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		Attribute<String> transformed = Attribute.of("architectury-loom-forge-dependencies-transformed-3", String.class);
-		String mappingsIdentifier = mappingConfiguration.mappingsIdentifier;
+		final List<Dependency> dependencies = new ArrayList<>();
 
-		project.getDependencies().registerTransform(ALFDTransformAction.class, spec -> {
-			spec.getFrom().attribute(transformed, "");
-			spec.getTo().attribute(transformed, mappingsIdentifier);
-
-			spec.getParameters().getMappingsIdentifier().set(mappingsIdentifier);
-
-			Supplier<Path> mappings = Suppliers.memoize(() -> {
-				try {
-					SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(MappingConfiguration.getMojmapSrgFileIfPossible(project));
-					Path tempFile = Files.createTempFile(null, null);
-					Files.deleteIfExists(tempFile);
-					SrgMerger.mergeSrg(MappingConfiguration.getRawSrgFile(project), mappingConfiguration.tinyMappings, tempFile, extraMappings, true);
-					tempFile.toFile().deleteOnExit();
-					return tempFile;
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			});
-
-			spec.getParameters().getMappings().fileProvider(project.provider(() -> mappings.get().toFile()));
-			spec.getParameters().getFromNamespace().set("srg");
-			spec.getParameters().getToNamespace().set("named");
-		});
-
-		for (ArtifactTypeDefinition type : project.getDependencies().getArtifactTypes()) {
-			type.getAttributes().attribute(transformed, "");
-		}
-
+		// Collect all dependencies with possible relocations, such as Mixin.
 		for (JsonElement lib : extension.getForgeUserdevProvider().getJson().get("libraries").getAsJsonArray()) {
-			Dependency dep = null;
+			String dep = null;
 
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getUseCustomMixin())) {
 					if (lib.getAsString().contains("0.8.2")) {
-						dep = DependencyProvider.addDependency(project, "net.fabricmc:sponge-mixin:0.8.2+build.24", Constants.Configurations.FORGE_DEPENDENCIES);
+						dep = "net.fabricmc:sponge-mixin:0.8.2+build.24";
 					} else {
-						dep = DependencyProvider.addDependency(project, "dev.architectury:mixin-patched" + lib.getAsString().substring(lib.getAsString().lastIndexOf(":")) + ".+", Constants.Configurations.FORGE_DEPENDENCIES);
+						dep = "dev.architectury:mixin-patched" + lib.getAsString().substring(lib.getAsString().lastIndexOf(":")) + ".+";
 					}
 				}
 			}
 
 			if (dep == null) {
-				dep = DependencyProvider.addDependency(project, lib.getAsString(), Constants.Configurations.FORGE_DEPENDENCIES);
+				dep = lib.getAsString();
 			}
 
-			if (lib.getAsString().split(":").length < 4) {
-				((ModuleDependency) dep).attributes(attributes -> {
-					attributes.attribute(transformed, mappingsIdentifier);
-				});
-			}
+			dependencies.add(project.getDependencies().create(dep));
 		}
-	}
 
-	public abstract static class ALFDTransformAction implements TransformAction<ALFDTransformParameters> {
-		@InputArtifact
-		public abstract Provider<FileSystemLocation> getInput();
+		// Resolve all files. We just add the dependencies manually unless it's FML.
+		// We're transforming the files manually instead of using Gradle's mechanism because
+		// the paths it creates seem to be inconsistent. Could've also just been something with
+		// our inputs :shrug:
+		final ResolvedConfiguration config = project.getConfigurations()
+				.detachedConfiguration(dependencies.toArray(new Dependency[0]))
+				.getResolvedConfiguration();
 
-		@Override
-		public void transform(TransformOutputs outputs) {
-			try {
-				File input = getInput().get().getAsFile();
-				//architectury-loom-forge-dependencies-transformed
-				HashCode hash = Hashing.sha256().hashString(getParameters().getMappingsIdentifier().get(), StandardCharsets.UTF_8);
-				File output = outputs.file("alfd-transformed-" + hash + "/" + input.getName());
-				Files.copy(input.toPath(), output.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		for (ResolvedArtifact artifact : config.getResolvedArtifacts()) {
+			final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
+			final Object dep;
 
-				try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(output, false)) {
-					Path path = fs.get().getPath("META-INF/services/cpw.mods.modlauncher.api.INameMappingService");
-					Files.deleteIfExists(path);
-
-					if (Files.exists(fs.get().getPath("net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class"))) {
-						MemoryMappingTree mappings = new MemoryMappingTree();
-						MappingReader.read(getParameters().getMappings().get().getAsFile().toPath(), mappings);
-						RemapObjectHolderVisitor.remapObjectHolder(output.toPath(), "net.minecraftforge.fml.common.asm.ObjectHolderDefinalize", mappings, getParameters().getFromNamespace().get(), getParameters().getToNamespace().get());
-					}
+			if (FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName())) {
+				// If FML, remap it.
+				try {
+					dep = remapFmlLoader(project, artifact, mappingConfiguration);
+				} catch (IOException e) {
+					throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not remap FML", e);
 				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+			} else {
+				dep = project.getDependencies().create(getDependencyNotation(artifact));
+
+				if (dep instanceof ModuleDependency md) {
+					// We've already resolved the transitive deps, and we don't want both a transformed one
+					// and an untransformed one on the classpath.
+					md.setTransitive(false);
+				}
 			}
+
+			DependencyProvider.addDependency(project, dep, Constants.Configurations.FORGE_DEPENDENCIES);
 		}
 	}
 
-	public interface ALFDTransformParameters extends TransformParameters {
-		@InputFile
-		RegularFileProperty getMappings();
+	// Returns a Gradle dependency notation.
+	private static Object remapFmlLoader(Project project, ResolvedArtifact artifact, MappingConfiguration mappingConfiguration) throws IOException {
+		project.getLogger().info(":remapping FML loader");
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
-		@Input
-		Property<String> getMappingsIdentifier();
+		// Resolve the inputs and outputs.
+		final Path inputJar = artifact.getFile().toPath();
+		final Path outputJar = getTransformedPath(extension, artifact, mappingConfiguration);
 
-		@Input
-		Property<String> getFromNamespace();
+		// Modify jar.
+		if (!Files.exists(outputJar) || extension.refreshDeps()) {
+			Files.copy(inputJar, outputJar, StandardCopyOption.REPLACE_EXISTING);
 
-		@Input
-		Property<String> getToNamespace();
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(outputJar, false)) {
+				Path path = fs.get().getPath("META-INF/services/cpw.mods.modlauncher.api.INameMappingService");
+				Files.deleteIfExists(path);
+
+				if (Files.exists(fs.get().getPath("net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class"))) {
+					remapObjectHolder(project, outputJar, mappingConfiguration);
+				}
+			}
+
+			// Copy sources. Vscode will not attach them at all, but typically you won't need to debug FML anyway.
+			// (Unless you're a Loom dev, in which case you can easily make this thing a maven repo,
+			// just append the mapping hash to the group by swapping around the two path components.)
+			final Path sourcesJar = ModConfigurationRemapper.findSources(project, artifact);
+
+			if (sourcesJar != null) {
+				Files.copy(sourcesJar, outputJar.resolveSibling(sourcesJar.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+			}
+		}
+
+		return project.files(outputJar);
+	}
+
+	private static Path getTransformedPath(LoomGradleExtension extension, ResolvedArtifact artifact, MappingConfiguration mappingConfiguration) throws IOException {
+		// A hash of the current mapping configuration. The transformations only need to be done once per mapping set.
+		final String mappingHash = Hashing.sha256()
+				.hashString(mappingConfiguration.mappingsIdentifier(), StandardCharsets.UTF_8)
+				.toString();
+		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
+		final Path outputDir = extension.getForgeProvider()
+				.getGlobalCache()
+				.toPath()
+				.resolve("transformed-dependencies-v1")
+				.resolve(mappingHash)
+				.resolve(id.getGroup().replace('.', File.separatorChar))
+				.resolve(id.getName())
+				.resolve(id.getVersion());
+		Files.createDirectories(outputDir);
+		return outputDir.resolve(artifact.getFile().toPath().getFileName());
+	}
+
+	private static void remapObjectHolder(Project project, Path outputJar, MappingConfiguration mappingConfiguration) throws IOException {
+		try {
+			// Merge SRG mappings. The real SRG mapping file hasn't been created yet since the usual SRG merging
+			// process occurs after all Forge libraries have been provided.
+			// Forge libs are needed for MC, which is needed for the mappings.
+			final SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(MappingConfiguration.getMojmapSrgFileIfPossible(project));
+			final MemoryMappingTree mappings = SrgMerger.mergeSrg(MappingConfiguration.getRawSrgFile(project), mappingConfiguration.tinyMappings, extraMappings, true);
+
+			// Remap the object holders.
+			RemapObjectHolderVisitor.remapObjectHolder(
+					outputJar, "net.minecraftforge.fml.common.asm.ObjectHolderDefinalize", mappings,
+					MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()
+			);
+		} catch (IOException e) {
+			throw new IOException("Could not remap object holders in " + outputJar, e);
+		}
+	}
+
+	/**
+	 * Reconstructs the dependency notation of a resolved artifact.
+	 * @param artifact the artifact
+	 * @return the notation
+	 */
+	private static String getDependencyNotation(ResolvedArtifact artifact) {
+		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
+		String notation = "%s:%s:%s".formatted(id.getGroup(), id.getName(), id.getVersion());
+
+		if (artifact.getClassifier() != null) {
+			notation += ":" + artifact.getClassifier();
+		}
+
+		return notation;
 	}
 }
