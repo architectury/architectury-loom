@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2022 FabricMC
+ * Copyright (c) 2020-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -357,6 +357,7 @@ public final class SrgMerger {
 
 	/**
 	 * Merges SRG mappings with a tiny mappings tree through the obf names.
+	 * This overload writes the mappings into a file.
 	 *
 	 * <p>The namespaces in the tiny file should be {@code official, intermediary, named}.
 	 * The SRG names will add a new namespace called {@code srg} so that the final namespaces
@@ -381,13 +382,43 @@ public final class SrgMerger {
 	 */
 	public static void mergeSrg(Path srg, Path tiny, Path out, @Nullable ExtraMappings extraMappings, boolean lenient)
 			throws IOException, MappingException {
-		MemoryMappingTree tree = new SrgMerger(srg, tiny, extraMappings, lenient).merge();
+		MemoryMappingTree tree = mergeSrg(srg, tiny, extraMappings, lenient);
 
 		try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(out), false)) {
 			tree.accept(writer);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * Merges SRG mappings with a tiny mappings tree through the obf names.
+	 * This overload returns a {@link MemoryMappingTree} of the merged mappings.
+	 *
+	 * <p>The namespaces in the tiny file should be {@code official, intermediary, named}.
+	 * The SRG names will add a new namespace called {@code srg} so that the final namespaces
+	 * are {@code official, srg, intermediary, named}.
+	 *
+	 * <p>This method does not include local variables in the output.
+	 * It can, however, be used for remapping the game jar since it has all
+	 * classes, methods, fields, parameters and javadoc comments.
+	 *
+	 * <p>If {@code lenient} is true, the merger will not error when encountering names not present
+	 * in the tiny mappings. Instead, the names will be filled from the {@code official} namespace.
+	 *
+	 * @param srg           the SRG file in .tsrg format
+	 * @param tiny          the tiny file
+	 * @param extraMappings an extra mappings file that will be used to determine
+	 *                      whether an unobfuscated name is needed in the result file
+	 * @param lenient       whether lenient mode is enabled
+	 * @return the merged mapping tree
+	 * @throws IOException      if an IO error occurs while reading the mappings
+	 * @throws MappingException if the input tiny mappings' namespaces are incorrect
+	 *                          or if an element mentioned in the SRG file does not have tiny mappings in non-lenient mode
+	 */
+	public static MemoryMappingTree mergeSrg(Path srg, Path tiny, @Nullable ExtraMappings extraMappings, boolean lenient)
+			throws IOException, MappingException {
+		return new SrgMerger(srg, tiny, extraMappings, lenient).merge();
 	}
 
 	private MemoryMappingTree readSrg(Path srg) throws IOException {
