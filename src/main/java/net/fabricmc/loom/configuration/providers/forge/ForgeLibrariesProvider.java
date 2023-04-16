@@ -85,8 +85,7 @@ public class ForgeLibrariesProvider {
 
 		// Resolve all files. We just add the dependencies manually unless it's FML.
 		// We're transforming the files manually instead of using Gradle's mechanism because
-		// the paths it creates seem to be inconsistent. Could've also just been something with
-		// our inputs :shrug:
+		// we can target the individual files to be transformed instead of creating new copies of all the libraries.
 		final ResolvedConfiguration config = project.getConfigurations()
 				.detachedConfiguration(dependencies.toArray(new Dependency[0]))
 				.getResolvedConfiguration();
