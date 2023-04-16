@@ -107,4 +107,9 @@ public abstract class LoomFilesBaseImpl implements LoomFiles {
 	public File getLocalMinecraftRepo() {
 		return new File(getRootProjectPersistentCache(), "minecraftMaven");
 	}
+
+	@Override
+	public File getForgeDependencyRepo() {
+		return new File(getUserCache(), "forge/transformed-dependencies-v1");
+	}
 }

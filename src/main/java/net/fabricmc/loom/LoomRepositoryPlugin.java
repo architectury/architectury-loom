@@ -128,6 +128,11 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 			repo.setName("LoomLocalMinecraft");
 			repo.setUrl(files.getLocalMinecraftRepo());
 		});
+
+		repositories.maven(repo -> {
+			repo.setName("LoomTransformedForgeDependencies");
+			repo.setUrl(files.getForgeDependencyRepo());
+		});
 	}
 
 	public static void setupForLegacyVersions(Project project) {

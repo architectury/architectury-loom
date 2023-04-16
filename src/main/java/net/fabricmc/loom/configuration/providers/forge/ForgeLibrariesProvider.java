@@ -24,12 +24,10 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,10 +43,12 @@ import org.gradle.api.artifacts.ResolvedConfiguration;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.mods.ModConfigurationRemapper;
+import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.OperatingSystem;
 import net.fabricmc.loom.util.PropertyUtil;
 import net.fabricmc.loom.util.srg.RemapObjectHolderVisitor;
 import net.fabricmc.loom.util.srg.SrgMerger;
@@ -121,13 +121,28 @@ public class ForgeLibrariesProvider {
 		project.getLogger().info(":remapping FML loader");
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
+		// A hash of the current mapping configuration. The transformations only need to be done once per mapping set.
+		// While the mappings ID is definitely valid in file names, splitting MC versions parts into nested directories
+		// isn't good.
+		final String mappingHash = Hashing.sha256()
+				.hashString(mappingConfiguration.mappingsIdentifier(), StandardCharsets.UTF_8)
+				.toString();
+
 		// Resolve the inputs and outputs.
+		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
+		final LocalMavenHelper mavenHelper = new LocalMavenHelper(
+				id.getGroup() + "." + mappingHash,
+				id.getName(),
+				id.getVersion(),
+				artifact.getClassifier(),
+				extension.getFiles().getForgeDependencyRepo().toPath()
+		);
 		final Path inputJar = artifact.getFile().toPath();
-		final Path outputJar = getTransformedPath(extension, artifact, mappingConfiguration);
+		final Path outputJar = mavenHelper.getOutputFile(null);
 
 		// Modify jar.
 		if (!Files.exists(outputJar) || extension.refreshDeps()) {
-			Files.copy(inputJar, outputJar, StandardCopyOption.REPLACE_EXISTING);
+			mavenHelper.copyToMaven(inputJar, null);
 
 			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(outputJar, false)) {
 				Path path = fs.get().getPath("META-INF/services/cpw.mods.modlauncher.api.INameMappingService");
@@ -138,35 +153,17 @@ public class ForgeLibrariesProvider {
 				}
 			}
 
-			// Copy sources. Vscode will not attach them at all, but typically you won't need to debug FML anyway.
-			// (Unless you're a Loom dev, in which case you can easily make this thing a maven repo,
-			// just append the mapping hash to the group by swapping around the two path components.)
-			final Path sourcesJar = ModConfigurationRemapper.findSources(project, artifact);
+			// Copy sources when not running under CI.
+			if (!OperatingSystem.isCIBuild()) {
+				final Path sourcesJar = ModConfigurationRemapper.findSources(project, artifact);
 
-			if (sourcesJar != null) {
-				Files.copy(sourcesJar, outputJar.resolveSibling(sourcesJar.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+				if (sourcesJar != null) {
+					mavenHelper.copyToMaven(sourcesJar, "sources");
+				}
 			}
 		}
 
-		return project.files(outputJar);
-	}
-
-	private static Path getTransformedPath(LoomGradleExtension extension, ResolvedArtifact artifact, MappingConfiguration mappingConfiguration) throws IOException {
-		// A hash of the current mapping configuration. The transformations only need to be done once per mapping set.
-		final String mappingHash = Hashing.sha256()
-				.hashString(mappingConfiguration.mappingsIdentifier(), StandardCharsets.UTF_8)
-				.toString();
-		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
-		final Path outputDir = extension.getForgeProvider()
-				.getGlobalCache()
-				.toPath()
-				.resolve("transformed-dependencies-v1")
-				.resolve(mappingHash)
-				.resolve(id.getGroup().replace('.', File.separatorChar))
-				.resolve(id.getName())
-				.resolve(id.getVersion());
-		Files.createDirectories(outputDir);
-		return outputDir.resolve(artifact.getFile().toPath().getFileName());
+		return mavenHelper.getNotation();
 	}
 
 	private static void remapObjectHolder(Project project, Path outputJar, MappingConfiguration mappingConfiguration) throws IOException {
