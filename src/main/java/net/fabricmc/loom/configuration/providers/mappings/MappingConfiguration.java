@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
@@ -71,6 +72,7 @@ import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
 import net.fabricmc.stitch.commands.tinyv2.TinyFile;
@@ -90,6 +92,7 @@ public class MappingConfiguration {
 	public Path tinyMappingsWithSrg;
 	public final Map<String, Path> mixinTinyMappings; // The mixin mappings have other names in intermediary.
 	public final Path srgToNamedSrg; // FORGE: srg to named in srg file format
+	private final Path namedToSrgTsrg; // FORGE: named to srg in tsrg2 file format
 	private final Path unpickDefinitions;
 
 	private boolean hasUnpickDefinitions;
@@ -107,6 +110,7 @@ public class MappingConfiguration {
 		this.tinyMappingsWithSrg = mappingsWorkingDir.resolve("mappings-srg.tiny");
 		this.mixinTinyMappings = new HashMap<>();
 		this.srgToNamedSrg = mappingsWorkingDir.resolve("mappings-srg-named.srg");
+		this.namedToSrgTsrg = mappingsWorkingDir.resolve("mappings-named-srg.tsrg");
 	}
 
 	public static MappingConfiguration create(Project project, SharedServiceManager serviceManager, DependencyInfo dependency, MinecraftProvider minecraftProvider) {
@@ -503,6 +507,31 @@ public class MappingConfiguration {
 
 	public String getBuildServiceName(String name, String from, String to) {
 		return "%s:%s:%s>%S".formatted(name, mappingsIdentifier(), from, to);
+	}
+
+	/**
+	 * Gets a TSRG 1 file which contains {@code named} → {@code srg} mappings.
+	 * This is mainly intended for the Mixin annotation processor.
+	 */
+	public Path getNamedSrgTsrg(LoomGradleExtension loom) {
+		if (!loom.shouldGenerateSrgTiny()) {
+			throw new UnsupportedOperationException("SRG generation is not enabled.");
+		}
+
+		if (Files.notExists(namedToSrgTsrg) || loom.refreshDeps()) {
+			MemoryMappingTree tree = new MemoryMappingTree();
+
+			try {
+				MappingReader.read(tinyMappingsWithSrg, tree);
+				// TODO: Complete all inherited method names. Forge's SRG files have it and it seems to be
+				//  required by mixin.
+				SrgNamedWriter.writeTsrgTo(namedToSrgTsrg, tree, MappingsNamespace.NAMED.toString(), MappingsNamespace.SRG.toString());
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+
+		return namedToSrgTsrg;
 	}
 
 	public Path getReplacedTarget(LoomGradleExtension loom, String namespace) {

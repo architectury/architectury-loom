@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.cadixdev.lorenz.io.srg.SrgWriter;
+import org.cadixdev.lorenz.io.srg.tsrg.TSrgWriter;
 import org.gradle.api.logging.Logger;
 
 import net.fabricmc.lorenztiny.TinyMappingsReader;
@@ -39,6 +40,16 @@ public class SrgNamedWriter {
 		Files.deleteIfExists(srgFile);
 
 		try (SrgWriter writer = new SrgWriter(Files.newBufferedWriter(srgFile))) {
+			try (TinyMappingsReader reader = new TinyMappingsReader(mappings, from, to)) {
+				writer.write(reader.read());
+			}
+		}
+	}
+
+	public static void writeTsrgTo(Path srgFile, MappingTree mappings, String from, String to) throws IOException {
+		Files.deleteIfExists(srgFile);
+
+		try (TSrgWriter writer = new TSrgWriter(Files.newBufferedWriter(srgFile))) {
 			try (TinyMappingsReader reader = new TinyMappingsReader(mappings, from, to)) {
 				writer.write(reader.read());
 			}

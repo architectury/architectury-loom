@@ -26,6 +26,8 @@ package net.fabricmc.loom.task.service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
+import dev.architectury.loom.util.BetterTsrg1Reader;
 import dev.architectury.tinyremapper.IMappingProvider;
 import dev.architectury.tinyremapper.InputTag;
 import dev.architectury.tinyremapper.TinyRemapper;
@@ -45,9 +48,10 @@ import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.mixin.AnnotationProcessorInvoker;
 import net.fabricmc.loom.task.AbstractRemapJarTask;
+import net.fabricmc.loom.util.TinyRemapperHelper;
 import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.kotlin.KotlinClasspath;
@@ -55,6 +59,8 @@ import net.fabricmc.loom.util.kotlin.KotlinClasspathService;
 import net.fabricmc.loom.util.kotlin.KotlinRemapperClassloader;
 import net.fabricmc.loom.util.service.SharedService;
 import net.fabricmc.loom.util.service.SharedServiceManager;
+import net.fabricmc.mappingio.tree.ClassAnalysisDescCompleter;
+import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class TinyRemapperService implements SharedService {
 	public static synchronized TinyRemapperService getOrCreate(SharedServiceManager serviceManager, AbstractRemapJarTask remapJarTask) {
@@ -111,14 +117,35 @@ public class TinyRemapperService implements SharedService {
 			}
 
 			for (SourceSet sourceSet : SourceSetHelper.getSourceSets(project)) {
+				if (extension.shouldGenerateSrgTiny() && to.equals(MappingsNamespace.SRG.toString())) {
+					final Path mixinMappingsTsrg = AnnotationProcessorInvoker.getMixinTsrgMappingsForSourceSet(project, sourceSet);
+
+					if (Files.exists(mixinMappingsTsrg)) {
+						final var tree = new MemoryMappingTree();
+
+						try (Reader reader = Files.newBufferedReader(mixinMappingsTsrg)) {
+							BetterTsrg1Reader.read(reader, tree, from, to);
+
+							for (File dir : sourceSet.getOutput().getClassesDirs()) {
+								ClassAnalysisDescCompleter.process(dir.toPath(), MappingsNamespace.NAMED.toString(), tree);
+							}
+						} catch (IOException e) {
+							throw new UncheckedIOException(e);
+						}
+
+						final IMappingProvider mappingProvider = TinyRemapperHelper.create(tree, from, to, false);
+						mappingProvider.load(out);
+						continue;
+					}
+				}
+
 				final File mixinMappings = AnnotationProcessorInvoker.getMixinMappingsForSourceSet(project, sourceSet);
 
 				if (!mixinMappings.exists()) {
 					continue;
 				}
 
-				final String newTo = IntermediaryNamespaces.replaceMixinIntermediaryNamespace(project, to);
-				MappingsService service = MappingsService.create(serviceManager, mixinMappings.getAbsolutePath(), mixinMappings.toPath(), from, newTo, false);
+				MappingsService service = MappingsService.create(serviceManager, mixinMappings.getAbsolutePath(), mixinMappings.toPath(), from, to, false);
 				service.getMappingsProvider().load(out);
 			}
 		});

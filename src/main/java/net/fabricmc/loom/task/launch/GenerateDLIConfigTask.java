@@ -127,6 +127,9 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 			}
 
 			if (PropertyUtil.getAndFinalize(getExtension().getForge().getUseCustomMixin())) {
+				// TODO: Just use the actual Tiny file instead of a "replaced target" one,
+				//  the runtime can switch to using `srg` as the input namespace instead of `intermediary`.
+				//  Or it could be configurable via another system property.
 				launchConfig.property("mixin.forgeloom.inject.mappings.srg-named", getExtension().getMappingConfiguration().getReplacedTarget(getExtension(), "srg").toAbsolutePath().toString());
 			} else {
 				launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingConfiguration().srgToNamedSrg.toAbsolutePath().toString());

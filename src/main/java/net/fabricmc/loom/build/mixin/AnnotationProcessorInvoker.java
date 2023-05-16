@@ -36,6 +36,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import dev.architectury.loom.util.SrgMixinArguments;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
@@ -43,7 +44,7 @@ import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.tasks.SourceSet;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.ide.idea.IdeaUtils;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.extension.MixinExtension;
@@ -98,18 +99,30 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 		try {
 			LoomGradleExtension loom = LoomGradleExtension.get(project);
 			String refmapName = Objects.requireNonNull(MixinExtension.getMixinInformationContainer(sourceSet)).refmapNameProvider().get();
-			Path mappings = loom.getMappingConfiguration().getReplacedTarget(loom, loom.getMixin().getRefmapTargetNamespace().get());
 
 			final File mixinMappings = getMixinMappingsForSourceSet(project, sourceSet);
 
 			task.getOutputs().file(mixinMappings).withPropertyName("mixin-ap-" + sourceSet.getName()).optional();
 
 			Map<String, String> args = new HashMap<>() {{
-					put(Constants.MixinArguments.IN_MAP_FILE_NAMED_INTERMEDIARY, mappings.toFile().getCanonicalPath());
+					put(Constants.MixinArguments.IN_MAP_FILE_NAMED_INTERMEDIARY, loom.getMappingConfiguration().tinyMappings.toFile().getCanonicalPath());
 					put(Constants.MixinArguments.OUT_MAP_FILE_NAMED_INTERMEDIARY, mixinMappings.getCanonicalPath());
 					put(Constants.MixinArguments.OUT_REFMAP_FILE, getRefmapDestination(task, refmapName));
-					put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "named:" + IntermediaryNamespaces.replaceMixinIntermediaryNamespace(project, loom.getMixin().getRefmapTargetNamespace().get()));
+					put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "named:" + loom.getMixin().getRefmapTargetNamespace().get());
 					put(Constants.MixinArguments.QUIET, "true");
+
+					if (loom.shouldGenerateSrgTiny() && loom.getMixin().getRefmapTargetNamespace().get().equals(MappingsNamespace.SRG.toString())) {
+						putAll(SrgMixinArguments.DEFAULT_ARGUMENTS);
+
+						if (loom.isForge()) {
+							put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "searge");
+						}
+
+						final Path mixinMappingsTsrg = getMixinTsrgMappingsForSourceSet(project, sourceSet);
+						task.getOutputs().file(mixinMappingsTsrg).withPropertyName("mixin-ap-srg-" + sourceSet.getName()).optional();
+						put(SrgMixinArguments.REOBF_TSRG_FILE, loom.getMappingConfiguration().getNamedSrgTsrg(loom).toAbsolutePath().toString());
+						put(SrgMixinArguments.OUT_TSRG_FILE, mixinMappingsTsrg.toAbsolutePath().toString());
+					}
 				}};
 
 			if (mixinExtension.getShowMessageTypes().get()) {
@@ -181,5 +194,18 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 	public static File getMixinMappingsForSourceSet(Project project, SourceSet sourceSet) {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		return new File(extension.getFiles().getProjectBuildCache(), "mixin-map-" + extension.getMappingConfiguration().mappingsIdentifier() + "." + sourceSet.getName() + ".tiny");
+	}
+
+	public static Path getMixinTsrgMappingsForSourceSet(Project project, SourceSet sourceSet) {
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (!extension.shouldGenerateSrgTiny()) {
+			throw new UnsupportedOperationException("Mixin TSRG mappings are only available if SRG is enabled");
+		} else if (!extension.getMixin().getRefmapTargetNamespace().get().equals(MappingsNamespace.SRG.toString())) {
+			throw new UnsupportedOperationException("Cannot use mixin TSRG mappings when targeting other namespaces");
+		}
+
+		return extension.getFiles().getProjectBuildCache().toPath()
+				.resolve("mixin-map-" + extension.getMappingConfiguration().mappingsIdentifier() + "." + sourceSet.getName() + ".tsrg");
 	}
 }

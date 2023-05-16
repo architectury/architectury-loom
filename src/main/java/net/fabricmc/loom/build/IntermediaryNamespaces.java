@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,6 @@ package net.fabricmc.loom.build;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 
 public final class IntermediaryNamespaces {
 	/**
@@ -36,21 +35,5 @@ public final class IntermediaryNamespaces {
 	public static String intermediary(Project project) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		return extension.isForge() ? "srg" : "intermediary";
-	}
-
-	/**
-	 * Potentially replaces the remapping target namespace for mixin refmaps.
-	 *
-	 * <p>All {@linkplain #intermediary(Project) intermediary-like namespaces} are replaced
-	 * by {@code intermediary} since fabric-mixin-compile-extensions only supports intermediary.
-	 * We transform the namespaces in the input mappings, e.g. {@code intermediary} -> {@code yraidemretni} and
-	 * {@code srg} -> {@code intermediary}.
-	 *
-	 * @param project   the project
-	 * @param namespace the original namespace
-	 * @return the correct namespace to use
-	 */
-	public static String replaceMixinIntermediaryNamespace(Project project, String namespace) {
-		return namespace.equals(intermediary(project)) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
 	}
 }
