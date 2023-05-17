@@ -1,13 +1,13 @@
 package dev.architectury.loom.util;
 
-import net.fabricmc.mappingio.FlatMappingVisitor;
-import net.fabricmc.mappingio.MappingVisitor;
-import net.fabricmc.mappingio.adapter.RegularAsFlatMappingVisitor;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
+
+import net.fabricmc.mappingio.FlatMappingVisitor;
+import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.adapter.RegularAsFlatMappingVisitor;
 
 // mapping-io's tsrg reader is awful and doesn't support the flat format that mixin uses
 public final class BetterTsrg1Reader {
