@@ -44,6 +44,7 @@ import java.util.Objects;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
+import dev.architectury.loom.util.AsmInheritanceCompleter;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -71,6 +72,8 @@ import net.fabricmc.loom.util.srg.MCPReader;
 import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
+import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import net.fabricmc.stitch.Command;
@@ -513,7 +516,9 @@ public class MappingConfiguration {
 	 * Gets a TSRG 1 file which contains {@code named} → {@code srg} mappings.
 	 * This is mainly intended for the Mixin annotation processor.
 	 */
-	public Path getNamedSrgTsrg(LoomGradleExtension loom) {
+	public Path getNamedSrgTsrg(Project project) {
+		LoomGradleExtension loom = LoomGradleExtension.get(project);
+
 		if (!loom.shouldGenerateSrgTiny()) {
 			throw new UnsupportedOperationException("SRG generation is not enabled.");
 		}
@@ -522,9 +527,14 @@ public class MappingConfiguration {
 			MemoryMappingTree tree = new MemoryMappingTree();
 
 			try {
-				MappingReader.read(tinyMappingsWithSrg, tree);
-				// TODO: Complete all inherited method names. Forge's SRG files have it and it seems to be
-				//  required by mixin.
+				MappingReader.read(
+						tinyMappingsWithSrg,
+						new MappingSourceNsSwitch(
+								new MappingDstNsReorder(tree, MappingsNamespace.SRG.toString()),
+								MappingsNamespace.NAMED.toString()
+						)
+				);
+				AsmInheritanceCompleter.complete(tree, loom.getMinecraftJars(MappingsNamespace.NAMED));
 				SrgNamedWriter.writeTsrgTo(namedToSrgTsrg, tree, MappingsNamespace.NAMED.toString(), MappingsNamespace.SRG.toString());
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
