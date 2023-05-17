@@ -111,16 +111,16 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 					put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "named:" + loom.getMixin().getRefmapTargetNamespace().get());
 					put(Constants.MixinArguments.QUIET, "true");
 
-					if (loom.shouldGenerateSrgTiny() && loom.getMixin().getRefmapTargetNamespace().get().equals(MappingsNamespace.SRG.toString())) {
+					if (loom.shouldGenerateSrgTiny()) {
 						putAll(SrgMixinArguments.DEFAULT_ARGUMENTS);
 
-						if (loom.isForge()) {
+						if (loom.isForge() && loom.getMixin().getRefmapTargetNamespace().get().equals(MappingsNamespace.SRG.toString())) {
 							put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "searge");
 						}
 
 						final Path mixinMappingsTsrg = getMixinTsrgMappingsForSourceSet(project, sourceSet);
 						task.getOutputs().file(mixinMappingsTsrg).withPropertyName("mixin-ap-srg-" + sourceSet.getName()).optional();
-						put(SrgMixinArguments.REOBF_TSRG_FILE, loom.getMappingConfiguration().getNamedSrgTsrg(loom).toAbsolutePath().toString());
+						put(SrgMixinArguments.REOBF_TSRG_FILE, loom.getMappingConfiguration().getNamedSrgTsrg(project).toAbsolutePath().toString());
 						put(SrgMixinArguments.OUT_TSRG_FILE, mixinMappingsTsrg.toAbsolutePath().toString());
 					}
 				}};
@@ -201,8 +201,6 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 
 		if (!extension.shouldGenerateSrgTiny()) {
 			throw new UnsupportedOperationException("Mixin TSRG mappings are only available if SRG is enabled");
-		} else if (!extension.getMixin().getRefmapTargetNamespace().get().equals(MappingsNamespace.SRG.toString())) {
-			throw new UnsupportedOperationException("Cannot use mixin TSRG mappings when targeting other namespaces");
 		}
 
 		return extension.getFiles().getProjectBuildCache().toPath()
