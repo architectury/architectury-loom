@@ -79,7 +79,8 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 
 	@Override
 	public String getId() {
-		return Optional.ofNullable(modMetadata.getId())
+		return Optional.ofNullable(existingFabricJson)
+				.map(FabricModJson::getId)
 				.or(() -> Optional.ofNullable(modMetadata.getId()))
 				.or(this::getIdFromSource)
 				.orElseGet(super::getId);
