@@ -201,7 +201,7 @@ public class MappingConfiguration {
 			if (Files.notExists(tinyMappingsWithSrg) || extension.refreshDeps()) {
 				// Merge tiny mappings with srg
 				Stopwatch stopwatch = Stopwatch.createStarted();
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
+				SrgMerger.ExtraMappings extraMappings = extension.isLegacyForge() ? null : SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
 				SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
 				project.getLogger().info(":merged srg mappings in " + stopwatch.stop());
 			}

@@ -24,11 +24,15 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -57,6 +61,20 @@ import dev.architectury.tinyremapper.InputTag;
 import dev.architectury.tinyremapper.NonClassCopyMode;
 import dev.architectury.tinyremapper.OutputConsumerPath;
 import dev.architectury.tinyremapper.TinyRemapper;
+
+import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.configuration.providers.mappings.utils.AccessTransformSetMapper;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarMerger;
+
+import net.fabricmc.loom.util.Pair;
+import net.fabricmc.loom.util.legacyforge.CoreModManagerTransformer;
+import net.fabricmc.lorenztiny.TinyMappingsReader;
+import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.tree.MappingTree;
+
+import org.cadixdev.at.AccessTransformSet;
+import org.cadixdev.at.io.AccessTransformFormats;
+import org.cadixdev.lorenz.MappingSet;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
@@ -110,6 +128,7 @@ public class MinecraftPatchedProvider {
 	private Path minecraftClientExtra;
 
 	private boolean dirty = false;
+	private MappingConfiguration mappingConfiguration;
 
 	public static MinecraftPatchedProvider get(Project project) {
 		MinecraftProvider provider = LoomGradleExtension.get(project).getMinecraftProvider();
@@ -171,25 +190,50 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
+	protected void mergeJars() throws IOException {
+		project.getLogger().info(":merging jars");
+
+		File jarToMerge = minecraftProvider.getMinecraftServerJar();
+
+		if (minecraftProvider.getServerBundleMetadata() != null) {
+			minecraftProvider.extractBundledServerJar();
+			jarToMerge = minecraftProvider.getMinecraftExtractedServerJar();
+		}
+
+		Objects.requireNonNull(jarToMerge, "Cannot merge null input jar?");
+
+		try (var jarMerger = new MinecraftJarMerger(minecraftProvider.getMinecraftClientJar(), jarToMerge, minecraftSrgJar.toFile())) {
+			jarMerger.enableSyntheticParamsOffset();
+			jarMerger.merge();
+		}
+	}
+
 	public void provide() throws Exception {
 		initPatchedFiles();
 		checkCache();
 
 		this.dirty = false;
-
 		if (Files.notExists(minecraftSrgJar)) {
 			this.dirty = true;
 
 			try (var tempFiles = new TempFiles()) {
-				McpExecutor executor = createMcpExecutor(tempFiles.directory("loom-mcp"));
-				Path output = executor.enqueue("rename").execute();
-				Files.copy(output, minecraftSrgJar);
+				if (getExtension().isLegacyForge()) {
+					mergeJars();
+				} else {
+					McpExecutor executor = createMcpExecutor(tempFiles.directory("loom-mcp"));
+					Path output = executor.enqueue("rename").execute();
+					Files.copy(output, minecraftSrgJar);
+				}
 			}
 		}
 
 		if (dirty || Files.notExists(minecraftPatchedSrgJar)) {
 			this.dirty = true;
 			patchJars();
+		}
+
+		if (mappingConfiguration != null) {
+			mappingConfiguration.setupPost(project);
 		}
 
 		if (dirty || Files.notExists(minecraftPatchedSrgAtJar)) {
@@ -384,7 +428,13 @@ public class MinecraftPatchedProvider {
 			AccessTransformerJarProcessor.executeAt(project, input, target, args -> {
 				for (Path jar : atSources) {
 					byte[] atBytes = ZipUtils.unpackNullable(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH);
-
+					if (atBytes == null) {
+						atBytes = ZipUtils.unpackNullable(jar, "forge_at.cfg");
+						if (atBytes != null) {
+							atBytes = remapAt(extension, atBytes);
+							project.getLogger().info("remapped an AT!");
+						}
+					}
 					if (atBytes != null) {
 						Path tmpFile = tempFiles.file("at-conf", ".cfg");
 						Files.write(tmpFile, atBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -396,6 +446,68 @@ public class MinecraftPatchedProvider {
 		}
 
 		project.getLogger().lifecycle(":access transformed minecraft in " + stopwatch.stop());
+	}
+
+	/**
+	 * so, at this point, minecraft is using official (obfuscated) mappings, but the access transformers are in SRG, we need to fix that.
+	 * @param forgeAt
+	 */
+	private static byte[] remapAt(LoomGradleExtension extension, byte[] forgeAt) throws IOException {
+		AccessTransformSet accessTransformSet = AccessTransformSet.create();
+		AccessTransformFormats.FML.read(new InputStreamReader(new ByteArrayInputStream(forgeAt)), accessTransformSet);
+		MemoryMappingTree mappingTree = new MemoryMappingTree();
+		MappingReader.read(extension.getMappingConfiguration().tinyMappingsWithSrg, mappingTree);
+		MappingSet mappingSet = new TinyMappingsReader(mappingTree, "srg", "official").read();
+		accessTransformSet = AccessTransformSetMapper.remap(accessTransformSet, mappingSet);
+		ByteArrayOutputStream remappedOut = new ByteArrayOutputStream();
+		// TODO the extra BufferedWriter wrapper and closing can be removed once https://github.com/CadixDev/at/issues/6 is fixed
+		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(remappedOut));
+		AccessTransformFormats.FML.write(writer, accessTransformSet);
+		writer.close();
+		var bytes = remappedOut.toByteArray();
+		var g = Files.createTempFile("remapped-at", ".cfg");
+		Files.write(g, bytes);
+		return bytes;
+	}
+
+	private void patchForge(Logger logger, File input) throws Exception {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		logger.lifecycle(":patching forge");
+
+		Files.copy(input.toPath(), input.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+		// For the development environment, we need to remove the binpatches, otherwise forge will try to re-apply them
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(input, false)) {
+			Files.delete(fs.get().getPath("binpatches.pack.lzma"));
+		}
+
+		// Older versions of Forge rely on utility classes from log4j-core 2.0-beta9 but we'll upgrade the runtime to a
+		// release version (so we can use the TerminalConsoleAppender) where some of those classes have been moved from
+		// a `helpers` to a `utils` package.
+		// To allow Forge to work regardless, we'll re-package those helper classes into the forge jar.
+		Path log4jBeta9 = Arrays.stream(TinyRemapperHelper.getMinecraftCompileLibraries(project))
+				.filter(it -> it.getFileName().toString().equals("log4j-core-2.0-beta9.jar"))
+				.findAny()
+				.orElse(null);
+		if (log4jBeta9 != null) {
+			Predicate<Path> isHelper = path -> path.startsWith("/org/apache/logging/log4j/core/helpers");
+			walkFileSystems(log4jBeta9, input.toPath(), isHelper, this::copyReplacing);
+		}
+
+		// While Forge will discover mods on the classpath, it won't do the same for ATs, coremods or tweakers.
+		// ForgeGradle "solves" this problem using a huge, gross hack (GradleForgeHacks and related classes), and only
+		// for ATs and coremods, not tweakers.
+		// No clue why FG went the hack route when it's the same project and they could have just added first-party
+		// support for loading both from the classpath right into Forge (it's even really simply to do).
+		// We'll have none of those hacks and instead patch first-party support into Forge.
+		ZipUtils.transform(getForgeJar().toPath(), Stream.of(new Pair<>(CoreModManagerTransformer.FILE, original -> {
+			ClassReader reader = new ClassReader(original);
+			ClassWriter writer = new ClassWriter(reader, 0);
+			reader.accept(new CoreModManagerTransformer(writer), 0);
+			return writer.toByteArray();
+		})));
+
+		logger.lifecycle(":patched forge in " + stopwatch.stop());
 	}
 
 	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
@@ -423,16 +535,45 @@ public class MinecraftPatchedProvider {
 		} finally {
 			remapper.finish();
 		}
-
 		copyUserdevFiles(forgeUserdevJar, mcOutput);
+		patchForge(logger, mcOutput.toFile());
 		applyLoomPatchVersion(mcOutput);
 	}
 
+	private void patchLegacyJars() throws Exception {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		logger.lifecycle(":patching jars");
+		var minecraftServerPatchedJar = Files.createTempFile("server", ".jar");
+		var minecraftClientPatchedJar = Files.createTempFile("client", ".jar");
+		MinecraftProvider minecraftProvider = getExtension().getMinecraftProvider();
+		PatchProvider patchProvider = getExtension().getPatchProvider();
+		patchJars(minecraftProvider.getMinecraftServerJar().toPath(), minecraftServerPatchedJar, patchProvider.serverPatches);
+		patchJars(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientPatchedJar, patchProvider.clientPatches);
+
+		try (var jarMerger = new MinecraftJarMerger(minecraftClientPatchedJar.toFile(), minecraftServerPatchedJar.toFile(), minecraftPatchedSrgJar.toFile())) {
+			jarMerger.enableSyntheticParamsOffset();
+			jarMerger.merge();
+		}
+
+		copyMissingClasses(minecraftSrgJar, minecraftPatchedSrgJar);
+		deleteParameterNames(minecraftPatchedSrgJar);
+
+		if (getExtension().isForgeAndNotOfficial()) {
+			fixParameterAnnotation(minecraftPatchedSrgJar);
+		}
+
+
+		logger.lifecycle(":patched jars in " + stopwatch.stop());
+	}
+
 	private void patchJars() throws Exception {
+		if (getExtension().isLegacyForge()) {
+			patchLegacyJars();
+			return;
+		}
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		logger.lifecycle(":patching jars");
 		patchJars(minecraftSrgJar, minecraftPatchedSrgJar, type.patches.apply(getExtension().getPatchProvider(), getExtension().getForgeUserdevProvider()));
-
 		copyMissingClasses(minecraftSrgJar, minecraftPatchedSrgJar);
 		deleteParameterNames(minecraftPatchedSrgJar);
 
@@ -575,6 +716,10 @@ public class MinecraftPatchedProvider {
 
 	public Path getMinecraftPatchedJar() {
 		return minecraftPatchedJar;
+	}
+
+	public void setMappingConfiguration(MappingConfiguration mappingConfiguration) {
+		this.mappingConfiguration = mappingConfiguration;
 	}
 
 	public enum Type {

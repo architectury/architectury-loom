@@ -204,10 +204,12 @@ public abstract class CompileConfiguration implements Runnable {
 
 		if (extension.isForge()) {
 			ForgeLibrariesProvider.provide(mappingConfiguration, project);
+			if (extension.isLegacyForge()) ((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider().setMappingConfiguration(mappingConfiguration);
 			((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider().provide();
 		}
 
-		mappingConfiguration.setupPost(project);
+		if (!extension.isLegacyForge())
+			mappingConfiguration.setupPost(project);
 		mappingConfiguration.applyToProject(getProject(), mappingsDep);
 
 		if (extension.isForge()) {
@@ -363,9 +365,9 @@ public abstract class CompileConfiguration implements Runnable {
 		}
 
 		if (extension.isForge()) {
+			dependencyProviders.addProvider(new ForgeUniversalProvider(project));
 			dependencyProviders.addProvider(new McpConfigProvider(project));
 			dependencyProviders.addProvider(new PatchProvider(project));
-			dependencyProviders.addProvider(new ForgeUniversalProvider(project));
 		}
 
 		dependencyProviders.handleDependencies(project);

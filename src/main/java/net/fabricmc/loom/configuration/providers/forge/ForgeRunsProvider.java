@@ -64,10 +64,26 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 	}
 
 	private void readTemplates() {
-		for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("runs").entrySet()) {
+		if (!extension.isLegacyForge()) {
+			configureRuns(json.getAsJsonObject("runs"));
+		} else {
+			configureRunsForLegacyForge();
+		}
+	}
+
+	private void configureRuns(JsonObject runs) {
+		for (Map.Entry<String, JsonElement> entry : runs.entrySet()) {
 			ForgeRunTemplate template = ForgeRunTemplate.fromJson(entry.getValue().getAsJsonObject());
 			templates.add(template);
 		}
+	}
+
+	private void configureRunsForLegacyForge() {
+		extension.getRunConfigs().configureEach(config -> {
+			//	if (Constants.Forge.LAUNCH_TESTING.equals(config.getDefaultMainClass())) {
+			config.setDefaultMainClass(Constants.LegacyForge.LAUNCH_WRAPPER);
+			//	}
+		});
 	}
 
 	public NamedDomainObjectSet<ForgeRunTemplate> getTemplates() {

@@ -26,6 +26,8 @@ package net.fabricmc.loom.api;
 
 import java.util.List;
 
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
+
 import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
@@ -133,6 +135,8 @@ public interface ForgeExtensionAPI {
 	@ApiStatus.ScheduledForRemoval(inVersion = "2.0")
 	@Deprecated(forRemoval = true)
 	void dataGen(Action<DataGenConsumer> action);
+
+	Property<Pack200Provider> getPack200Provider();
 
 	/**
 	 * Data generation config.

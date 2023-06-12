@@ -25,11 +25,13 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -40,11 +42,14 @@ import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipUtils;
 
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository;
+
 public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
 	private JsonObject json;
 	Path joinedPatches;
 	BinaryPatcherConfig binaryPatcherConfig;
+	private boolean isLegacyForge;
 
 	public ForgeUserdevProvider(Project project) {
 		super(project);
@@ -59,22 +64,80 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		if (!userdevJar.exists() || Files.notExists(configJson) || refreshDeps()) {
 			File resolved = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge userdev"));
 			Files.copy(resolved.toPath(), userdevJar.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "config.json"));
+			try {
+				Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "config.json"));
+			} catch (IOException e) {
+				Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "dev.json"));
+			}
 		}
 
 		try (Reader reader = Files.newBufferedReader(configJson)) {
 			json = new Gson().fromJson(reader, JsonObject.class);
 		}
 
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);
-		addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
+		isLegacyForge = !json.has("mcp");
 
-		if (Files.notExists(joinedPatches)) {
-			Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), json.get("binpatches").getAsString()));
+		if (!isLegacyForge) {
+			addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
+			addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);
+			addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
+
+			binaryPatcherConfig = BinaryPatcherConfig.fromJson(json.getAsJsonObject("binpatcher"));
+
+			if (Files.notExists(joinedPatches)) {
+				Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), json.get("binpatches").getAsString()));
+			}
+		} else {
+			Map<String, String> mcpDep = Map.of(
+					"group", "de.oceanlabs.mcp",
+					"name", "mcp",
+					"version", json.get("inheritsFrom").getAsString(),
+					"classifier", "srg",
+					"ext", "zip"
+			);
+			addDependency(mcpDep, Constants.Configurations.MCP_CONFIG);
+			addDependency(mcpDep, Constants.Configurations.SRG);
+			addDependency(dependency.getDepString() + ":universal", Constants.Configurations.FORGE_UNIVERSAL);
+			addLegacyMCPRepo();
+
+			binaryPatcherConfig = BinaryPatcherConfig.fromJson(new Gson().fromJson("""
+					{
+					  "version": "net.minecraftforge:binarypatcher:1.0.12:fatjar",
+					  "args": [
+					    "--clean",
+					    "{clean}",
+					    "--output",
+					    "{output}",
+					    "--apply",
+					    "{patch}"
+					  ]
+					}""", JsonObject.class));
+
+			if (Files.notExists(joinedPatches)) {
+				Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), "devbinpatches.pack.lzma"));
+			}
 		}
+	}
 
-		binaryPatcherConfig = BinaryPatcherConfig.fromJson(json.getAsJsonObject("binpatcher"));
+	private void addLegacyMCPRepo() {
+		getProject().getRepositories().ivy(repo -> {
+			// Old MCP data does not have POMs
+			repo.setName("LegacyMCP");
+			repo.setUrl("https://maven.minecraftforge.net/");
+			repo.patternLayout(layout -> {
+				layout.artifact("[orgPath]/[artifact]/[revision]/[artifact]-[revision](-[classifier])(.[ext])");
+				// also check the zip so people do not have to explicitly specify the extension for older versions
+				layout.artifact("[orgPath]/[artifact]/[revision]/[artifact]-[revision](-[classifier]).zip");
+			});
+			repo.content(descriptor -> {
+				descriptor.includeGroup("de.oceanlabs.mcp");
+			});
+			repo.metadataSources(IvyArtifactRepository.MetadataSources::artifact);
+		});
+	}
+
+	public boolean isLegacyForge() {
+		return isLegacyForge;
 	}
 
 	public File getUserdevJar() {

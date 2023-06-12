@@ -56,6 +56,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree;
 public class ForgeLibrariesProvider {
 	private static final String FML_LOADER_GROUP = "net.minecraftforge";
 	private static final String FML_LOADER_NAME = "fmlloader";
+	private static final boolean isLegacyForge = true;
 
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
@@ -63,6 +64,9 @@ public class ForgeLibrariesProvider {
 
 		// Collect all dependencies with possible relocations, such as Mixin.
 		for (JsonElement lib : extension.getForgeUserdevProvider().getJson().get("libraries").getAsJsonArray()) {
+			if (isLegacyForge) {
+				lib = lib.getAsJsonObject().get("name");
+			}
 			String dep = null;
 
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
