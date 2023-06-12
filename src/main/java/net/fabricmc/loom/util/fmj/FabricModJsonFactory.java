@@ -72,14 +72,21 @@ public final class FabricModJsonFactory {
 	}
 
 	public static FabricModJson createFromZip(Path zipPath) {
-		try {
-			@Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+		return createFromZip(zipPath, true);
+	}
 
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
+	public static FabricModJson createFromZip(Path zipPath, boolean checkModMetadata) {
+		if (checkModMetadata) {
+			try {
+				@Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+
+				if (modMetadata != null) {
+					final @Nullable FabricModJson existing = ZipUtils.contains(zipPath, FABRIC_MOD_JSON) ? createFromZipNullable(zipPath, false) : null;
+					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath), existing);
+				}
+			} catch (IOException e) {
+				throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
 			}
-		} catch (IOException e) {
-			throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
 		}
 
 		try {
@@ -91,14 +98,22 @@ public final class FabricModJsonFactory {
 
 	@Nullable
 	public static FabricModJson createFromZipNullable(Path zipPath) {
-		try {
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+		return createFromZipNullable(zipPath, true);
+	}
 
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
+	@Nullable
+	public static FabricModJson createFromZipNullable(Path zipPath, boolean checkModMetadata) {
+		if (checkModMetadata) {
+			try {
+				final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+
+				if (modMetadata != null) {
+					final @Nullable FabricModJson existing = ZipUtils.contains(zipPath, FABRIC_MOD_JSON) ? createFromZipNullable(zipPath, false) : null;
+					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath), existing);
+				}
+			} catch (IOException e) {
+				throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
 			}
-		} catch (IOException e) {
-			throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
 		}
 
 		JsonObject jsonObject;
@@ -121,10 +136,17 @@ public final class FabricModJsonFactory {
 	}
 
 	public static FabricModJson createFromDirectory(Path directory) throws IOException {
-		final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
+		return createFromDirectory(directory, true);
+	}
 
-		if (modMetadata != null) {
-			return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory));
+	public static FabricModJson createFromDirectory(Path directory, boolean checkModMetadata) throws IOException {
+		if (checkModMetadata) {
+			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
+
+			if (modMetadata != null) {
+				final @Nullable FabricModJson existing = Files.exists(directory.resolve(FABRIC_MOD_JSON)) ? createFromDirectory(directory, false) : null;
+				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory), existing);
+			}
 		}
 
 		final Path path = directory.resolve(FABRIC_MOD_JSON);
@@ -136,10 +158,18 @@ public final class FabricModJsonFactory {
 
 	@Nullable
 	public static FabricModJson createFromSourceSetsNullable(SourceSet... sourceSets) throws IOException {
-		final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(sourceSets);
+		return createFromSourceSetsNullable(true, sourceSets);
+	}
 
-		if (modMetadata != null) {
-			return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(sourceSets));
+	@Nullable
+	public static FabricModJson createFromSourceSetsNullable(boolean checkModMetadata, SourceSet... sourceSets) throws IOException {
+		if (checkModMetadata) {
+			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(sourceSets);
+
+			if (modMetadata != null) {
+				final @Nullable FabricModJson existing = createFromSourceSetsNullable(false, sourceSets);
+				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(sourceSets), existing);
+			}
 		}
 
 		final File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, sourceSets);

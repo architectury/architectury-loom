@@ -192,7 +192,7 @@ public abstract class InterfaceInjectionProcessor implements MinecraftJarProcess
 	public record InjectedInterface(String modId, String className, String ifaceName) {
 		public static List<InjectedInterface> fromMod(FabricModJson fabricModJson) {
 			if (fabricModJson instanceof ModMetadataFabricModJson modMetadataFmj) {
-				return modMetadataFmj.getModMetadata().getInjectedInterfaces(modMetadataFmj.getId());
+				return modMetadataFmj.getInjectedInterfaces();
 			}
 
 			final String modId = fabricModJson.getId();

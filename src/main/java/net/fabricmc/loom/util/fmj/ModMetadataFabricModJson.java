@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.util.fmj;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +36,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.metadata.JsonBackedModMetadataFile;
 import dev.architectury.loom.metadata.ModMetadataFile;
+
+import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+
 import org.gradle.api.Project;
 import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.Nullable;
@@ -45,14 +49,23 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 	private static final int FABRIC_SCHEMA_VERSION = -1;
 	private final ModMetadataFile modMetadata;
 	private final FabricModJsonSource source;
+	// If a jar contains both fabric.mod.json and a file supported by ModMetadataFile, the former should take precedence.
+	// However, we still want to be able to get information from the latter, for example, the injected interfaces.
+	@Nullable
+	private final FabricModJson existingFabricJson;
 
-	ModMetadataFabricModJson(ModMetadataFile modMetadata, FabricModJsonSource source) {
-		super(getJsonForModMetadata(modMetadata), source);
+	ModMetadataFabricModJson(ModMetadataFile modMetadata, FabricModJsonSource source, @Nullable FabricModJson existingFabricJson) {
+		super(getJsonForModMetadata(modMetadata, existingFabricJson), source);
 		this.modMetadata = modMetadata;
 		this.source = source;
+		this.existingFabricJson = existingFabricJson;
 	}
 
-	private static JsonObject getJsonForModMetadata(ModMetadataFile modMetadata) {
+	private static JsonObject getJsonForModMetadata(ModMetadataFile modMetadata, @Nullable FabricModJson existingFabricJson) {
+		if (existingFabricJson != null) {
+			return existingFabricJson.jsonObject;
+		}
+
 		if (modMetadata instanceof JsonBackedModMetadataFile jsonBacked) {
 			return jsonBacked.getJson();
 		}
@@ -67,6 +80,7 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 	@Override
 	public String getId() {
 		return Optional.ofNullable(modMetadata.getId())
+				.or(() -> Optional.ofNullable(modMetadata.getId()))
 				.or(this::getIdFromSource)
 				.orElseGet(super::getId);
 	}
@@ -100,6 +114,10 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 
 	@Override
 	public int getVersion() {
+		if (existingFabricJson != null) {
+			return existingFabricJson.getVersion();
+		}
+
 		// Technically not correct since we're not a real fabric.mod.json,
 		// but this is needed for computing the hash code.
 		return FABRIC_SCHEMA_VERSION;
@@ -107,6 +125,14 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 
 	@Override
 	public @Nullable JsonElement getCustom(String key) {
+		if (existingFabricJson != null) {
+			JsonElement custom = existingFabricJson.getCustom(key);
+
+			if (custom != null) {
+				return custom;
+			}
+		}
+
 		if (modMetadata instanceof JsonBackedModMetadataFile jsonBacked) {
 			return jsonBacked.getCustomValue(key);
 		}
@@ -116,13 +142,31 @@ public final class ModMetadataFabricModJson extends FabricModJson {
 
 	@Override
 	public List<String> getMixinConfigurations() {
+		if (existingFabricJson != null) {
+			return existingFabricJson.getMixinConfigurations();
+		}
+
 		return modMetadata.getMixinConfigs();
 	}
 
 	@Override
 	public Map<String, ModEnvironment> getClassTweakers() {
+		if (existingFabricJson != null) {
+			return existingFabricJson.getClassTweakers();
+		}
+
 		return modMetadata.getAccessWideners()
 				.stream()
 				.collect(Collectors.toMap(Function.identity(), path -> ModEnvironment.UNIVERSAL));
+	}
+
+	public List<InterfaceInjectionProcessor.InjectedInterface> getInjectedInterfaces() {
+		final List<InterfaceInjectionProcessor.InjectedInterface> interfaces = new ArrayList<>(modMetadata.getInjectedInterfaces(getId()));
+
+		if (existingFabricJson != null) {
+			interfaces.addAll(InterfaceInjectionProcessor.InjectedInterface.fromMod(existingFabricJson));
+		}
+
+		return interfaces;
 	}
 }
