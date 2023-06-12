@@ -73,34 +73,27 @@ public final class FabricModJsonFactory {
 
 	public static FabricModJson createFromZip(Path zipPath) {
 		try {
-			@Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
-
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
-			}
-		} catch (IOException e) {
-			throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
-		}
-
-		try {
 			return create(ZipUtils.unpackGson(zipPath, FABRIC_MOD_JSON, JsonObject.class), new FabricModJsonSource.ZipSource(zipPath));
 		} catch (IOException e) {
+			// Try another mod metadata file if fabric.mod.json wasn't found.
+			try {
+				@Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+
+				if (modMetadata != null) {
+					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
+				}
+			} catch (IOException e2) {
+				var unchecked = new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e2);
+				unchecked.addSuppressed(e);
+				throw unchecked;
+			}
+
 			throw new UncheckedIOException("Failed to read fabric.mod.json file in zip: " + zipPath, e);
 		}
 	}
 
 	@Nullable
 	public static FabricModJson createFromZipNullable(Path zipPath) {
-		try {
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
-
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
-			}
-		} catch (IOException e) {
-			throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
-		}
-
 		JsonObject jsonObject;
 
 		try {
@@ -110,6 +103,17 @@ public final class FabricModJsonFactory {
 		}
 
 		if (jsonObject == null) {
+			// Try another mod metadata file if fabric.mod.json wasn't found.
+			try {
+				final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
+
+				if (modMetadata != null) {
+					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
+				}
+			} catch (IOException e) {
+				throw new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
+			}
+
 			return null;
 		}
 
@@ -121,13 +125,16 @@ public final class FabricModJsonFactory {
 	}
 
 	public static FabricModJson createFromDirectory(Path directory) throws IOException {
-		final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
-
-		if (modMetadata != null) {
-			return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory));
-		}
-
 		final Path path = directory.resolve(FABRIC_MOD_JSON);
+
+		// Try another mod metadata file if fabric.mod.json wasn't found.
+		if (Files.notExists(path)) {
+			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
+
+			if (modMetadata != null) {
+				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory));
+			}
+		}
 
 		try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
 			return create(LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class), new FabricModJsonSource.DirectorySource(directory));
@@ -136,15 +143,16 @@ public final class FabricModJsonFactory {
 
 	@Nullable
 	public static FabricModJson createFromSourceSetsNullable(SourceSet... sourceSets) throws IOException {
-		final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(sourceSets);
-
-		if (modMetadata != null) {
-			return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(sourceSets));
-		}
-
 		final File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, sourceSets);
 
 		if (file == null) {
+			// Try another mod metadata file if fabric.mod.json wasn't found.
+			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(sourceSets);
+
+			if (modMetadata != null) {
+				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(sourceSets));
+			}
+
 			return null;
 		}
 
