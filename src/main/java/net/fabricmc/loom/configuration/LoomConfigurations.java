@@ -135,6 +135,7 @@ public abstract class LoomConfigurations implements Runnable {
 
 			extendsFrom(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES, Constants.Configurations.FORGE_DEPENDENCIES);
 			extendsFrom(Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES, Constants.Configurations.FORGE_DEPENDENCIES);
+			extendsFrom(Constants.Configurations.LOADER_DEPENDENCIES, Constants.Configurations.FORGE_DEPENDENCIES);
 
 			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.FORGE_DEPENDENCIES);
 			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);

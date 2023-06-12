@@ -136,7 +136,6 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 	}
 
 	public void configureMixin() {
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		ConfigurationContainer configs = project.getConfigurations();
 		MinecraftSourceSets minecraftSourceSets = MinecraftSourceSets.get(project);
 
@@ -148,10 +147,6 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 						configs.getByName(Constants.Configurations.LOADER_DEPENDENCIES),
 						configs.getByName(Constants.Configurations.MAPPINGS_FINAL)
 				);
-
-				if (extension.isForge()) {
-					processorConfig.extendsFrom(configs.getByName(Constants.Configurations.FORGE_NAMED));
-				}
 
 				// Add Mixin and mixin extensions (fabric-mixin-compile-extensions pulls mixin itself too)
 				project.getDependencies().add(processorConfig.getName(),
