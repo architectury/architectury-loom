@@ -33,7 +33,7 @@ public final class ModMetadataFiles {
 			try {
 				return fn.apply(a);
 			} catch (Exception e) {
-				LOGGER.warn(message, e);
+				LOGGER.info(message, e);
 				return onError.get();
 			}
 		};
