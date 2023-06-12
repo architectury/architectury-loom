@@ -82,7 +82,6 @@ public class Constants {
 		 * {@link #FORGE_RUNTIME_LIBRARY forgeRuntimeLibrary} is for that instead.
 		 */
 		public static final String FORGE_DEPENDENCIES = "forgeDependencies";
-		public static final String FORGE_NAMED = "forgeNamed";
 		/**
 		 * "Extra" runtime dependencies on Forge. Contains the Minecraft resources
 		 * and {@linkplain Dependencies#FORGE_RUNTIME the Architectury Loom runtime}.
