@@ -310,7 +310,7 @@ public final class RunConfigSettings implements Named {
 	 * Add the {@code -XstartOnFirstThread} JVM argument when on OSX.
 	 */
 	public void startFirstThread() {
-		if (Platform.CURRENT.getOperatingSystem().isMacOS()) {
+		if (Platform.CURRENT.getOperatingSystem().isMacOS() && !extension.isLegacyForge()) {
 			vmArg("-XstartOnFirstThread");
 		}
 	}
