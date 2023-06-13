@@ -21,6 +21,9 @@ loom {
 	} else {
 		serverOnlyMinecraftJar()
 	}
+	forge {
+		pack200Provider = new dev.architectury.pack200.java.Pack200Adapter()
+	}
 }
 
 def mcVersion = "@MCVERSION@"

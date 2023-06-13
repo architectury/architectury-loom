@@ -38,6 +38,7 @@ class SingleJarTest extends Specification implements GradleProjectTestTrait {
 	def "build single jar mc (mc #mc, forge #forge, env #env, gradle #version)"() {
 		setup:
 		def gradle = gradleProject(project: 'forge/singleJar', version: version)
+		gradle.getGradleProperties().text = gradle.getGradleProperties().text.replace("@PLATFORM@", mcVersion == "1.12.2" ? "legacy_forge" : "forge")
 		gradle.buildGradle.text = gradle.buildGradle.text
 				.replace('@MCVERSION@', mc)
 				.replace('@FORGEVERSION@', forge)
@@ -54,7 +55,8 @@ class SingleJarTest extends Specification implements GradleProjectTestTrait {
 		[
 			['1.19.4', "45.0.43"],
 			['1.18.1', "39.0.63"],
-			['1.17.1', "37.0.67"]
+			['1.17.1', "37.0.67"],
+			['1.12.2', "14.23.0.2486"]
 		],
 		['client', 'server'],
 		STANDARD_TEST_VERSIONS
