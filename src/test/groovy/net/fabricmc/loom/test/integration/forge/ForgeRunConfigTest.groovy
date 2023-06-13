@@ -37,9 +37,10 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 	def "verify run configs #mcVersion #forgeVersion"() {
 		setup:
 		def gradle = gradleProject(project: "forge/simple", version: DEFAULT_GRADLE)
+		gradle.getGradleProperties().text = gradle.getGradleProperties().text.replace("@PLATFORM@", mcVersion == "1.12.2" || mcVersion == "1.8.9" ? "legacy_forge" : "forge")
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@FORGEVERSION@', forgeVersion)
-				.replace('@MAPPINGS@', 'loom.officialMojangMappings()')
+				.replace('@MAPPINGS@', (mcVersion == "1.12.2" || mcVersion == "1.8.9") ? "loom.layered(){}" : 'loom.officialMojangMappings()')
 		gradle.buildGradle << """
 		tasks.register('verifyRunConfigs') {
 			doLast {
@@ -68,5 +69,7 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 		'1.17.1'  | "37.0.67"    | 'cpw.mods.bootstraplauncher.BootstrapLauncher'
 		'1.16.5'  | "36.2.4"     | 'net.minecraftforge.userdev.LaunchTesting'
 		'1.14.4'  | "28.2.23"    | 'net.minecraftforge.userdev.LaunchTesting'
+		'1.12.2'  |"14.23.0.2486"| 'net.minecraft.launchwrapper.Launch'
+		'1.8.9'   |"11.15.1.2318-1.8.9" /*why*/| 'net.minecraft.launchwrapper.Launch'
 	}
 }
