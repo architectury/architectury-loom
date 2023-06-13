@@ -536,7 +536,9 @@ public class MinecraftPatchedProvider {
 			remapper.finish();
 		}
 		copyUserdevFiles(forgeUserdevJar, mcOutput);
-		patchForge(logger, mcOutput.toFile());
+		if (getExtension().isLegacyForge()) {
+			patchForge(logger, mcOutput.toFile());
+		}
 		applyLoomPatchVersion(mcOutput);
 	}
 
