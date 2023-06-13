@@ -40,6 +40,7 @@ public class LoomNativeSupportLibraryProcessor extends LibraryProcessor {
 
 	@Override
 	public ApplicationResult getApplicationResult() {
+		if (context.getExtension().isForge()) return ApplicationResult.DONT_APPLY;
 		if (!context.usesLWJGL3()) {
 			// Only supports LWJGL 3
 			return ApplicationResult.DONT_APPLY;

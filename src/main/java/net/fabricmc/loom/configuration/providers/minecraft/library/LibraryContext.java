@@ -26,6 +26,8 @@ package net.fabricmc.loom.configuration.providers.minecraft.library;
 
 import java.util.Arrays;
 
+import net.fabricmc.loom.LoomGradleExtension;
+
 import org.gradle.api.JavaVersion;
 
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
@@ -34,10 +36,16 @@ import net.fabricmc.loom.util.Platform;
 public final class LibraryContext {
 	private final MinecraftVersionMeta versionMeta;
 	private final JavaVersion javaVersion;
+	private final LoomGradleExtension extension;
 
 	public LibraryContext(MinecraftVersionMeta versionMeta, JavaVersion javaVersion) {
+		this(versionMeta, javaVersion, null);
+	}
+
+	public LibraryContext(MinecraftVersionMeta versionMeta, JavaVersion javaVersion, LoomGradleExtension extension) {
 		this.versionMeta = versionMeta;
 		this.javaVersion = javaVersion;
+		this.extension = extension;
 	}
 
 	/**
@@ -118,5 +126,9 @@ public final class LibraryContext {
 	 */
 	public boolean isJava19OrLater() {
 		return javaVersion.isCompatibleWith(JavaVersion.VERSION_19);
+	}
+
+	public LoomGradleExtension getExtension() {
+		return extension;
 	}
 }

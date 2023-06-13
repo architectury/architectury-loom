@@ -119,7 +119,7 @@ public class MinecraftLibraryProvider {
 	}
 
 	private List<Library> processLibraries(List<Library> libraries) {
-		final LibraryContext libraryContext = new LibraryContext(minecraftProvider.getVersionInfo(), JavaVersion.current());
+		final LibraryContext libraryContext = new LibraryContext(minecraftProvider.getVersionInfo(), JavaVersion.current(), LoomGradleExtension.get(project));
 		return processorManager.processLibraries(libraries, libraryContext);
 	}
 
