@@ -124,7 +124,6 @@ public abstract class LoomConfigurations implements Runnable {
 			registerNonTransitive(Constants.Configurations.FORGE_INSTALLER, Role.RESOLVABLE);
 			registerNonTransitive(Constants.Configurations.FORGE_UNIVERSAL, Role.RESOLVABLE);
 			register(Constants.Configurations.FORGE_DEPENDENCIES, Role.RESOLVABLE);
-			registerNonTransitive(Constants.Configurations.FORGE_NAMED, Role.RESOLVABLE);
 			registerNonTransitive(Constants.Configurations.FORGE_EXTRA, Role.RESOLVABLE);
 			registerNonTransitive(Constants.Configurations.MCP_CONFIG, Role.RESOLVABLE);
 			register(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Role.RESOLVABLE).configure(configuration -> {
@@ -135,20 +134,16 @@ public abstract class LoomConfigurations implements Runnable {
 
 			extendsFrom(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES, Constants.Configurations.FORGE_DEPENDENCIES);
 			extendsFrom(Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES, Constants.Configurations.FORGE_DEPENDENCIES);
+			extendsFrom(Constants.Configurations.LOADER_DEPENDENCIES, Constants.Configurations.FORGE_DEPENDENCIES);
 
 			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.FORGE_DEPENDENCIES);
 			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
 			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.FORGE_EXTRA);
-			extendsFrom(Constants.Configurations.FORGE_RUNTIME_LIBRARY, Constants.Configurations.FORGE_NAMED);
 			// Include any user-defined libraries on the runtime CP.
 			// (All the other superconfigurations are already on there.)
 			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_RUNTIME_LIBRARY);
 			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_RUNTIME_LIBRARY);
 
-			extendsFrom(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED);
-			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED);
-			extendsFrom(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED);
-			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_NAMED);
 			extendsFrom(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA);
 			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA);
 			extendsFrom(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA);

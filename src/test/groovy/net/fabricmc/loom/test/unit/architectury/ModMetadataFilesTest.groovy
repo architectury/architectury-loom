@@ -36,6 +36,8 @@ import spock.lang.TempDir
 
 import net.fabricmc.loom.test.unit.forge.ModsTomlTest
 import net.fabricmc.loom.util.ZipUtils
+import net.fabricmc.loom.util.fmj.FabricModJsonFactory
+import net.fabricmc.loom.util.fmj.ModMetadataFabricModJson
 
 class ModMetadataFilesTest extends Specification {
 	@TempDir
@@ -114,5 +116,61 @@ class ModMetadataFilesTest extends Specification {
 		then:
 		modMetadata instanceof ErroringModMetadataFile
 		modMetadata.fileName == 'mods.toml [erroring]'
+	}
+
+	def "read fabric.mod.json from directory"() {
+		given:
+		workingDir.resolve('fabric.mod.json').text = '''
+			{
+				"schemaVersion": 1,
+				"id": "test",
+				"version": 1
+			}
+			'''.stripIndent()
+		workingDir.resolve('architectury.common.json').text = '{}'
+		when:
+		def fmj = FabricModJsonFactory.createFromDirectory(workingDir)
+		then:
+		!(fmj instanceof ModMetadataFabricModJson)
+		fmj.id == 'test'
+	}
+
+	def "read fabric.mod.json from zip"() {
+		given:
+		def jar = workingDir.resolve("my_mod.jar")
+		zipContents.resolve('fabric.mod.json').text = '''
+			{
+				"schemaVersion": 1,
+				"id": "test",
+				"version": 1
+			}
+			'''.stripIndent()
+		zipContents.resolve('architectury.common.json').text = '{}'
+		ZipUtils.pack(zipContents, jar)
+		when:
+		def fmj = FabricModJsonFactory.createFromZip(jar)
+		then:
+		!(fmj instanceof ModMetadataFabricModJson)
+		fmj.id == 'test'
+	}
+
+	def "read fabric.mod.json from zip (nullable)"() {
+		given:
+		def jar = workingDir.resolve("my_mod.jar")
+		zipContents.resolve('fabric.mod.json').text = '''
+			{
+				"schemaVersion": 1,
+				"id": "test",
+				"version": 1
+			}
+			'''.stripIndent()
+		zipContents.resolve('architectury.common.json').text = '{}'
+		ZipUtils.pack(zipContents, jar)
+		when:
+		def fmj = FabricModJsonFactory.createFromZipNullable(jar)
+		then:
+		fmj != null
+		!(fmj instanceof ModMetadataFabricModJson)
+		fmj.id == 'test'
 	}
 }
