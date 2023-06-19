@@ -44,7 +44,7 @@ public final class BetterTsrg1Reader {
 				} else if (parts.length == 3) {
 					flat.visitField(parts[0], parts[1], null, parts[2]);
 				} else if (parts.length == 4) {
-					flat.visitMethod(parts[0], parts[1], parts[3], parts[2]);
+					flat.visitMethod(parts[0], parts[1], parts[2], parts[3]);
 				}
 			}
 		}
