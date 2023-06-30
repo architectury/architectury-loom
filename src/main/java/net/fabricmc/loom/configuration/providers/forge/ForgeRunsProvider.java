@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,17 +39,20 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Project;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ModSettings;
+import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.gradle.SourceSetReference;
 
-public class ForgeRunsProvider implements ConfigValue.Resolver {
+public class ForgeRunsProvider {
 	private final Project project;
 	private final LoomGradleExtension extension;
 	private final JsonObject json;
@@ -79,8 +82,11 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 		return new ForgeRunsProvider(project, json);
 	}
 
-	@Override
-	public String resolve(ConfigValue.Variable variable) {
+	public ConfigValue.Resolver getResolver(@Nullable RunConfigSettings runConfig) {
+		return variable -> resolve(runConfig, variable);
+	}
+
+	private String resolve(@Nullable RunConfigSettings runConfig, ConfigValue.Variable variable) {
 		String key = variable.name();
 		String string = '{' + key + '}';
 
@@ -128,8 +134,13 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 		} else if (key.equals("source_roots")) {
 			// Use a set-valued multimap for deduplicating paths.
 			Multimap<String, String> modClasses = MultimapBuilder.hashKeys().linkedHashSetValues().build();
+			NamedDomainObjectContainer<ModSettings> mods = extension.getMods();
 
-			for (ModSettings mod : extension.getMods()) {
+			if (runConfig != null && !runConfig.getMods().isEmpty()) {
+				mods = runConfig.getMods();
+			}
+
+			for (ModSettings mod : mods) {
 				// Note: In Forge 1.16.5, resources have to come first to find mods.toml
 				for (SourceSetReference modSourceSet : mod.getModSourceSets().get()) {
 					File resourcesDir = modSourceSet.sourceSet().getOutput().getResourcesDir();

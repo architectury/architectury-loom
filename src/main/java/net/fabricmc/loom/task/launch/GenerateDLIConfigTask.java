@@ -142,14 +142,15 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 			}
 
 			ForgeRunsProvider forgeRunsProvider = getExtension().getForgeRunsProvider();
+			ConfigValue.Resolver configResolver = forgeRunsProvider.getResolver(null);
 
 			for (ForgeRunTemplate template : forgeRunsProvider.getTemplates()) {
 				for (ConfigValue argument : template.args()) {
-					launchConfig.argument(template.name(), argument.resolve(forgeRunsProvider));
+					launchConfig.argument(template.name(), argument.resolve(configResolver));
 				}
 
 				for (Map.Entry<String, ConfigValue> property : template.props().entrySet()) {
-					launchConfig.property(template.name(), property.getKey(), property.getValue().resolve(forgeRunsProvider));
+					launchConfig.property(template.name(), property.getKey(), property.getValue().resolve(configResolver));
 				}
 			}
 		}
