@@ -100,7 +100,7 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 				def clientClasses = client.environmentVariables.get('MOD_CLASSES')
 				if (!clientClasses.contains('main%%')) {
 					throw new AssertionError("MOD_CLASSES=clientClasses missing main classes")
-				} else if (clientClasses.contains('testMod%%')) {				    
+				} else if (clientClasses.contains('testMod%%')) {
 					throw new AssertionError("MOD_CLASSES=$clientClasses containing test mod classes")
 				}
 
