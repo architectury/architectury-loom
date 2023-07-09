@@ -37,7 +37,7 @@ public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider 
 
 	public MergedForgeMinecraftProvider(ConfigContext configContext) {
 		super(configContext);
-		this.patchedProvider = new MinecraftPatchedProvider(configContext.project(), this, MinecraftPatchedProvider.Type.MERGED);
+		this.patchedProvider = MinecraftPatchedProvider.create(configContext.project(), this, MinecraftPatchedProvider.Type.MERGED);
 	}
 
 	@Override

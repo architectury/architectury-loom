@@ -36,7 +36,7 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 
 	private SingleJarForgeMinecraftProvider(ConfigContext configContext, SingleJarMinecraftProvider.Environment environment) {
 		super(configContext, environment);
-		this.patchedProvider = new MinecraftPatchedProvider(configContext.project(), this, provideServer() ? MinecraftPatchedProvider.Type.SERVER_ONLY : MinecraftPatchedProvider.Type.CLIENT_ONLY);
+		this.patchedProvider = MinecraftPatchedProvider.create(configContext.project(), this, provideServer() ? MinecraftPatchedProvider.Type.SERVER_ONLY : MinecraftPatchedProvider.Type.CLIENT_ONLY);
 	}
 
 	public static SingleJarForgeMinecraftProvider server(ConfigContext configContext) {
