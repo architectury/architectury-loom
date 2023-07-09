@@ -422,8 +422,16 @@ public class MinecraftPatchedProvider {
 
 	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
 		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
-		Path mcInput = minecraftPatchedSrgAtJar;
-		Path mcOutput = minecraftPatchedJar;
+		Path mcInput, mcOutput;
+
+		if (this instanceof LegacyPatchedProvider provider) {
+			mcInput = provider.minecraftMergedPatchedAtJar;
+			mcOutput = provider.minecraftMergedPatchedJar;
+		} else {
+			mcInput = minecraftPatchedSrgAtJar;
+			mcOutput = minecraftPatchedJar;
+		}
+
 		Path forgeJar = getForgeJar().toPath();
 		Path forgeUserdevJar = getForgeUserdevJar().toPath();
 		Files.deleteIfExists(mcOutput);
