@@ -155,7 +155,7 @@ public class MinecraftPatchedProvider {
 		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
 	}
 
-	private void cleanAllCache() throws IOException {
+	protected void cleanAllCache() throws IOException {
 		for (Path path : getGlobalCaches()) {
 			Files.deleteIfExists(path);
 		}
@@ -346,7 +346,7 @@ public class MinecraftPatchedProvider {
 		return getExtension().getForgeUserdevProvider().getUserdevJar();
 	}
 
-	private boolean isPatchedJarUpToDate(Path jar) throws IOException {
+	protected boolean isPatchedJarUpToDate(Path jar) throws IOException {
 		if (Files.notExists(jar)) return false;
 
 		byte[] manifestBytes = ZipUtils.unpackNullable(jar, "META-INF/MANIFEST.MF");

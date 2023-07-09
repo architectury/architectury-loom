@@ -262,4 +262,12 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		Path target = minecraftMergedPatchedAtJar;
 		accessTransform(project, input, target);
 	}
+
+	@Override
+	protected void checkCache() throws IOException {
+		if (getExtension().refreshDeps() || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
+			|| !isPatchedJarUpToDate(minecraftMergedPatchedJar)) {
+			cleanAllCache();
+		}
+	}
 }
