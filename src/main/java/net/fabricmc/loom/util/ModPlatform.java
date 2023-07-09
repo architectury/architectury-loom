@@ -24,6 +24,8 @@
 
 package net.fabricmc.loom.util;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
@@ -38,6 +40,8 @@ public enum ModPlatform {
 	FORGE(false),
 	QUILT(true);
 
+	public static final ModPlatform[] FORGE_PLATFORMS = new ModPlatform[]{FORGE};
+
 	boolean experimental;
 
 	ModPlatform(boolean experimental) {
@@ -48,21 +52,48 @@ public enum ModPlatform {
 		return experimental;
 	}
 
-	public static void assertPlatform(Project project, ModPlatform platform) {
-		assertPlatform(LoomGradleExtension.get(project), platform);
+	public static void assertPlatform(Project project, ModPlatform... platforms) {
+		assertPlatform(LoomGradleExtension.get(project), platforms);
 	}
 
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform) {
-		assertPlatform(extension, platform, () -> {
-			String msg = "Loom is not running on %s.%nYou can switch to it by adding 'loom.platform = %s' to your gradle.properties";
-			String name = platform.name().toLowerCase(Locale.ROOT);
-			return msg.formatted(name, name);
-		});
+	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform... platforms) {
+		assertPlatform(extension, () -> {
+			String msg = "Loom is not running on any of %s.%nYou can switch to it by any of the following: Add any of %s to your gradle.properties";
+			List<String> names = Arrays.stream(platforms).map(Enum::name).toList();
+			StringBuilder platformList = new StringBuilder();
+			platformList.append("[");
+			StringBuilder loomPlatform = new StringBuilder();
+			for (String name : names) {
+				String lowercaseName = name.toLowerCase(Locale.ROOT);
+				platformList.append(lowercaseName).append(", ");
+				loomPlatform.append("['loom.platform = ").append(lowercaseName).append("'], ");
+			}
+			platformList.setLength(platformList.length()-2);
+			platformList.append("]");
+			loomPlatform.setLength(loomPlatform.length()-2);
+			return msg.formatted(platformList, loomPlatform);
+		}, platforms);
 	}
 
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform, Supplier<String> message) {
-		if (extension.getPlatform().get() != platform) {
+	/**
+	 * @deprecated will remove in future commit
+	 */
+	@Deprecated
+	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform[] platforms, Supplier<String> message) {
+		if (Arrays.asList(platforms).contains(extension.getPlatform().get())) {
 			throw new GradleException(message.get());
 		}
+	}
+
+	/**
+	 * @deprecated will remove in future commit
+	 */
+	@Deprecated
+	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform, Supplier<String> message) {
+		assertPlatform(extension, message, platform);
+	}
+
+	public static void assertPlatform(LoomGradleExtensionAPI extension, Supplier<String> message, ModPlatform... platforms) {
+		assertPlatform(extension, platforms, message);
 	}
 }
