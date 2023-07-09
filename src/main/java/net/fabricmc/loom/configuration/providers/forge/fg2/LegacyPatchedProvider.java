@@ -1,37 +1,5 @@
 package net.fabricmc.loom.configuration.providers.forge.fg2;
 
-import com.google.common.base.Stopwatch;
-import dev.architectury.loom.util.TempFiles;
-
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.forge.ForgeProvider;
-import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
-import net.fabricmc.loom.configuration.providers.forge.PatchProvider;
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
-import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
-import net.fabricmc.loom.configuration.providers.mappings.utils.AccessTransformSetMapper;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarMerger;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
-
-import net.fabricmc.loom.util.FileSystemUtil;
-
-import net.fabricmc.loom.util.Pair;
-import net.fabricmc.loom.util.TinyRemapperHelper;
-
-import net.fabricmc.loom.util.ZipUtils;
-
-import net.fabricmc.loom.util.legacyforge.CoreModManagerTransformer;
-import net.fabricmc.lorenztiny.TinyMappingsReader;
-import net.fabricmc.mappingio.MappingReader;
-import net.fabricmc.mappingio.tree.MemoryMappingTree;
-
-import org.cadixdev.at.AccessTransformSet;
-import org.cadixdev.at.io.AccessTransformFormats;
-import org.cadixdev.lorenz.MappingSet;
-import org.gradle.api.Project;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,6 +14,32 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+
+import com.google.common.base.Stopwatch;
+import dev.architectury.loom.util.TempFiles;
+import org.cadixdev.at.AccessTransformSet;
+import org.cadixdev.at.io.AccessTransformFormats;
+import org.cadixdev.lorenz.MappingSet;
+import org.gradle.api.Project;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+
+import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.configuration.providers.forge.ForgeProvider;
+import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
+import net.fabricmc.loom.configuration.providers.forge.PatchProvider;
+import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.configuration.providers.mappings.utils.AccessTransformSetMapper;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarMerger;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.Pair;
+import net.fabricmc.loom.util.TinyRemapperHelper;
+import net.fabricmc.loom.util.ZipUtils;
+import net.fabricmc.loom.util.legacyforge.CoreModManagerTransformer;
+import net.fabricmc.lorenztiny.TinyMappingsReader;
+import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	private MappingConfiguration mappingConfiguration;
@@ -65,6 +59,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	public void setMappingConfiguration(MappingConfiguration configuration) {
 		mappingConfiguration = configuration;
 	}
+
 	protected void initPatchedFiles() {
 		String forgeVersion = getExtension().getForgeProvider().getVersion().getCombined();
 		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
@@ -179,7 +174,6 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		if (getExtension().isForgeAndNotOfficial()) {
 			fixParameterAnnotation(minecraftMergedPatchedJar);
 		}
-
 
 		project.getLogger().info(":patched jars in " + stopwatch.stop());
 	}

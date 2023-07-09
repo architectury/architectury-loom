@@ -78,7 +78,8 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 	}
 
 	private void configureRuns(JsonObject runs) {
-		for (Map.Entry<String, JsonElement> entry : runs.entrySet()) {			ForgeRunTemplate template = ForgeRunTemplate.fromJson(entry.getValue().getAsJsonObject());
+		for (Map.Entry<String, JsonElement> entry : runs.entrySet()) {
+			ForgeRunTemplate template = ForgeRunTemplate.fromJson(entry.getValue().getAsJsonObject());
 			templates.add(template);
 		}
 	}

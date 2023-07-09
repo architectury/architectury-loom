@@ -35,8 +35,6 @@ import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
-import net.fabricmc.loom.configuration.providers.forge.fg2.LegacyPatchedProvider;
-
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
@@ -64,6 +62,7 @@ import net.fabricmc.loom.configuration.providers.forge.ForgeProvider;
 import net.fabricmc.loom.configuration.providers.forge.ForgeRunsProvider;
 import net.fabricmc.loom.configuration.providers.forge.ForgeUniversalProvider;
 import net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider;
+import net.fabricmc.loom.configuration.providers.forge.fg2.LegacyPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.PatchProvider;
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigProvider;
@@ -207,9 +206,11 @@ public abstract class CompileConfiguration implements Runnable {
 
 		if (extension.isForge()) {
 			ForgeLibrariesProvider.provide(mappingConfiguration, project);
+
 			if (extension.isLegacyForge()) {
-				((LegacyPatchedProvider)((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider()).setMappingConfiguration(mappingConfiguration);
+				((LegacyPatchedProvider) ((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider()).setMappingConfiguration(mappingConfiguration);
 			}
+
 			((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider().provide();
 		}
 

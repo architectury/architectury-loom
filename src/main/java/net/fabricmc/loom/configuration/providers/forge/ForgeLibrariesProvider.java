@@ -66,6 +66,7 @@ public class ForgeLibrariesProvider {
 			if (extension.isLegacyForge()) {
 				lib = lib.getAsJsonObject().get("name");
 			}
+
 			String dep = null;
 
 			if (lib.getAsString().startsWith("org.spongepowered:mixin:")) {
