@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import dev.architectury.loom.util.TempFiles;
 import org.apache.commons.io.output.NullOutputStream;
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.mercury.Mercury;
@@ -115,6 +116,17 @@ public class ForgeSourcesRemapper {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		if (extension.isLegacyForge()) {
+			// Step 1: Extract the sources.zip file fron the forge userdev jar.
+			TempFiles tempFiles = new TempFiles();
+			Path sourcesZip = tempFiles.file("sources", ".zip");
+//			Path sourcesUnpacked = tempFiles.directory("sources");
+			Files.write(sourcesZip, ZipUtils.unpack(extension.getForgeUserdevProvider().getUserdevJar().toPath(), "sources.zip"));
+//			ZipUtils.unpackAll(sourcesZip, sourcesUnpacked);
+			project.getLogger().lifecycle(":found the forge legacy source zip");
+			Map<String, byte[]> forgeSources = extractSources(List.of(sourcesZip));
+			project.getLogger().lifecycle(":extracted {} forge source classes", forgeSources.size());
+			remapSources(project, serviceManager, forgeSources);
+			forgeSources.forEach(consumer);
 			return; /*
 			TODO: Sources on legacy forge:
 			forge-userdev.jar/patches.zip contains source patches for minecraft
