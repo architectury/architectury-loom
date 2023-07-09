@@ -127,8 +127,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		this.modProvidedJavadoc = project.getObjects().property(Boolean.class)
 				.convention(project.provider(() -> !isForge()));
 		this.modProvidedJavadoc.finalizeValueOnRead();
-		this.intermediary = project.getObjects().property(String.class)
-				.convention(isLegacyForge() ? "https://maven.legacyfabric.net/net/legacyfabric/v2/intermediary/%1$s/intermediary-%1$s-v2.jar" : "https://maven.fabricmc.net/net/fabricmc/intermediary/%1$s/intermediary-%1$s-v2.jar"); // TODO: Fix issues with not using intermediary on forge. (and maybe generating a fake intermediary? A fake intermediary needs to be created after the client and server jars are merged.)
 
 		this.intermediateMappingsProvider = project.getObjects().property(IntermediateMappingsProvider.class);
 		this.intermediateMappingsProvider.finalizeValueOnRead();
@@ -190,6 +188,8 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 
 			return ModPlatform.FABRIC;
 		})::get);
+		this.intermediary = project.getObjects().property(String.class)
+				.convention(isLegacyForge() ? "https://maven.legacyfabric.net/net/legacyfabric/v2/intermediary/%1$s/intermediary-%1$s-v2.jar" : "https://maven.fabricmc.net/net/fabricmc/intermediary/%1$s/intermediary-%1$s-v2.jar"); // TODO: Fix issues with not using intermediary on forge. (and maybe generating a fake intermediary? A fake intermediary needs to be created after the client and server jars are merged.)
 	}
 
 	@Override
