@@ -26,6 +26,8 @@ package net.fabricmc.loom.api;
 
 import java.util.List;
 
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
+
 import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
@@ -111,6 +113,8 @@ public interface ForgeExtensionAPI {
 	 * @return the property
 	 */
 	Property<Boolean> getUseForgeLoggerConfig();
+
+	Property<Pack200Provider> getPack200Provider();
 
 	/**
 	 * A list of mod IDs for mods applied for data generation.
