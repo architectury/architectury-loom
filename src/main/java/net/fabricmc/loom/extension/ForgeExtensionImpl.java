@@ -31,14 +31,13 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
-
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;

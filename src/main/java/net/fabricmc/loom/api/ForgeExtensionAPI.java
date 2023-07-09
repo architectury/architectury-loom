@@ -26,13 +26,13 @@ package net.fabricmc.loom.api;
 
 import java.util.List;
 
-import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
-
 import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.jetbrains.annotations.ApiStatus;
+
+import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
 
 /**
  * This is the forge extension api available exposed to build scripts.

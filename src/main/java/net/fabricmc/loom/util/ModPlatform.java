@@ -64,11 +64,13 @@ public enum ModPlatform {
 			StringBuilder platformList = new StringBuilder();
 			platformList.append("[");
 			StringBuilder loomPlatform = new StringBuilder();
+
 			for (String name : names) {
 				String lowercaseName = name.toLowerCase(Locale.ROOT);
 				platformList.append(lowercaseName).append(", ");
 				loomPlatform.append("['loom.platform = ").append(lowercaseName).append("'], ");
 			}
+
 			platformList.setLength(platformList.length()-2);
 			platformList.append("]");
 			loomPlatform.setLength(loomPlatform.length()-2);
