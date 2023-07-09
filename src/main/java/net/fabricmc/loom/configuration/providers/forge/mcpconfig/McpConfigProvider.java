@@ -54,6 +54,7 @@ public class McpConfigProvider extends DependencyProvider {
 		if (getExtension().isLegacyForge()) {
 			return;
 		}
+
 		init(dependency.getDependency().getVersion());
 
 		Path mcpZip = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve MCPConfig")).toPath();
