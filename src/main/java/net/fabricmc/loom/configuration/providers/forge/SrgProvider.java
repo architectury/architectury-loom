@@ -91,9 +91,9 @@ public class SrgProvider extends DependencyProvider {
 				try (Reader reader = Files.newBufferedReader(tempFile); Writer writer = Files.newBufferedWriter(srg)) {
 					new TSrgWriter(writer).write(new SrgReader(reader).read());
 				}
+			} else {
+				Files.write(srg, ZipUtils.unpack(srgZip, "config/joined.tsrg"));
 			}
-
-			Files.write(srg, ZipUtils.unpack(srgZip, "config/joined.tsrg"));
 		}
 
 		try (BufferedReader reader = Files.newBufferedReader(srg)) {
