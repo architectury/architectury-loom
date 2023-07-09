@@ -68,7 +68,9 @@ public class PatchProvider extends DependencyProvider {
 		if (Files.notExists(clientPatches) || Files.notExists(serverPatches) || refreshDeps()) {
 			getProject().getLogger().info(":extracting forge patches");
 
-			Path installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath();
+			Path installerJar = getExtension().isModernForge()
+					? dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath()
+					: getExtension().getForgeUniversalProvider().getForge().toPath();
 
 			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(installerJar, false)) {
 				if (getExtension().isModernForge()) {
