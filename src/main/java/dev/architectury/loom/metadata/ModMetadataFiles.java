@@ -26,6 +26,7 @@ public final class ModMetadataFiles {
 			.put(QuiltModJson.FILE_NAME, QuiltModJson::of)
 			.put(ArchitecturyCommonJson.FILE_NAME, ArchitecturyCommonJson::of)
 			.put(ModsToml.FILE_PATH, onError(ModsToml::of, "Could not load mods.toml", () -> new ErroringModMetadataFile("mods.toml")))
+			.put(McModInfo.FILE_PATH, McModInfo::of)
 			.build();
 
 	private static <A, B> Function<A, B> onError(Function<A, B> fn, String message, Supplier<B> onError) {
