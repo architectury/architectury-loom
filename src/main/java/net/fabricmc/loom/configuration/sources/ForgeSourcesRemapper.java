@@ -121,7 +121,7 @@ public class ForgeSourcesRemapper {
 			forge-userdev.jar/sources.zip contains sources for forge
 			*/
 		}
-		
+
 		String sourceDependency = extension.getForgeUserdevProvider().getJson().getAsJsonPrimitive("sources").getAsString();
 		List<Path> forgeInstallerSources = new ArrayList<>();
 
