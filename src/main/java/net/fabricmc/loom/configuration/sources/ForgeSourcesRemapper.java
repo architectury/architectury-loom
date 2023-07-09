@@ -113,6 +113,15 @@ public class ForgeSourcesRemapper {
 
 	public static void provideForgeSources(Project project, SharedServiceManager serviceManager, BiConsumer<String, byte[]> consumer) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (extension.isLegacyForge()) {
+			return; /*
+			TODO: Sources on legacy forge:
+			forge-userdev.jar/patches.zip contains source patches for minecraft
+			forge-userdev.jar/sources.zip contains sources for forge
+			*/
+		}
+		
 		String sourceDependency = extension.getForgeUserdevProvider().getJson().getAsJsonPrimitive("sources").getAsString();
 		List<Path> forgeInstallerSources = new ArrayList<>();
 
