@@ -366,9 +366,9 @@ public abstract class CompileConfiguration implements Runnable {
 		}
 
 		if (extension.isForge()) {
+			dependencyProviders.addProvider(new ForgeUniversalProvider(project));
 			dependencyProviders.addProvider(new McpConfigProvider(project));
 			dependencyProviders.addProvider(new PatchProvider(project));
-			dependencyProviders.addProvider(new ForgeUniversalProvider(project));
 		}
 
 		dependencyProviders.handleDependencies(project);
