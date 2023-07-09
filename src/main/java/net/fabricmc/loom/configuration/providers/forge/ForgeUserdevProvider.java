@@ -25,7 +25,6 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -63,11 +62,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 			File resolved = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge userdev"));
 			Files.copy(resolved.toPath(), userdevJar.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-			try {
-				Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "config.json"));
-			} catch (IOException e) { // Legacy forge uses dev.json
-				Files.write(configJson, ZipUtils.unpack(resolved.toPath(), "dev.json"));
-			}
+			Files.write(configJson, ZipUtils.unpack(resolved.toPath(), getExtension().isLegacyForge() ? "dev.json" : "config.json"));
 		}
 
 		try (Reader reader = Files.newBufferedReader(configJson)) {
