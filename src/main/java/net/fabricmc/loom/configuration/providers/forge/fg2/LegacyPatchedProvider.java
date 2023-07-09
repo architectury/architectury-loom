@@ -55,9 +55,9 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	private Path minecraftClientPatchedJar;
 	private Path minecraftServerPatchedJar;
 	// Step 3: Merged patched jars
-	private Path minecraftMergedPatchedJar;
+	public Path minecraftMergedPatchedJar;
 	// Step 4: Access Transform
-	private Path minecraftMergedPatchedAtJar;
+	public Path minecraftMergedPatchedAtJar;
 	public LegacyPatchedProvider(Project project, MinecraftProvider minecraftProvider, Type type) {
 		super(project, minecraftProvider, type);
 	}
@@ -226,16 +226,22 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 
 	@Override
 	public Path getMinecraftSrgJar() {
-		throw new IllegalStateException();
+		return minecraftMergedJar;
 	}
 
 	@Override
 	public Path getMinecraftPatchedSrgJar() {
-		throw new IllegalStateException();
+		return minecraftMergedPatchedJar; // legacy forge is too good for SRG
 	}
 
 	@Override
 	public Path getMinecraftPatchedJar() {
-		throw new IllegalStateException();
+		return minecraftMergedPatchedJar;
+	}
+
+	protected void accessTransformForge() throws IOException {
+		Path input = minecraftMergedPatchedJar;
+		Path target = minecraftMergedPatchedAtJar;
+		accessTransform(project, input, target);
 	}
 }
