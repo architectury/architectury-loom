@@ -41,7 +41,7 @@ public enum ModPlatform {
 	LEGACY_FORGE(true),
 	QUILT(true);
 
-	public static final ModPlatform[] FORGE_PLATFORMS = new ModPlatform[]{FORGE, LEGACY_FORGE};
+	public static final ModPlatform[] FORGES = new ModPlatform[]{FORGE, LEGACY_FORGE};
 
 	boolean experimental;
 

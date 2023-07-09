@@ -370,7 +370,7 @@ public final class RunConfigSettings implements Named {
 	 * @since 1.0
 	 */
 	public void forgeTemplate(String templateName) {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE);
+		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGES);
 		defaultMainClass(Constants.Forge.UNDETERMINED_MAIN_CLASS);
 		// Evaluate later if Forge hasn't been resolved yet.
 		evaluateNowOrLater(() -> {
