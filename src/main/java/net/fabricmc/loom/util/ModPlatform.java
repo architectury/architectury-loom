@@ -38,9 +38,10 @@ import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 public enum ModPlatform {
 	FABRIC(false),
 	FORGE(false),
+	LEGACY_FORGE(true),
 	QUILT(true);
 
-	public static final ModPlatform[] FORGE_PLATFORMS = new ModPlatform[]{FORGE};
+	public static final ModPlatform[] FORGE_PLATFORMS = new ModPlatform[]{FORGE, LEGACY_FORGE};
 
 	boolean experimental;
 
