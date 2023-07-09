@@ -83,7 +83,7 @@ public enum ModPlatform {
 	 */
 	@Deprecated
 	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform[] platforms, Supplier<String> message) {
-		if (Arrays.asList(platforms).contains(extension.getPlatform().get())) {
+		if (!Arrays.asList(platforms).contains(extension.getPlatform().get())) {
 			throw new GradleException(message.get());
 		}
 	}
