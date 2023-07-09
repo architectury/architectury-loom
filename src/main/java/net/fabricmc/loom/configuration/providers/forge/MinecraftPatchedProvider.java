@@ -57,6 +57,9 @@ import dev.architectury.tinyremapper.InputTag;
 import dev.architectury.tinyremapper.NonClassCopyMode;
 import dev.architectury.tinyremapper.OutputConsumerPath;
 import dev.architectury.tinyremapper.TinyRemapper;
+
+import net.fabricmc.loom.configuration.providers.forge.fg2.LegacyPatchedProvider;
+
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
@@ -94,10 +97,10 @@ public class MinecraftPatchedProvider {
 	private static final String CURRENT_LOOM_PATCH_VERSION = "8";
 	private static final String NAME_MAPPING_SERVICE_PATH = "/inject/META-INF/services/cpw.mods.modlauncher.api.INameMappingService";
 
-	private final Project project;
+	protected final Project project;
 	private final Logger logger;
-	private final MinecraftProvider minecraftProvider;
-	private final Type type;
+	protected final MinecraftProvider minecraftProvider;
+	protected final Type type;
 
 	// Step 1: Remap Minecraft to SRG, merge if needed
 	private Path minecraftSrgJar;
@@ -107,9 +110,9 @@ public class MinecraftPatchedProvider {
 	private Path minecraftPatchedSrgAtJar;
 	// Step 4: Remap Patched AT & Forge to official
 	private Path minecraftPatchedJar;
-	private Path minecraftClientExtra;
+	protected Path minecraftClientExtra;
 
-	private boolean dirty = false;
+	protected boolean dirty = false;
 
 	public static MinecraftPatchedProvider get(Project project) {
 		MinecraftProvider provider = LoomGradleExtension.get(project).getMinecraftProvider();
@@ -121,18 +124,26 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	public MinecraftPatchedProvider(Project project, MinecraftProvider minecraftProvider, Type type) {
+	protected MinecraftPatchedProvider(Project project, MinecraftProvider minecraftProvider, Type type) {
 		this.project = project;
 		this.logger = project.getLogger();
 		this.minecraftProvider = minecraftProvider;
 		this.type = type;
 	}
 
-	private LoomGradleExtension getExtension() {
+	public static MinecraftPatchedProvider create(Project project, MinecraftProvider minecraftProvider, Type type) {
+		if (LoomGradleExtension.get(project).isLegacyForge()) {
+			return new LegacyPatchedProvider(project, minecraftProvider, type);
+		} else {
+			return new MinecraftPatchedProvider(project, minecraftProvider, type);
+		}
+	}
+
+	protected LoomGradleExtension getExtension() {
 		return LoomGradleExtension.get(project);
 	}
 
-	private void initPatchedFiles() {
+	protected void initPatchedFiles() {
 		String forgeVersion = getExtension().getForgeProvider().getVersion().getCombined();
 		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
 		String patchId = "forge-" + forgeVersion + "-";
@@ -152,7 +163,7 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	private Path[] getGlobalCaches() {
+	protected Path[] getGlobalCaches() {
 		Path[] files = {
 				minecraftSrgJar,
 				minecraftPatchedSrgJar,
@@ -164,7 +175,7 @@ public class MinecraftPatchedProvider {
 		return files;
 	}
 
-	private void checkCache() throws IOException {
+	protected void checkCache() throws IOException {
 		if (getExtension().refreshDeps() || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
 				|| !isPatchedJarUpToDate(minecraftPatchedJar)) {
 			cleanAllCache();
@@ -241,7 +252,7 @@ public class MinecraftPatchedProvider {
 		return remapper;
 	}
 
-	private void fixParameterAnnotation(Path jarFile) throws Exception {
+	protected void fixParameterAnnotation(Path jarFile) throws Exception {
 		logger.info(":fixing parameter annotations for " + jarFile.toAbsolutePath());
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
@@ -275,7 +286,7 @@ public class MinecraftPatchedProvider {
 		logger.info(":fixed parameter annotations for " + jarFile.toAbsolutePath() + " in " + stopwatch);
 	}
 
-	private void deleteParameterNames(Path jarFile) throws Exception {
+	protected void deleteParameterNames(Path jarFile) throws Exception {
 		logger.info(":deleting parameter names for " + jarFile.toAbsolutePath());
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
@@ -329,7 +340,7 @@ public class MinecraftPatchedProvider {
 		logger.info(":deleted parameter names for " + jarFile.toAbsolutePath() + " in " + stopwatch);
 	}
 
-	private File getForgeJar() {
+	protected File getForgeJar() {
 		return getExtension().getForgeUniversalProvider().getForge();
 	}
 
@@ -358,12 +369,13 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	private void accessTransformForge() throws IOException {
+	protected void accessTransformForge() throws IOException {
 		Path input = minecraftPatchedSrgJar;
 		Path target = minecraftPatchedSrgAtJar;
 		accessTransform(project, input, target);
 	}
 
+	// this method is static, so legacy forge is also accounted for here.
 	public static void accessTransform(Project project, Path input, Path target) throws IOException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 
@@ -383,7 +395,17 @@ public class MinecraftPatchedProvider {
 		try (var tempFiles = new TempFiles()) {
 			AccessTransformerJarProcessor.executeAt(project, input, target, args -> {
 				for (Path jar : atSources) {
-					byte[] atBytes = ZipUtils.unpackNullable(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH);
+					byte[] atBytes;
+
+					if (extension.isModernForge()) {
+						atBytes = ZipUtils.unpackNullable(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH);;
+					} else {
+						atBytes = ZipUtils.unpackNullable(jar, "forge_at.cfg");
+
+						if (atBytes != null) {
+							atBytes = LegacyPatchedProvider.remapAt(extension, atBytes);
+						}
+					}
 
 					if (atBytes != null) {
 						Path tmpFile = tempFiles.file("at-conf", ".cfg");
@@ -425,10 +447,15 @@ public class MinecraftPatchedProvider {
 		}
 
 		copyUserdevFiles(forgeUserdevJar, mcOutput);
+
+		if (this instanceof LegacyPatchedProvider provider) {
+			provider.patchForge(mcOutput.toFile()); // this is easier than copying the entire method over.
+		}
+
 		applyLoomPatchVersion(mcOutput);
 	}
 
-	private void patchJars() throws Exception {
+	protected void patchJars() throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		logger.lifecycle(":patching jars");
 		patchJars(minecraftSrgJar, minecraftPatchedSrgJar, type.patches.apply(getExtension().getPatchProvider(), getExtension().getForgeUserdevProvider()));
@@ -443,7 +470,7 @@ public class MinecraftPatchedProvider {
 		logger.lifecycle(":patched jars in " + stopwatch.stop());
 	}
 
-	private void patchJars(Path clean, Path output, Path patches) {
+	protected void patchJars(Path clean, Path output, Path patches) {
 		ForgeToolExecutor.exec(project, spec -> {
 			ForgeUserdevProvider.BinaryPatcherConfig config = getExtension().getForgeUserdevProvider().binaryPatcherConfig;
 			spec.classpath(DependencyDownloader.download(project, config.dependency()));
@@ -486,11 +513,11 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	private void walkFileSystems(Path source, Path target, Predicate<Path> filter, FsPathConsumer action) throws IOException {
+	protected void walkFileSystems(Path source, Path target, Predicate<Path> filter, FsPathConsumer action) throws IOException {
 		walkFileSystems(source, target, filter, FileSystem::getRootDirectories, action);
 	}
 
-	private void copyMissingClasses(Path source, Path target) throws IOException {
+	protected void copyMissingClasses(Path source, Path target) throws IOException {
 		walkFileSystems(source, target, it -> it.toString().endsWith(".class"), (sourceFs, targetFs, sourcePath, targetPath) -> {
 			if (Files.exists(targetPath)) return;
 			Path parent = targetPath.getParent();
@@ -512,7 +539,7 @@ public class MinecraftPatchedProvider {
 		walkFileSystems(source, target, filter, this::copyReplacing);
 	}
 
-	private void copyReplacing(FileSystem sourceFs, FileSystem targetFs, Path sourcePath, Path targetPath) throws IOException {
+	protected void copyReplacing(FileSystem sourceFs, FileSystem targetFs, Path sourcePath, Path targetPath) throws IOException {
 		Path parent = targetPath.getParent();
 
 		if (parent != null) {
@@ -582,8 +609,8 @@ public class MinecraftPatchedProvider {
 		SERVER_ONLY("server", "server", (patch, userdev) -> patch.serverPatches),
 		MERGED("merged", "joined", (patch, userdev) -> userdev.joinedPatches);
 
-		private final String id;
-		private final String mcpId;
+		public final String id;
+		public final String mcpId;
 		private final BiFunction<PatchProvider, ForgeUserdevProvider, Path> patches;
 
 		Type(String id, String mcpId, BiFunction<PatchProvider, ForgeUserdevProvider, Path> patches) {
