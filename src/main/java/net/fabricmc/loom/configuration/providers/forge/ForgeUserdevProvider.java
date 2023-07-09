@@ -102,7 +102,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 							"--output",
 							"{output},
 							"--apply",
-							{patch}"
+							"{patch}"
 						]
 					}""", JsonObject.class));
 			if (Files.notExists(joinedPatches)) {
