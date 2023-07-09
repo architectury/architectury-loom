@@ -74,7 +74,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 					.property("client", "org.lwjgl.librarypath", nativesPath);
 		}
 
-		if (!getExtension().isForge()) {
+		if (!getExtension().isModernForge()) {
 			launchConfig
 					.argument("client", "--assetIndex")
 					.argument("client", getExtension().getMinecraftProvider().getVersionInfo().assetIndex().fabricId(getExtension().getMinecraftProvider().minecraftVersion()))
@@ -97,7 +97,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 					.argument("client", "Architectury Loom");
 		}
 
-		if (getExtension().isForge()) {
+		if (getExtension().isModernForge()) {
 			// Find the mapping files for Unprotect to use for figuring out
 			// which classes are from Minecraft.
 			String unprotectMappings = getProject().getConfigurations()
@@ -151,6 +151,24 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 				for (Map.Entry<String, ConfigValue> property : template.props().entrySet()) {
 					launchConfig.property(template.name(), property.getKey(), property.getValue().resolve(forgeRunsProvider));
 				}
+			}
+		}
+
+		if (getExtension().isLegacyForge()) {
+			launchConfig
+					.argument("client", "--tweakClass")
+					.argument("client", Constants.LegacyForge.FML_TWEAKER)
+					.argument("server", "--tweakClass")
+					.argument("server", Constants.LegacyForge.FML_SERVER_TWEAKER)
+
+					.argument("--accessToken")
+					.argument("undefined")
+
+					.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingConfiguration().srgToNamedSrg.toAbsolutePath().toString())
+					.property("mixin.env.remapRefMap", "true");
+
+			for (String config : PropertyUtil.getAndFinalize(getExtension().getForge().getMixinConfigs())) {
+				launchConfig.argument("--mixin").argument(config);
 			}
 		}
 
