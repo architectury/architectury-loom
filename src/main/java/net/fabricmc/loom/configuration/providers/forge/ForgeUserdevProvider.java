@@ -100,7 +100,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 							"--clean",
 							"{clean}",
 							"--output",
-							"{output},
+							"{output}",
 							"--apply",
 							"{patch}"
 						]
