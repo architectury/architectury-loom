@@ -233,7 +233,15 @@ public interface LoomGradleExtensionAPI {
 	Provider<ModPlatform> getPlatform();
 
 	default boolean isForge() {
+		return isModernForge() || isLegacyForge();
+	}
+
+	default boolean isModernForge() {
 		return getPlatform().get() == ModPlatform.FORGE;
+	}
+
+	default boolean isLegacyForge() {
+		return getPlatform().get() == ModPlatform.LEGACY_FORGE;
 	}
 
 	default boolean isQuilt() {
