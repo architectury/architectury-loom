@@ -230,7 +230,7 @@ public class MappingConfiguration {
 			if (Files.notExists(srgToNamedSrg) || extension.refreshDeps()) {
 				try (var serviceManager = new ScopedSharedServiceManager()) {
 					TinyMappingsService mappingsService = getMappingsService(serviceManager, true);
-					SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, mappingsService.getMappingTree(), "srg", "named");
+					SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, mappingsService.getMappingTree(), "srg", "named", extension.isLegacyForge());
 				}
 			}
 		}

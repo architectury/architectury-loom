@@ -232,7 +232,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		// No clue why FG went the hack route when it's the same project and they could have just added first-party
 		// support for loading both from the classpath right into Forge (it's even really simply to do).
 		// We'll have none of those hacks and instead patch first-party support into Forge.
-		ZipUtils.transform(getForgeJar().toPath(), Stream.of(new Pair<>(CoreModManagerTransformer.FILE, original -> {
+		ZipUtils.transform(input.toPath(), Stream.of(new Pair<>(CoreModManagerTransformer.FILE, original -> {
 			ClassReader reader = new ClassReader(original);
 			ClassWriter writer = new ClassWriter(reader, 0);
 			reader.accept(new CoreModManagerTransformer(writer), 0);
