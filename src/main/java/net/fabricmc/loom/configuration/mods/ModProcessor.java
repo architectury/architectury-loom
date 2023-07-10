@@ -45,6 +45,9 @@ import dev.architectury.tinyremapper.InputTag;
 import dev.architectury.tinyremapper.NonClassCopyMode;
 import dev.architectury.tinyremapper.OutputConsumerPath;
 import dev.architectury.tinyremapper.TinyRemapper;
+
+import net.fabricmc.loom.configuration.providers.forge.fg2.LegacyPatchedProvider;
+
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
@@ -68,6 +71,8 @@ import net.fabricmc.loom.util.service.SharedServiceManager;
 import net.fabricmc.loom.util.srg.AtRemapper;
 import net.fabricmc.loom.util.srg.CoreModClassRemapper;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+
+import org.gradle.api.logging.Logger;
 
 public class ModProcessor {
 	private static final String toM = MappingsNamespace.NAMED.toString();
@@ -257,6 +262,10 @@ public class ModProcessor {
 			stripNestedJars(output);
 			remapJarManifestEntries(output);
 
+			if (extension.isLegacyForge()) {
+				remapLegacyAts(project.getLogger(), output);
+			}
+
 			if (extension.isForge()) {
 				AtRemapper.remap(project.getLogger(), output, mappings);
 				CoreModClassRemapper.remapJar(output, mappings, project.getLogger());
@@ -264,6 +273,15 @@ public class ModProcessor {
 
 			dependency.copyToCache(project, output, null);
 		}
+	}
+
+	// the jar's ATs are remapped in place.
+	private void remapLegacyAts(Logger logger, Path output) throws IOException {
+		byte[] manifestFile = ZipUtils.unpack(output, "META-INF/MANIFEST.MF");
+		Manifest manifest = new Manifest();
+		manifest.read(new ByteArrayInputStream(manifestFile));
+		String accessTransformerFile = manifest.getMainAttributes().getValue("FMLAT");
+		ZipUtils.replace(output, "META-INF/" + accessTransformerFile, LegacyPatchedProvider.remapAt(LoomGradleExtension.get(project), ZipUtils.unpack(output, "META-INF/" + accessTransformerFile), "srg", "named"));
 	}
 
 	private static Path getRemappedOutput(ModDependency dependency) {

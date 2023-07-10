@@ -61,7 +61,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 		InstallerData installerData = null;
 
 		// Force-remap all mods on Forge.
-		if (platform == ModPlatform.FORGE) {
+		if (platform == ModPlatform.FORGE || platform == ModPlatform.LEGACY_FORGE) {
 			remapRequirements = RemapRequirements.OPT_IN;
 		}
 
