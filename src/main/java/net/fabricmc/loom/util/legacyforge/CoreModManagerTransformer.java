@@ -33,12 +33,14 @@ import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.ICONST_5;
 import static org.objectweb.asm.Opcodes.IFEQ;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
+import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.RETURN;
@@ -47,6 +49,15 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+
+import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Enumeration;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 /**
  * Transforms Forge's CoreModManager class to search the classpath for coremods.
@@ -80,27 +91,43 @@ public class CoreModManagerTransformer extends ClassVisitor {
 	@Override
 	public void visitEnd() {
 		// We add the following method, which will find all coremods on the classpath, and load them.
-		//
-		//     private static void loom$injectCoremodsFromClasspath(LaunchClassLoader classLoader) throws Exception {
-		//         Enumeration<URL> urls = classLoader.getResources("META-INF/MANIFEST.MF");
-		//         while (urls.hasMoreElements()) {
-		//             URL url = urls.nextElement();
-		//             InputStream stream = url.openStream();
-		//             Manifest manifest = new Manifest(stream);
-		//             stream.close();
-		//             String coreModClass = manifest.getMainAttributes().getValue("FMLCorePlugin");
-		//             if (coreModClass == null) continue;
-		//             File file;
-		//             if ("jar".equals(url.getProtocol())) {
-		//                 file = new File(new URL(url.getPath()).toURI());
-		//             } else if ("file".equals(url.getProtocol())) {
-		//                 file = new File(url.toURI()).getParentFile().getParentFile();
-		//             } else {
-		//                 continue;
-		//             }
-		//             loadCoreMod(classLoader, coreModClass, file);
-		//         }
-		//     }
+		// private static void loom$injectCoremodsFromClasspath(LaunchClassLoader classLoader) throws Exception {
+		// 	Enumeration<URL> urls = classLoader.getResources("META-INF/MANIFEST.MF");
+		// 	while (urls.hasMoreElements()) {
+		// 		URL url = urls.nextElement();
+		// 		InputStream stream = url.openStream();
+		// 		Manifest manifest = new Manifest(stream);
+		// 		stream.close();
+		// 		a:
+		// 		{
+		// 			String coreModClass = manifest.getMainAttributes().getValue("FMLCorePlugin");
+		// 			if (coreModClass == null) break a;
+		// 			File file;
+		// 			if ("jar".equals(url.getProtocol())) {
+		// 				file = new File(new URL(url.getPath()).toURI());
+		// 			} else if ("file".equals(url.getProtocol())) {
+		// 				file = new File(url.toURI()).getParentFile().getParentFile();
+		// 			} else {
+		// 				break a;
+		// 			}
+		// 			loadCoreMod(classLoader, coreModClass, file);
+		// 		}
+		// 		{
+		// 			String accessTransformer = manifest.getMainAttributes().getValue("FMLAT");
+		// 			if (accessTransformer == null) continue;
+		// 			File file;
+		// 			if ("jar".equals(url.getProtocol())) {
+		// 				String str = url.getPath();
+		// 				file = new File(str.substring(5, str.length()-22));
+		// 			} else if ("file".equals(url.getProtocol())) {
+		// 				file = new File(url.toURI()).getParentFile().getParentFile();
+		// 			} else {
+		// 				continue;
+		// 			}
+		// 			ModAccessTransformer.addJar(new JarFile(file), accessTransformer);
+		// 		}
+		// 	}
+		// }
 		//
 		// Converted to ASM via the "ASM Bytecode Viewer" IntelliJ plugin:
 		{
@@ -108,14 +135,14 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			methodVisitor.visitCode();
 			Label label0 = new Label();
 			methodVisitor.visitLabel(label0);
-			methodVisitor.visitLineNumber(25, label0);
+			methodVisitor.visitLineNumber(18, label0);
 			methodVisitor.visitVarInsn(ALOAD, 0);
 			methodVisitor.visitLdcInsn("META-INF/MANIFEST.MF");
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "net/minecraft/launchwrapper/LaunchClassLoader", "getResources", "(Ljava/lang/String;)Ljava/util/Enumeration;", false);
 			methodVisitor.visitVarInsn(ASTORE, 1);
 			Label label1 = new Label();
 			methodVisitor.visitLabel(label1);
-			methodVisitor.visitLineNumber(26, label1);
+			methodVisitor.visitLineNumber(19, label1);
 			methodVisitor.visitFrame(Opcodes.F_APPEND, 1, new Object[]{"java/util/Enumeration"}, 0, null);
 			methodVisitor.visitVarInsn(ALOAD, 1);
 			methodVisitor.visitMethodInsn(INVOKEINTERFACE, "java/util/Enumeration", "hasMoreElements", "()Z", true);
@@ -123,20 +150,20 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			methodVisitor.visitJumpInsn(IFEQ, label2);
 			Label label3 = new Label();
 			methodVisitor.visitLabel(label3);
-			methodVisitor.visitLineNumber(27, label3);
+			methodVisitor.visitLineNumber(20, label3);
 			methodVisitor.visitVarInsn(ALOAD, 1);
 			methodVisitor.visitMethodInsn(INVOKEINTERFACE, "java/util/Enumeration", "nextElement", "()Ljava/lang/Object;", true);
 			methodVisitor.visitTypeInsn(CHECKCAST, "java/net/URL");
 			methodVisitor.visitVarInsn(ASTORE, 2);
 			Label label4 = new Label();
 			methodVisitor.visitLabel(label4);
-			methodVisitor.visitLineNumber(28, label4);
+			methodVisitor.visitLineNumber(21, label4);
 			methodVisitor.visitVarInsn(ALOAD, 2);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "openStream", "()Ljava/io/InputStream;", false);
 			methodVisitor.visitVarInsn(ASTORE, 3);
 			Label label5 = new Label();
 			methodVisitor.visitLabel(label5);
-			methodVisitor.visitLineNumber(29, label5);
+			methodVisitor.visitLineNumber(22, label5);
 			methodVisitor.visitTypeInsn(NEW, "java/util/jar/Manifest");
 			methodVisitor.visitInsn(DUP);
 			methodVisitor.visitVarInsn(ALOAD, 3);
@@ -144,12 +171,12 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			methodVisitor.visitVarInsn(ASTORE, 4);
 			Label label6 = new Label();
 			methodVisitor.visitLabel(label6);
-			methodVisitor.visitLineNumber(30, label6);
+			methodVisitor.visitLineNumber(23, label6);
 			methodVisitor.visitVarInsn(ALOAD, 3);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/io/InputStream", "close", "()V", false);
 			Label label7 = new Label();
 			methodVisitor.visitLabel(label7);
-			methodVisitor.visitLineNumber(31, label7);
+			methodVisitor.visitLineNumber(26, label7);
 			methodVisitor.visitVarInsn(ALOAD, 4);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/util/jar/Manifest", "getMainAttributes", "()Ljava/util/jar/Attributes;", false);
 			methodVisitor.visitLdcInsn("FMLCorePlugin");
@@ -157,54 +184,49 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			methodVisitor.visitVarInsn(ASTORE, 5);
 			Label label8 = new Label();
 			methodVisitor.visitLabel(label8);
-			methodVisitor.visitLineNumber(32, label8);
+			methodVisitor.visitLineNumber(27, label8);
 			methodVisitor.visitVarInsn(ALOAD, 5);
 			Label label9 = new Label();
 			methodVisitor.visitJumpInsn(IFNONNULL, label9);
-			methodVisitor.visitJumpInsn(GOTO, label1);
+			Label label10 = new Label();
+			methodVisitor.visitJumpInsn(GOTO, label10);
 			methodVisitor.visitLabel(label9);
-			methodVisitor.visitLineNumber(34, label9);
+			methodVisitor.visitLineNumber(29, label9);
 			methodVisitor.visitFrame(Opcodes.F_FULL, 6, new Object[]{"net/minecraft/launchwrapper/LaunchClassLoader", "java/util/Enumeration", "java/net/URL", "java/io/InputStream", "java/util/jar/Manifest", "java/lang/String"}, 0, new Object[]{});
 			methodVisitor.visitLdcInsn("jar");
 			methodVisitor.visitVarInsn(ALOAD, 2);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getProtocol", "()Ljava/lang/String;", false);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
-			Label label10 = new Label();
-			methodVisitor.visitJumpInsn(IFEQ, label10);
 			Label label11 = new Label();
-			methodVisitor.visitLabel(label11);
-			methodVisitor.visitLineNumber(35, label11);
+			methodVisitor.visitJumpInsn(IFEQ, label11);
+			Label label12 = new Label();
+			methodVisitor.visitLabel(label12);
+			methodVisitor.visitLineNumber(30, label12);
 			methodVisitor.visitTypeInsn(NEW, "java/io/File");
 			methodVisitor.visitInsn(DUP);
 			methodVisitor.visitTypeInsn(NEW, "java/net/URL");
 			methodVisitor.visitInsn(DUP);
 			methodVisitor.visitVarInsn(ALOAD, 2);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getPath", "()Ljava/lang/String;", false);
-			methodVisitor.visitInsn(ICONST_0);
-			methodVisitor.visitVarInsn(ALOAD, 2);
-			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getPath", "()Ljava/lang/String;", false);
-			methodVisitor.visitIntInsn(BIPUSH, 33);
-			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "lastIndexOf", "(I)I", false);
-			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false);
 			methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/net/URL", "<init>", "(Ljava/lang/String;)V", false);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "toURI", "()Ljava/net/URI;", false);
 			methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/io/File", "<init>", "(Ljava/net/URI;)V", false);
 			methodVisitor.visitVarInsn(ASTORE, 6);
-			Label label12 = new Label();
-			methodVisitor.visitLabel(label12);
 			Label label13 = new Label();
-			methodVisitor.visitJumpInsn(GOTO, label13);
-			methodVisitor.visitLabel(label10);
-			methodVisitor.visitLineNumber(36, label10);
+			methodVisitor.visitLabel(label13);
+			Label label14 = new Label();
+			methodVisitor.visitJumpInsn(GOTO, label14);
+			methodVisitor.visitLabel(label11);
+			methodVisitor.visitLineNumber(31, label11);
 			methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
 			methodVisitor.visitLdcInsn("file");
 			methodVisitor.visitVarInsn(ALOAD, 2);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getProtocol", "()Ljava/lang/String;", false);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
-			methodVisitor.visitJumpInsn(IFEQ, label1);
-			Label label14 = new Label();
-			methodVisitor.visitLabel(label14);
-			methodVisitor.visitLineNumber(37, label14);
+			methodVisitor.visitJumpInsn(IFEQ, label10);
+			Label label15 = new Label();
+			methodVisitor.visitLabel(label15);
+			methodVisitor.visitLineNumber(32, label15);
 			methodVisitor.visitTypeInsn(NEW, "java/io/File");
 			methodVisitor.visitInsn(DUP);
 			methodVisitor.visitVarInsn(ALOAD, 2);
@@ -213,33 +235,113 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/io/File", "getParentFile", "()Ljava/io/File;", false);
 			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/io/File", "getParentFile", "()Ljava/io/File;", false);
 			methodVisitor.visitVarInsn(ASTORE, 6);
-			methodVisitor.visitLabel(label13);
-			methodVisitor.visitLineNumber(41, label13);
+			methodVisitor.visitLabel(label14);
+			methodVisitor.visitLineNumber(36, label14);
 			methodVisitor.visitFrame(Opcodes.F_APPEND, 1, new Object[]{"java/io/File"}, 0, null);
 			methodVisitor.visitVarInsn(ALOAD, 0);
 			methodVisitor.visitVarInsn(ALOAD, 5);
 			methodVisitor.visitVarInsn(ALOAD, 6);
-			methodVisitor.visitMethodInsn(INVOKESTATIC, "net/minecraftforge/fml/relauncher/CoreModManager", "loadCoreMod", "(Lnet/minecraft/launchwrapper/LaunchClassLoader;Ljava/lang/String;Ljava/io/File;)Lnet/minecraftforge/fml/relauncher/CoreModManager$FMLPluginWrapper;", false);
+			methodVisitor.visitMethodInsn(INVOKESTATIC, "com/example/examplemod/f", "loadCoreMod", "(Lnet/minecraft/launchwrapper/LaunchClassLoader;Ljava/lang/String;Ljava/io/File;)Ljava/lang/Object;", false);
 			methodVisitor.visitInsn(POP);
-			Label label15 = new Label();
-			methodVisitor.visitLabel(label15);
-			methodVisitor.visitLineNumber(42, label15);
-			methodVisitor.visitJumpInsn(GOTO, label1);
-			methodVisitor.visitLabel(label2);
-			methodVisitor.visitLineNumber(43, label2);
-			methodVisitor.visitFrame(Opcodes.F_FULL, 2, new Object[]{"net/minecraft/launchwrapper/LaunchClassLoader", "java/util/Enumeration"}, 0, new Object[]{});
-			methodVisitor.visitInsn(RETURN);
+			methodVisitor.visitLabel(label10);
+			methodVisitor.visitLineNumber(39, label10);
+			methodVisitor.visitFrame(Opcodes.F_CHOP, 2, null, 0, null);
+			methodVisitor.visitVarInsn(ALOAD, 4);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/util/jar/Manifest", "getMainAttributes", "()Ljava/util/jar/Attributes;", false);
+			methodVisitor.visitLdcInsn("FMLAT");
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/util/jar/Attributes", "getValue", "(Ljava/lang/String;)Ljava/lang/String;", false);
+			methodVisitor.visitVarInsn(ASTORE, 5);
 			Label label16 = new Label();
 			methodVisitor.visitLabel(label16);
-			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label12, label10, 6);
-			methodVisitor.visitLocalVariable("url", "Ljava/net/URL;", null, label4, label15, 2);
-			methodVisitor.visitLocalVariable("stream", "Ljava/io/InputStream;", null, label5, label15, 3);
-			methodVisitor.visitLocalVariable("manifest", "Ljava/util/jar/Manifest;", null, label6, label15, 4);
-			methodVisitor.visitLocalVariable("coreModClass", "Ljava/lang/String;", null, label8, label15, 5);
-			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label13, label15, 6);
-			methodVisitor.visitLocalVariable("classLoader", "Lnet/minecraft/launchwrapper/LaunchClassLoader;", null, label0, label16, 0);
-			methodVisitor.visitLocalVariable("urls", "Ljava/util/Enumeration;", "Ljava/util/Enumeration<Ljava/net/URL;>;", label1, label16, 1);
-			methodVisitor.visitMaxs(8, 7);
+			methodVisitor.visitLineNumber(40, label16);
+			methodVisitor.visitVarInsn(ALOAD, 5);
+			Label label17 = new Label();
+			methodVisitor.visitJumpInsn(IFNONNULL, label17);
+			methodVisitor.visitJumpInsn(GOTO, label1);
+			methodVisitor.visitLabel(label17);
+			methodVisitor.visitLineNumber(42, label17);
+			methodVisitor.visitFrame(Opcodes.F_APPEND, 1, new Object[]{"java/lang/String"}, 0, null);
+			methodVisitor.visitLdcInsn("jar");
+			methodVisitor.visitVarInsn(ALOAD, 2);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getProtocol", "()Ljava/lang/String;", false);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
+			Label label18 = new Label();
+			methodVisitor.visitJumpInsn(IFEQ, label18);
+			Label label19 = new Label();
+			methodVisitor.visitLabel(label19);
+			methodVisitor.visitLineNumber(43, label19);
+			methodVisitor.visitVarInsn(ALOAD, 2);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getPath", "()Ljava/lang/String;", false);
+			methodVisitor.visitVarInsn(ASTORE, 7);
+			Label label20 = new Label();
+			methodVisitor.visitLabel(label20);
+			methodVisitor.visitLineNumber(44, label20);
+			methodVisitor.visitTypeInsn(NEW, "java/io/File");
+			methodVisitor.visitInsn(DUP);
+			methodVisitor.visitVarInsn(ALOAD, 7);
+			methodVisitor.visitInsn(ICONST_5);
+			methodVisitor.visitVarInsn(ALOAD, 7);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
+			methodVisitor.visitIntInsn(BIPUSH, 22);
+			methodVisitor.visitInsn(ISUB);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false);
+			methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/io/File", "<init>", "(Ljava/lang/String;)V", false);
+			methodVisitor.visitVarInsn(ASTORE, 6);
+			Label label21 = new Label();
+			methodVisitor.visitLabel(label21);
+			methodVisitor.visitLineNumber(45, label21);
+			Label label22 = new Label();
+			methodVisitor.visitJumpInsn(GOTO, label22);
+			methodVisitor.visitLabel(label18);
+			methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+			methodVisitor.visitLdcInsn("file");
+			methodVisitor.visitVarInsn(ALOAD, 2);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "getProtocol", "()Ljava/lang/String;", false);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
+			methodVisitor.visitJumpInsn(IFEQ, label1);
+			Label label23 = new Label();
+			methodVisitor.visitLabel(label23);
+			methodVisitor.visitLineNumber(46, label23);
+			methodVisitor.visitTypeInsn(NEW, "java/io/File");
+			methodVisitor.visitInsn(DUP);
+			methodVisitor.visitVarInsn(ALOAD, 2);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/net/URL", "toURI", "()Ljava/net/URI;", false);
+			methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/io/File", "<init>", "(Ljava/net/URI;)V", false);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/io/File", "getParentFile", "()Ljava/io/File;", false);
+			methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/io/File", "getParentFile", "()Ljava/io/File;", false);
+			methodVisitor.visitVarInsn(ASTORE, 6);
+			methodVisitor.visitLabel(label22);
+			methodVisitor.visitLineNumber(50, label22);
+			methodVisitor.visitFrame(Opcodes.F_APPEND, 1, new Object[]{"java/io/File"}, 0, null);
+			methodVisitor.visitTypeInsn(NEW, "java/util/jar/JarFile");
+			methodVisitor.visitInsn(DUP);
+			methodVisitor.visitVarInsn(ALOAD, 6);
+			methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/util/jar/JarFile", "<init>", "(Ljava/io/File;)V", false);
+			methodVisitor.visitVarInsn(ALOAD, 5);
+			methodVisitor.visitMethodInsn(INVOKESTATIC, "net/minecraftforge/fml/common/asm/transformers/ModAccessTransformer", "addJar", "(Ljava/util/jar/JarFile;Ljava/lang/String;)V", false);
+			Label label24 = new Label();
+			methodVisitor.visitLabel(label24);
+			methodVisitor.visitLineNumber(52, label24);
+			methodVisitor.visitJumpInsn(GOTO, label1);
+			methodVisitor.visitLabel(label2);
+			methodVisitor.visitLineNumber(53, label2);
+			methodVisitor.visitFrame(Opcodes.F_FULL, 2, new Object[]{"net/minecraft/launchwrapper/LaunchClassLoader", "java/util/Enumeration"}, 0, new Object[]{});
+			methodVisitor.visitInsn(RETURN);
+			Label label25 = new Label();
+			methodVisitor.visitLabel(label25);
+			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label13, label11, 6);
+			methodVisitor.visitLocalVariable("coreModClass", "Ljava/lang/String;", null, label8, label10, 5);
+			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label14, label10, 6);
+			methodVisitor.visitLocalVariable("str", "Ljava/lang/String;", null, label20, label21, 7);
+			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label21, label18, 6);
+			methodVisitor.visitLocalVariable("accessTransformer", "Ljava/lang/String;", null, label16, label24, 5);
+			methodVisitor.visitLocalVariable("file", "Ljava/io/File;", null, label22, label24, 6);
+			methodVisitor.visitLocalVariable("url", "Ljava/net/URL;", null, label4, label24, 2);
+			methodVisitor.visitLocalVariable("stream", "Ljava/io/InputStream;", null, label5, label24, 3);
+			methodVisitor.visitLocalVariable("manifest", "Ljava/util/jar/Manifest;", null, label6, label24, 4);
+			methodVisitor.visitLocalVariable("classLoader", "Lnet/minecraft/launchwrapper/LaunchClassLoader;", null, label0, label25, 0);
+			methodVisitor.visitLocalVariable("urls", "Ljava/util/Enumeration;", "Ljava/util/Enumeration<Ljava/net/URL;>;", label1, label25, 1);
+			methodVisitor.visitMaxs(6, 8);
 			methodVisitor.visitEnd();
 		}
 
