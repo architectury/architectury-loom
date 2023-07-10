@@ -266,7 +266,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	@Override
 	protected void checkCache() throws IOException {
 		if (getExtension().refreshDeps() || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
-			|| !isPatchedJarUpToDate(minecraftMergedPatchedJar)) {
+					|| !isPatchedJarUpToDate(minecraftMergedPatchedJar)) {
 			cleanAllCache();
 		}
 	}

@@ -119,9 +119,7 @@ public class ForgeSourcesRemapper {
 			// Step 1: Extract the sources.zip file fron the forge userdev jar.
 			TempFiles tempFiles = new TempFiles();
 			Path sourcesZip = tempFiles.file("sources", ".zip");
-//			Path sourcesUnpacked = tempFiles.directory("sources");
 			Files.write(sourcesZip, ZipUtils.unpack(extension.getForgeUserdevProvider().getUserdevJar().toPath(), "sources.zip"));
-//			ZipUtils.unpackAll(sourcesZip, sourcesUnpacked);
 			project.getLogger().lifecycle(":found the forge legacy source zip");
 			Map<String, byte[]> forgeSources = extractSources(List.of(sourcesZip));
 			project.getLogger().lifecycle(":extracted {} forge source classes", forgeSources.size());
