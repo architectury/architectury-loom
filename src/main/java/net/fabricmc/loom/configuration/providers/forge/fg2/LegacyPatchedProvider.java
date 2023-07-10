@@ -41,9 +41,6 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Stopwatch;
 import dev.architectury.loom.util.TempFiles;
-
-import net.fabricmc.loom.util.legacyforge.ModAccessTransformerTransformer;
-
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.cadixdev.lorenz.MappingSet;
