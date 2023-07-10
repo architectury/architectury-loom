@@ -401,7 +401,7 @@ public class MinecraftPatchedProvider {
 						atBytes = ZipUtils.unpackNullable(jar, "forge_at.cfg");
 
 						if (atBytes != null) {
-							atBytes = LegacyPatchedProvider.remapAt(extension, atBytes);
+							atBytes = LegacyPatchedProvider.remapAt(extension, atBytes, "srg", "named");
 						}
 					}
 

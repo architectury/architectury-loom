@@ -41,6 +41,9 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Stopwatch;
 import dev.architectury.loom.util.TempFiles;
+
+import net.fabricmc.loom.util.legacyforge.ModAccessTransformerTransformer;
+
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.cadixdev.lorenz.MappingSet;
@@ -103,12 +106,12 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	 * so, at this point, minecraft is using official (obfuscated) mappings, but the access transformers are in SRG, we need to fix that.
 	 * @param forgeAt the bytes of the unmapped AT
 	 */
-	public static byte[] remapAt(LoomGradleExtension extension, byte[] forgeAt) throws IOException {
+	public static byte[] remapAt(LoomGradleExtension extension, byte[] forgeAt, String from, String to) throws IOException {
 		AccessTransformSet accessTransformSet = AccessTransformSet.create();
 		AccessTransformFormats.FML.read(new InputStreamReader(new ByteArrayInputStream(forgeAt)), accessTransformSet);
 		MemoryMappingTree mappingTree = new MemoryMappingTree();
 		MappingReader.read(extension.getMappingConfiguration().tinyMappingsWithSrg, mappingTree);
-		MappingSet mappingSet = new TinyMappingsReader(mappingTree, "srg", "official").read();
+		MappingSet mappingSet = new TinyMappingsReader(mappingTree, from, to).read();
 		accessTransformSet = AccessTransformSetMapper.remap(accessTransformSet, mappingSet);
 		ByteArrayOutputStream remappedOut = new ByteArrayOutputStream();
 		// TODO the extra BufferedWriter wrapper and closing can be removed once https://github.com/CadixDev/at/issues/6 is fixed
