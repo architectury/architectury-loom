@@ -28,6 +28,8 @@ import java.io.File;
 import java.util.List;
 import java.util.function.Consumer;
 
+import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
 
 import org.gradle.api.Action;
@@ -185,12 +187,6 @@ public interface LoomGradleExtensionAPI {
 		setIntermediateMappingsProvider(NoOpIntermediateMappingsProvider.class, p -> { });
 	}
 
-	@ApiStatus.Experimental
-	default void legacyIntermediateMappings() {
-		ModPlatform.assertPlatform(this, ModPlatform.LEGACY_FORGE);
-		setIntermediateMappingsProvider(LegacyIntermediateMappingsProvider.class, p -> { });
-	}
-
 	/**
 	 * Returns the tiny mappings file used to remap the game and mods.
 	 */
@@ -278,4 +274,21 @@ public interface LoomGradleExtensionAPI {
 	ForgeExtensionAPI getForge();
 
 	void forge(Action<ForgeExtensionAPI> action);
+
+	@ApiStatus.Experimental
+	default void legacyFakeIntermediateMappings() {
+		ModPlatform.assertPlatform(this, ModPlatform.LEGACY_FORGE);
+		setIntermediateMappingsProvider(LegacyIntermediateMappingsProvider.class, p -> { });
+	}
+
+	@ApiStatus.Experimental
+	default void legacyFabricIntermediateMappings() {
+		getIntermediaryUrl().convention("https://maven.legacyfabric.net/net/legacyfabric/v2/intermediary/%1$s/intermediary-%1$s-v2.jar");
+		// by default, legacy forge changes the intermediate mappings to use LegacyIntermediateMappingsProvider, this changes it back.
+		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
+			provider.getIntermediaryUrl()
+					.convention(getIntermediaryUrl())
+					.finalizeValueOnRead();
+		});
+	}
 }
