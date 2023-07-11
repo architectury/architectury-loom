@@ -14,7 +14,7 @@ base {
 
 loom {
 	forge {
-		pack200Provider = new dev.architectury.pack200.java.Pack200Adapter()
+		pack200Provider = new net.fabricmc.loom.configuration.providers.forge.fg2.ApachePack200Provider()
 	}
 }
 

@@ -41,10 +41,8 @@ import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 
-import lzma.sdk.lzma.Decoder;
-import lzma.sdk.lzma.Encoder;
-import lzma.streams.LzmaInputStream;
-import lzma.streams.LzmaOutputStream;
+import org.apache.commons.compress.compressors.lzma.LZMACompressorInputStream;
+import org.apache.commons.compress.compressors.lzma.LZMACompressorOutputStream;
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.Project;
 
@@ -102,12 +100,12 @@ public class PatchProvider extends DependencyProvider {
 
 	private void splitAndConvertLegacyPatches(Path joinedLegacyPatches) throws IOException {
 		try (JarInputStream in = new JarInputStream(new ByteArrayInputStream(unpack200Lzma(joinedLegacyPatches)));
-					OutputStream clientFileOut = Files.newOutputStream(clientPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-					LzmaOutputStream clientLzmaOut = new LzmaOutputStream(clientFileOut, new Encoder());
-					JarOutputStream clientJarOut = new JarOutputStream(clientLzmaOut);
-					OutputStream serverFileOut = Files.newOutputStream(serverPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-					LzmaOutputStream serverLzmaOut = new LzmaOutputStream(serverFileOut, new Encoder());
-					JarOutputStream serverJarOut = new JarOutputStream(serverLzmaOut);
+			 OutputStream clientFileOut = Files.newOutputStream(clientPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			 LZMACompressorOutputStream clientLzmaOut = new LZMACompressorOutputStream(clientFileOut);
+			 JarOutputStream clientJarOut = new JarOutputStream(clientLzmaOut);
+			 OutputStream serverFileOut = Files.newOutputStream(serverPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			 LZMACompressorOutputStream serverLzmaOut = new LZMACompressorOutputStream(serverFileOut);
+			 JarOutputStream serverJarOut = new JarOutputStream(serverLzmaOut);
 		) {
 			for (JarEntry entry; (entry = in.getNextJarEntry()) != null;) {
 				String name = entry.getName();
@@ -156,7 +154,7 @@ public class PatchProvider extends DependencyProvider {
 	}
 
 	private byte[] unpack200Lzma(InputStream in) throws IOException {
-		try (LzmaInputStream lzmaIn = new LzmaInputStream(in, new Decoder())) {
+		try (LZMACompressorInputStream lzmaIn = new LZMACompressorInputStream(in)) {
 			return unpack200(lzmaIn);
 		}
 	}
