@@ -25,6 +25,8 @@
 package net.fabricmc.loom.task;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -118,6 +120,30 @@ public abstract class RemapTaskConfiguration implements Runnable {
 						});
 					});
 				}
+			}
+			if (extension.isLegacyForge()) {
+				Set<File> accessTransformers = extension.getForge().getAccessTransformers().getFiles();
+				Set<String> accessTransformerStrings = new HashSet<>();
+				for (File accessTransformer : accessTransformers) {
+					for (File sourceDirectory : SourceSetHelper.getMainSourceSet(getProject()).getResources().getSourceDirectories()) {
+						if (!sourceDirectory.toPath().resolve("META-INF").toFile().isDirectory()) continue;
+
+						Path relative = sourceDirectory.toPath().resolve("META-INF").relativize(accessTransformer.toPath());
+
+						if (!relative.toString().contains("..")) {
+							// access transformer is in this source directory
+							accessTransformerStrings.add(relative.toString());
+						} else {
+							getProject().getLogger().warn("The Access Transformer " + accessTransformer + " was found outside of the \"META-INF\" folder! This means that the Access Transformer will not be available in production!");
+						}
+					}
+				}
+
+				getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class, task -> {
+					task.manifest(manifest -> {
+						manifest.attributes(Map.of(Constants.LegacyForge.FMLAT, String.join(" ", accessTransformerStrings)));
+					});
+				});
 			}
 		});
 

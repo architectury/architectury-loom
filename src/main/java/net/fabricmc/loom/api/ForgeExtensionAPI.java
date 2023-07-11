@@ -63,12 +63,16 @@ public interface ForgeExtensionAPI {
 	 * <p>If this collection is empty, Loom tries to resolve the AT from the default path
 	 * ({@code META-INF/accesstransformer.cfg} in the {@code main} source set).
 	 *
+	 * <p>On legacy forge, the access transformers will be added to {@code META-INF/MANIFEST.MF} by default if they are in the {@code META-INF} folder.
+	 *
 	 * @return the collection of AT files
 	 */
 	ConfigurableFileCollection getAccessTransformers();
 
 	/**
 	 * Adds a {@linkplain #getAccessTransformers() project access transformer}.
+	 *
+	 * <p>On legacy forge, the access transformers will be added to {@code META-INF/MANIFEST.MF} by default if they are in the {@code META-INF} folder.
 	 *
 	 * @param file the file, evaluated as per {@link org.gradle.api.Project#file(Object)}
 	 */
