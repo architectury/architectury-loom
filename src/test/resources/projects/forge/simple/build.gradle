@@ -12,12 +12,6 @@ base {
 	archivesName = project.archives_base_name
 }
 
-loom {
-	forge {
-		pack200Provider = new net.fabricmc.loom.configuration.providers.forge.fg2.ApachePack200Provider()
-	}
-}
-
 version = project.mod_version
 group = project.maven_group
 

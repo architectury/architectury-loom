@@ -43,11 +43,11 @@ import java.util.zip.ZipEntry;
 
 import org.apache.commons.compress.compressors.lzma.LZMACompressorInputStream;
 import org.apache.commons.compress.compressors.lzma.LZMACompressorOutputStream;
+import org.apache.commons.compress.java.util.jar.Pack200;
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
-import net.fabricmc.loom.configuration.providers.forge.fg2.Pack200Provider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 
@@ -141,13 +141,7 @@ public class PatchProvider extends DependencyProvider {
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
 		try (JarOutputStream jarOut = new JarOutputStream(bytes)) {
-			Pack200Provider provider = getExtension().getForge().getPack200Provider().getOrNull();
-
-			if (provider == null) {
-				throw new IllegalStateException("No provider for Pack200 has been found. Did you declare a provider?");
-			}
-
-			provider.unpack(in, jarOut);
+			Pack200.newUnpacker().unpack(in, jarOut);
 		}
 
 		return bytes.toByteArray();
