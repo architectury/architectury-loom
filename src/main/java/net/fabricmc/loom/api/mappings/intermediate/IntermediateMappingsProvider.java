@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.function.Function;
 
 import org.gradle.api.Named;
+import org.gradle.api.Project;
 import org.gradle.api.provider.Property;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -48,5 +49,5 @@ public abstract class IntermediateMappingsProvider implements Named {
 	 * Generate or download a tinyv2 mapping file with intermediary and named namespaces.
 	 * @throws IOException
 	 */
-	public abstract void provide(Path tinyMappings) throws IOException;
+	public abstract void provide(Path tinyMappings, Project project) throws IOException;
 }

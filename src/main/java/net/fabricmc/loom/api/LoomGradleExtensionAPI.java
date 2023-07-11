@@ -28,6 +28,8 @@ import java.io.File;
 import java.util.List;
 import java.util.function.Consumer;
 
+import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
+
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
@@ -181,6 +183,12 @@ public interface LoomGradleExtensionAPI {
 	@ApiStatus.Experimental
 	default void noIntermediateMappings() {
 		setIntermediateMappingsProvider(NoOpIntermediateMappingsProvider.class, p -> { });
+	}
+
+	@ApiStatus.Experimental
+	default void legacyIntermediateMappings() {
+		ModPlatform.assertPlatform(this, ModPlatform.LEGACY_FORGE);
+		setIntermediateMappingsProvider(LegacyIntermediateMappingsProvider.class, p -> { });
 	}
 
 	/**

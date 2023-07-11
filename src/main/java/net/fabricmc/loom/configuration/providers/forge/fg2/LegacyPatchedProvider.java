@@ -84,6 +84,16 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		mappingConfiguration = configuration;
 	}
 
+	public void mergeMinecraftJars() throws IOException {
+		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
+		minecraftMergedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-merged.jar");
+
+		if (Files.notExists(minecraftMergedJar)) {
+			this.dirty = true;
+			mergeJars();
+		}
+	}
+
 	protected void initPatchedFiles() {
 		String forgeVersion = getExtension().getForgeProvider().getVersion().getCombined();
 		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
@@ -159,10 +169,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 
 		if (Files.notExists(minecraftMergedJar)) {
 			this.dirty = true;
-
-			try (var tempFiles = new TempFiles()) {
-				mergeJars();
-			}
+			mergeJars();
 		}
 
 		if (dirty || Files.notExists(minecraftMergedJar)) {

@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.gradle.api.Project;
 import org.jetbrains.annotations.NotNull;
 
 import net.fabricmc.loom.api.mappings.intermediate.IntermediateMappingsProvider;
@@ -40,7 +41,7 @@ public abstract class NoOpIntermediateMappingsProvider extends IntermediateMappi
 	private static final String HEADER = "tiny\t2\t0\tofficial\tintermediary";
 
 	@Override
-	public void provide(Path tinyMappings) throws IOException {
+	public void provide(Path tinyMappings, Project project) throws IOException {
 		Files.writeString(tinyMappings, HEADER, StandardCharsets.UTF_8);
 	}
 

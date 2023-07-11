@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.google.common.net.UrlEscapers;
+import org.gradle.api.Project;
 import org.gradle.api.provider.Property;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public abstract class IntermediaryMappingsProvider extends IntermediateMappingsP
 	public abstract Property<Boolean> getRefreshDeps();
 
 	@Override
-	public void provide(Path tinyMappings) throws IOException {
+	public void provide(Path tinyMappings, Project project) throws IOException {
 		if (Files.exists(tinyMappings) && !getRefreshDeps().get()) {
 			return;
 		}

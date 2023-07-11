@@ -32,6 +32,9 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import com.google.common.base.Suppliers;
+
+import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
+
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
@@ -96,13 +99,17 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
 
 		// Setup the default intermediate mappings provider.
-		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
-			provider.getIntermediaryUrl()
-					.convention(getIntermediaryUrl())
-					.finalizeValueOnRead();
+		if (!this.isLegacyForge()) {
+			setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
+				provider.getIntermediaryUrl()
+						.convention(getIntermediaryUrl())
+						.finalizeValueOnRead();
 
-			provider.getRefreshDeps().set(project.provider(() -> LoomGradleExtension.get(project).refreshDeps()));
-		});
+				provider.getRefreshDeps().set(project.provider(() -> LoomGradleExtension.get(project).refreshDeps()));
+			});
+		} else {
+			setIntermediateMappingsProvider(LegacyIntermediateMappingsProvider.class, provider -> { });
+		}
 
 		refreshDeps = manualRefreshDeps();
 		multiProjectOptimisation = GradleUtils.getBooleanPropertyProvider(project, Constants.Properties.MULTI_PROJECT_OPTIMISATION);
