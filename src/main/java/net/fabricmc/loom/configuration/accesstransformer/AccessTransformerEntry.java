@@ -62,4 +62,17 @@ public interface AccessTransformerEntry {
 			return fmj.toString();
 		}
 	}
+
+	record LegacyMod(FabricModJson fmj, String hash, String name) implements AccessTransformerEntry {
+		@Override
+		public Reader openReader() throws IOException {
+			final byte[] bytes = fmj.getSource().read("META-INF/" + name);
+			return new InputStreamReader(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8);
+		}
+
+		@Override
+		public String toString() {
+			return fmj.toString();
+		}
+	}
 }

@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.configuration.accesstransformer;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -35,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.Manifest;
 
 import javax.inject.Inject;
 
@@ -93,17 +95,35 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 
 		for (FabricModJson localMod : context.localMods()) {
 			final byte[] bytes;
+			final boolean legacyForge = LoomGradleExtension.get(project).isLegacyForge();
 
 			try {
-				bytes = localMod.getSource().read(Constants.Forge.ACCESS_TRANSFORMER_PATH);
+				if (legacyForge) {
+					bytes = null; // this is because javac complains
+					byte[] manifestBytes = localMod.getSource().read("META-INF/MANIFEST.MF");
+					Manifest manifest = new Manifest();
+					manifest.read(new ByteArrayInputStream(manifestBytes));
+					String fmlAT = manifest.getMainAttributes().getValue(Constants.LegacyForge.FMLAT);
+					// in legacy forge, mods can have multiple access transformers, separated by spaces.
+					// we will deal with this by adding an entry for every single AT.
+					for (String atPath : fmlAT.split(" ")) {
+						byte[] accessTransformer = localMod.getSource().read("META-INF/" + atPath);
+						final String hash = Hashing.sha256().hashBytes(accessTransformer).toString();
+						entries.add(new AccessTransformerEntry.LegacyMod(localMod, hash, atPath));
+					}
+				} else {
+					bytes = localMod.getSource().read(Constants.Forge.ACCESS_TRANSFORMER_PATH);
+				}
 			} catch (FileNotFoundException | NoSuchFileException e) {
 				continue;
 			} catch (IOException e) {
 				throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Could not read accesstransformer.cfg", e);
 			}
 
-			final String hash = Hashing.sha256().hashBytes(bytes).toString();
-			entries.add(new AccessTransformerEntry.Mod(localMod, hash));
+			if (!legacyForge) {
+				final String hash = Hashing.sha256().hashBytes(bytes).toString();
+				entries.add(new AccessTransformerEntry.Mod(localMod, hash));
+			}
 		}
 
 		return !entries.isEmpty() ? new Spec(entries) : null;
