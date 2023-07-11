@@ -115,7 +115,7 @@ dependencies {
 	implementation ('dev.architectury:mercury:0.1.2.15')
 
 	// Kotlin
-	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.0') {
+	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.2') {
 		transitive = false
 	}
 
