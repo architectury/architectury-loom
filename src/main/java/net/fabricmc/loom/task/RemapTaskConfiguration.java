@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.inject.Inject;
 
@@ -39,9 +40,11 @@ import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.dsl.ArtifactHandler;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
+import org.gradle.internal.hash.Hashing;
 import org.gradle.jvm.tasks.Jar;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -106,9 +109,10 @@ public abstract class RemapTaskConfiguration implements Runnable {
 		trySetupSourceRemapping();
 
 		getProject().afterEvaluate(p -> {
+			SetProperty<String> atAccessWideners = null;
 			if (extension.isForge()) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-					Aw2At.setup(getProject(), remapJarTask);
+					atAccessWideners = Aw2At.setup(getProject(), remapJarTask);
 				}
 
 				Set<String> mixinConfigs = PropertyUtil.getAndFinalize(extension.getForge().getMixinConfigs());
@@ -124,6 +128,9 @@ public abstract class RemapTaskConfiguration implements Runnable {
 			if (extension.isLegacyForge()) {
 				Set<File> accessTransformers = extension.getForge().getAccessTransformers().getFiles();
 				Set<String> accessTransformerStrings = new HashSet<>();
+				if (atAccessWideners != null) {
+					accessTransformerStrings.add(Hashing.sha256().hashString(String.join("", new TreeSet<>(atAccessWideners.get()))) + "_at.cfg");
+				}
 				for (File accessTransformer : accessTransformers) {
 					for (File sourceDirectory : SourceSetHelper.getMainSourceSet(getProject()).getResources().getSourceDirectories()) {
 						if (!sourceDirectory.toPath().resolve("META-INF").toFile().isDirectory()) continue;

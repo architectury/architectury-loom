@@ -35,6 +35,7 @@ import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.ModifierChange;
 import org.cadixdev.bombe.type.signature.MethodSignature;
 import org.gradle.api.Project;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.jetbrains.annotations.VisibleForTesting;
@@ -50,7 +51,9 @@ import net.fabricmc.loom.task.RemapJarTask;
  * @author Juuz
  */
 public final class Aw2At {
-	public static void setup(Project project, RemapJarTask remapJar) {
+
+	// returns the extra access wideners
+	public static SetProperty<String> setup(Project project, RemapJarTask remapJar) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		if (extension.getAccessWidenerPath().isPresent()) {
@@ -79,6 +82,7 @@ public final class Aw2At {
 		}
 
 		remapJar.getAtAccessWideners().addAll(extension.getForge().getExtraAccessWideners());
+		return remapJar.getAtAccessWideners();
 	}
 
 	/**

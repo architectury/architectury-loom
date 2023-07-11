@@ -12,15 +12,21 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.StringJoiner;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+
+import net.fabricmc.loom.util.ModPlatform;
 
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.cadixdev.lorenz.MappingSet;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
+import org.gradle.internal.hash.Hashing;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.task.service.MappingsService;
@@ -51,7 +57,7 @@ public final class ModBuildExtensions {
 		}
 	}
 
-	public static void convertAwToAt(SetProperty<String> atAccessWidenersProperty, Path outputFile, Property<String> mappingBuildServiceUuid) throws IOException {
+	public static void convertAwToAt(SetProperty<String> atAccessWidenersProperty, Path outputFile, Property<String> mappingBuildServiceUuid, Property<ModPlatform> platform) throws IOException {
 		if (!atAccessWidenersProperty.isPresent()) {
 			return;
 		}
@@ -66,8 +72,7 @@ public final class ModBuildExtensions {
 
 		try (FileSystemUtil.Delegate fileSystem = FileSystemUtil.getJarFileSystem(outputFile, false)) {
 			FileSystem fs = fileSystem.get();
-			Path atPath = fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
-
+			Path atPath = platform.get() == ModPlatform.LEGACY_FORGE ? fs.getPath("META-INF/" + Hashing.sha256().hashString(String.join("", new TreeSet<>(atAccessWideners))) + "_at.cfg") : fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 			if (Files.exists(atPath)) {
 				throw new FileAlreadyExistsException("Jar " + outputFile + " already contains an access transformer - cannot convert AWs!");
 			}

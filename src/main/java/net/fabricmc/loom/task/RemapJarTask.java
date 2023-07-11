@@ -323,7 +323,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 				addRefmaps();
 				addNestedJars();
-				ModBuildExtensions.convertAwToAt(getParameters().getAtAccessWideners(), outputFile, getParameters().getMappingBuildServiceUuid());
+				ModBuildExtensions.convertAwToAt(getParameters().getAtAccessWideners(), outputFile, getParameters().getMappingBuildServiceUuid(), getParameters().getPlatform());
 
 				if (getParameters().getPlatform().get() != ModPlatform.FORGE) {
 					modifyJarManifest();
