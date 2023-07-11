@@ -44,27 +44,10 @@ import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.RETURN;
 
-import net.fabricmc.loom.LoomGradleExtension;
-
-import net.fabricmc.loom.configuration.providers.mappings.TinyMappingsService;
-import net.fabricmc.loom.util.TinyRemapperHelper;
-import net.fabricmc.loom.util.service.ScopedSharedServiceManager;
-
-import net.fabricmc.lorenztiny.TinyMappingsReader;
-import net.fabricmc.mappingio.MappingReader;
-import net.fabricmc.mappingio.tree.MappingTree;
-import net.fabricmc.mappingio.tree.MemoryMappingTree;
-
-import org.cadixdev.lorenz.MappingSet;
-import org.cadixdev.lorenz.model.ClassMapping;
-import org.gradle.api.Project;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-
-import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Transforms Forge's CoreModManager class to search the classpath for coremods.
@@ -74,15 +57,12 @@ public class CoreModManagerTransformer extends ClassVisitor {
 	private static final String CLASS = "net/minecraftforge/fml/relauncher/CoreModManager";
 	public static final String FILE = CLASS + ".class";
 
-	private static final String DISCOVER_COREMODS_METHOD = "discoverCoreMods";
-	private static final String HANDLE_LAUNCH_METHOD = "handleLaunch";
+	private static final String TARGET_METHOD = "discoverCoreMods";
 	private static final String OUR_METHOD_NAME = "loom$injectCoremodsFromClasspath";
 	private static final String OUR_METHOD_DESCRIPTOR = "(Lnet/minecraft/launchwrapper/LaunchClassLoader;)V";
-	private final Project project;
 
-	public CoreModManagerTransformer(Project project, ClassVisitor classVisitor) {
+	public CoreModManagerTransformer(ClassVisitor classVisitor) {
 		super(Opcodes.ASM9, classVisitor);
-		this.project = project;
 	}
 
 	@Override
@@ -91,12 +71,8 @@ public class CoreModManagerTransformer extends ClassVisitor {
 
 		// We inject a call to our method, which will discover and load coremods from the classpath, at the very start of the
 		// regular discovery method.
-		if (name.equals(DISCOVER_COREMODS_METHOD)) {
+		if (name.equals(TARGET_METHOD)) {
 			methodVisitor = new InjectCallAtHead(methodVisitor);
-		}
-
-		if (name.equals(HANDLE_LAUNCH_METHOD)) {
-			methodVisitor = new ReplaceDeobfedName(methodVisitor);
 		}
 
 		return methodVisitor;
@@ -373,32 +349,6 @@ public class CoreModManagerTransformer extends ClassVisitor {
 
 			super.visitVarInsn(Opcodes.ALOAD, 1);
 			super.visitMethodInsn(Opcodes.INVOKESTATIC, CLASS, OUR_METHOD_NAME, OUR_METHOD_DESCRIPTOR, false);
-		}
-	}
-
-	private class ReplaceDeobfedName extends MethodVisitor {
-		private ReplaceDeobfedName(MethodVisitor methodVisitor) {
-			super(Opcodes.ASM9, methodVisitor);
-		}
-
-		@Override
-		public void visitLdcInsn(Object value) {
-			if ("net.minecraft.world.World".equals(value)) {
-				// there has to be a better way
-				try {
-					MemoryMappingTree mappingTree = new MemoryMappingTree();
-					MappingReader.read(LoomGradleExtension.get(project).getMappingConfiguration().tinyMappingsWithSrg, mappingTree);
-					var reader = new TinyMappingsReader(mappingTree, "srg", "named");
-					MappingSet mappingSet = reader.read();
-					ClassMapping<?, ?> mapping = mappingSet.getOrCreateClassMapping("net/minecraft/world/World");
-					super.visitLdcInsn(mapping.getFullDeobfuscatedName().replaceAll("/", "."));
-					reader.close();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			} else {
-				super.visitLdcInsn(value);
-			}
 		}
 	}
 }
