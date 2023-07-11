@@ -114,8 +114,6 @@ public interface ForgeExtensionAPI {
 	 */
 	Property<Boolean> getUseForgeLoggerConfig();
 
-	Property<Pack200Provider> getPack200Provider();
-
 	/**
 	 * A list of mod IDs for mods applied for data generation.
 	 * The returned list is unmodifiable but not immutable - it will reflect changes done with
@@ -153,4 +151,7 @@ public interface ForgeExtensionAPI {
 		 */
 		void mod(String... modIds);
 	}
+
+	// Legacy Forge
+	Property<Pack200Provider> getPack200Provider();
 }
