@@ -242,7 +242,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		ZipUtils.transform(input.toPath(), Stream.of(new Pair<>(CoreModManagerTransformer.FILE, original -> {
 			ClassReader reader = new ClassReader(original);
 			ClassWriter writer = new ClassWriter(reader, 0);
-			reader.accept(new CoreModManagerTransformer(writer), 0);
+			reader.accept(new CoreModManagerTransformer(project, writer), 0);
 			return writer.toByteArray();
 		})));
 
