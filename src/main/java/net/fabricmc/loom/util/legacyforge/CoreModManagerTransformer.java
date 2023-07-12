@@ -61,6 +61,8 @@ public class CoreModManagerTransformer extends ClassVisitor {
 	private static final String OUR_METHOD_NAME = "loom$injectCoremodsFromClasspath";
 	private static final String OUR_METHOD_DESCRIPTOR = "(Lnet/minecraft/launchwrapper/LaunchClassLoader;)V";
 
+	private static final String HANDLE_LAUNCH_NAME = "handleLaunch";
+
 	public CoreModManagerTransformer(ClassVisitor classVisitor) {
 		super(Opcodes.ASM9, classVisitor);
 	}
@@ -73,6 +75,8 @@ public class CoreModManagerTransformer extends ClassVisitor {
 		// regular discovery method.
 		if (name.equals(TARGET_METHOD)) {
 			methodVisitor = new InjectCallAtHead(methodVisitor);
+		} else if (name.equals(HANDLE_LAUNCH_NAME)) {
+			methodVisitor = new ReplaceDeobfedName(methodVisitor);
 		}
 
 		return methodVisitor;
@@ -349,6 +353,20 @@ public class CoreModManagerTransformer extends ClassVisitor {
 
 			super.visitVarInsn(Opcodes.ALOAD, 1);
 			super.visitMethodInsn(Opcodes.INVOKESTATIC, CLASS, OUR_METHOD_NAME, OUR_METHOD_DESCRIPTOR, false);
+		}
+	}
+
+	private class ReplaceDeobfedName extends MethodVisitor {
+		private ReplaceDeobfedName(MethodVisitor methodVisitor) {
+			super(Opcodes.ASM9, methodVisitor);
+		}
+
+		@Override
+		public void visitLdcInsn(Object value) {
+			if ("net.minecraft.world.World".equals(value)) {
+				value = "java.lang.Object"; // if this class doesn't exist then i don't know you've gotten this far
+			}
+			super.visitLdcInsn(value);
 		}
 	}
 }
