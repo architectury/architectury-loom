@@ -66,7 +66,7 @@ public class SrgNamedWriter {
 			mappings.getTopLevelClassMappings().stream()
 					.filter(cls -> !cls.hasDeobfuscatedName())
 					.sorted(getConfig().getClassMappingComparator())
-					.forEach(cls -> writer.format("CL: %s %s%n", cls.getFullObfuscatedName(), cls.getFullDeobfuscatedName()));
+					.forEach(cls -> writer.format("CL: %s %s%n", cls.getFullDeobfuscatedName(), cls.getFullDeobfuscatedName()));
 
 			super.write(mappings);
 		}
