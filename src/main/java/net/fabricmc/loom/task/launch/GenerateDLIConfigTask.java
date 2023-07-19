@@ -94,7 +94,8 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		if (getExtension().isQuilt()) {
 			launchConfig
 					.argument("client", "--version")
-					.argument("client", "Architectury Loom");
+					.argument("client", "Architectury Loom")
+					.property("loader.enable_quilt_mod_json5_in_dev_env", "true");
 		}
 
 		if (getExtension().isForge()) {

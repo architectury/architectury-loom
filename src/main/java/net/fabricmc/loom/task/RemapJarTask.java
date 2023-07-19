@@ -27,6 +27,7 @@ package net.fabricmc.loom.task;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,8 +43,13 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
+import blue.endless.jankson.Jankson;
+import blue.endless.jankson.JsonElement;
+import blue.endless.jankson.JsonGrammar;
+import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.extensions.ModBuildExtensions;
+import dev.architectury.loom.metadata.QuiltModJson;
 import dev.architectury.tinyremapper.OutputConsumerPath;
 import dev.architectury.tinyremapper.TinyRemapper;
 import org.gradle.api.artifacts.Configuration;
@@ -79,6 +85,7 @@ import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.task.service.TinyRemapperService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
+import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.SidedClassVisitor;
@@ -325,6 +332,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				addNestedJars();
 				ModBuildExtensions.convertAwToAt(getParameters().getAtAccessWideners(), outputFile, getParameters().getMappingBuildServiceUuid());
 
+				if (getParameters().getPlatform().get() == ModPlatform.QUILT) {
+					convertQmj5();
+				}
+
 				if (getParameters().getPlatform().get() != ModPlatform.FORGE) {
 					modifyJarManifest();
 				}
@@ -449,6 +460,31 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 					return json;
 				})));
+			}
+		}
+
+		private void convertQmj5() throws IOException {
+			byte[] bytes = ZipUtils.unpackNullable(outputFile, QuiltModJson.JSON5_FILE_NAME);
+			if (bytes == null) return;
+
+			if (ZipUtils.contains(outputFile, QuiltModJson.FILE_NAME)) {
+				throw new IllegalStateException("Output file contains both quilt.mod.json and quilt.mod.json5");
+			}
+
+			Jankson jankson = Jankson.builder().build();
+			JsonElement json;
+
+			try {
+				json = jankson.fromJson(new String(bytes, StandardCharsets.UTF_8), JsonElement.class);
+			} catch (SyntaxError e) {
+				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not read quilt.mod.json5", e);
+			}
+
+			String qmj = json.toJson(JsonGrammar.STRICT);
+
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(outputFile, false)) {
+				Files.delete(fs.getPath(QuiltModJson.JSON5_FILE_NAME));
+				Files.writeString(fs.getPath(QuiltModJson.FILE_NAME), qmj, StandardCharsets.UTF_8);
 			}
 		}
 	}

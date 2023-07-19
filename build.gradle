@@ -133,6 +133,9 @@ dependencies {
 	// Forge mods.toml parsing
 	implementation ('com.electronwill.night-config:toml:3.6.6')
 
+	// quilt.mod.json5 parsing
+	implementation ('blue.endless:jankson:1.2.2')
+
 	// Testing
 	testImplementation(gradleTestKit())
 	testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
