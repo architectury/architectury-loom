@@ -58,6 +58,14 @@ public enum ModPlatform {
 	}
 
 	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform... platforms) {
+		if (platforms.length == 1) {
+			assertPlatform(extension, () -> {
+				String msg = "Loom is not running on %s.%nYou can switch to it by adding 'loom.platform = %s' to your gradle.properties";
+				String name = platforms[0].name().toLowerCase(Locale.ROOT);
+				return msg.formatted(name, name, platforms);
+			});
+			return;
+		}
 		assertPlatform(extension, () -> {
 			String msg = "Loom is not running on any of %s.%nYou can switch to it by any of the following: Add any of %s to your gradle.properties";
 			List<String> names = Arrays.stream(platforms).map(Enum::name).toList();
