@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.mappings.utils;
+package dev.architectury.loom.util;
 
 import java.util.Objects;
 import java.util.Optional;
