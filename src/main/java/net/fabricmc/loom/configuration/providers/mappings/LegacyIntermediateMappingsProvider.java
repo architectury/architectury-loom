@@ -50,11 +50,11 @@ public abstract class LegacyIntermediateMappingsProvider extends IntermediateMap
 		}
 
 		if (!extension.isLegacyForge()) throw new IllegalStateException("Legacy Intermediates are only for legacy forge!");
-		if (((ForgeMinecraftProvider) extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar() == null) throw new IllegalStateException("Merged jar not created!");
+		if (extension.getMinecraftProvider().provideClient() && extension.getMinecraftProvider().provideServer() && ((ForgeMinecraftProvider) extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar() == null) throw new IllegalStateException("Merged jar not created!");
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		project.getLogger().lifecycle(":generating dummy intermediary");
 
-		Path minecraftJar = ((ForgeMinecraftProvider) extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar();
+		Path minecraftJar = extension.getMinecraftProvider().provideClient() && extension.getMinecraftProvider().provideServer() ? ((ForgeMinecraftProvider) extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar() : (extension.getMinecraftProvider().provideClient() ? extension.getMinecraftProvider().getMinecraftClientJar() : extension.getMinecraftProvider().getMinecraftServerJar()).toPath();
 
 		// create a temporary folder into which stitch will output the v1 file
 		// we cannot just create a temporary file directly, cause stitch will try to read it if it exists

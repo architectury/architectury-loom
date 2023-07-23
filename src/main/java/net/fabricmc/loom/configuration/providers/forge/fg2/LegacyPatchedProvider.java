@@ -85,6 +85,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 
 	public void mergeMinecraftJars() throws IOException {
 		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
+		if (!(minecraftProvider.provideClient() && minecraftProvider.provideServer())) return;
 		minecraftMergedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-merged.jar");
 
 		if (Files.notExists(minecraftMergedJar)) {
@@ -99,7 +100,6 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		String patchId = "forge-" + forgeVersion + "-";
 
 		minecraftProvider.setJarPrefix(patchId);
-
 		minecraftMergedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-merged.jar");
 		minecraftMergedPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-merged-patched.jar");
 		minecraftMergedPatchedAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-merged-at-patched.jar");
@@ -142,8 +142,8 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	}
 
 	protected void mergeJars() throws IOException {
+		if (!(minecraftProvider.provideClient() && minecraftProvider.provideServer())) return;
 		project.getLogger().info(":merging jars");
-
 		File jarToMerge = minecraftProvider.getMinecraftServerJar();
 
 		if (minecraftProvider.getServerBundleMetadata() != null) {
@@ -165,13 +165,12 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		checkCache();
 
 		this.dirty = false;
-
-		if (Files.notExists(minecraftMergedJar)) {
+		if (minecraftProvider.provideClient() && minecraftProvider.provideServer() && Files.notExists(minecraftMergedJar)) {
 			this.dirty = true;
 			mergeJars();
 		}
 
-		if (dirty || Files.notExists(minecraftMergedJar)) {
+		if (dirty || (minecraftProvider.provideClient() && minecraftProvider.provideServer() ? Files.notExists(minecraftMergedPatchedJar) : minecraftProvider.provideClient() ? Files.notExists(minecraftClientPatchedJar) : Files.notExists(minecraftServerPatchedJar))) {
 			this.dirty = true;
 			patchJars();
 		}
@@ -190,19 +189,33 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		project.getLogger().info(":patching jars");
 		MinecraftProvider minecraftProvider = getExtension().getMinecraftProvider();
 		PatchProvider patchProvider = getExtension().getPatchProvider();
-		patchJars(minecraftProvider.getMinecraftServerJar().toPath(), minecraftServerPatchedJar, patchProvider.serverPatches);
-		patchJars(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientPatchedJar, patchProvider.clientPatches);
-
-		try (var jarMerger = new MinecraftJarMerger(minecraftClientPatchedJar.toFile(), minecraftServerPatchedJar.toFile(), minecraftMergedPatchedJar.toFile())) {
-			jarMerger.enableSyntheticParamsOffset();
-			jarMerger.merge();
+		if (minecraftProvider.provideServer()) {
+			patchJars(minecraftProvider.getMinecraftServerJar().toPath(), minecraftServerPatchedJar, patchProvider.serverPatches);
+		}
+		if (minecraftProvider.provideClient()) {
+			patchJars(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientPatchedJar, patchProvider.clientPatches);
 		}
 
-		copyMissingClasses(minecraftMergedJar, minecraftMergedPatchedJar);
-		deleteParameterNames(minecraftMergedPatchedJar);
+		if (minecraftProvider.provideClient() && minecraftProvider.provideServer()) {
+			try (var jarMerger = new MinecraftJarMerger(minecraftClientPatchedJar.toFile(), minecraftServerPatchedJar.toFile(), minecraftMergedPatchedJar.toFile())) {
+				jarMerger.enableSyntheticParamsOffset();
+				jarMerger.merge();
+			}
+			copyMissingClasses(minecraftMergedJar, minecraftMergedPatchedJar);
+			deleteParameterNames(minecraftMergedPatchedJar);
 
-		if (getExtension().isForgeAndNotOfficial()) {
-			fixParameterAnnotation(minecraftMergedPatchedJar);
+			if (getExtension().isForgeAndNotOfficial()) {
+				fixParameterAnnotation(minecraftMergedPatchedJar);
+			}
+		} else {
+			Path mcPath = (minecraftProvider.provideClient() ? minecraftProvider.getMinecraftClientJar() : minecraftProvider.getMinecraftServerJar()).toPath();
+			Path mcPatchedPath = minecraftProvider.provideClient() ? minecraftClientPatchedJar : minecraftServerPatchedJar;
+			copyMissingClasses(mcPath, mcPatchedPath);
+			deleteParameterNames(mcPatchedPath);
+
+			if (getExtension().isForgeAndNotOfficial()) {
+				fixParameterAnnotation(mcPatchedPath);
+			}
 		}
 
 		project.getLogger().info(":patched jars in " + stopwatch.stop());
@@ -250,21 +263,21 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 
 	@Override
 	public Path getMinecraftSrgJar() {
-		return minecraftMergedJar;
+		return minecraftProvider.provideClient() && minecraftProvider.provideServer() ? minecraftMergedJar : (minecraftProvider.provideClient() ? minecraftProvider.getMinecraftClientJar() : minecraftProvider.getMinecraftServerJar()).toPath();
 	}
 
 	@Override
 	public Path getMinecraftPatchedSrgJar() {
-		return minecraftMergedPatchedJar; // legacy forge is too good for SRG
+		return minecraftProvider.provideClient() && minecraftProvider.provideServer() ? minecraftMergedPatchedJar : minecraftProvider.provideClient() ? minecraftClientPatchedJar : minecraftServerPatchedJar; // legacy forge is too good for SRG
 	}
 
 	@Override
 	public Path getMinecraftPatchedJar() {
-		return minecraftMergedPatchedJar;
+		return minecraftProvider.provideClient() && minecraftProvider.provideServer() ? minecraftMergedPatchedJar : minecraftProvider.provideClient() ? minecraftClientPatchedJar : minecraftServerPatchedJar;
 	}
 
 	protected void accessTransformForge() throws IOException {
-		Path input = minecraftMergedPatchedJar;
+		Path input = minecraftProvider.provideClient() && minecraftProvider.provideServer() ? minecraftMergedPatchedJar : minecraftProvider.provideClient() ? minecraftClientPatchedJar : minecraftServerPatchedJar;
 		Path target = minecraftMergedPatchedAtJar;
 		accessTransform(project, input, target);
 	}
@@ -272,7 +285,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 	@Override
 	protected void checkCache() throws IOException {
 		if (getExtension().refreshDeps() || Stream.of(getGlobalCaches()).anyMatch(Files::notExists)
-					|| !isPatchedJarUpToDate(minecraftMergedPatchedJar)) {
+					|| !isPatchedJarUpToDate(minecraftProvider.provideClient() && minecraftProvider.provideServer() ? minecraftMergedPatchedJar : minecraftProvider.provideClient() ? minecraftClientPatchedJar : minecraftServerPatchedJar)) {
 			cleanAllCache();
 		}
 	}
