@@ -48,7 +48,7 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 	}
 
 	@Override
-	protected boolean provideClient() {
+	public boolean provideClient() {
 		// the client jar is needed for client-extra which the Forge userdev launch thing always checks for
 		return true;
 	}

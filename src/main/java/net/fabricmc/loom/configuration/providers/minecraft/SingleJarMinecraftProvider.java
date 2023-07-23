@@ -110,12 +110,12 @@ public class SingleJarMinecraftProvider extends MinecraftProvider {
 	}
 
 	@Override
-	protected boolean provideClient() {
+	public boolean provideClient() {
 		return environment instanceof Client;
 	}
 
 	@Override
-	protected boolean provideServer() {
+	public boolean provideServer() {
 		return environment instanceof Server;
 	}
 

@@ -64,11 +64,11 @@ public abstract class MinecraftProvider {
 		this.project = configContext.project();
 	}
 
-	protected boolean provideClient() {
+	public boolean provideClient() {
 		return true;
 	}
 
-	protected boolean provideServer() {
+	public boolean provideServer() {
 		return true;
 	}
 
