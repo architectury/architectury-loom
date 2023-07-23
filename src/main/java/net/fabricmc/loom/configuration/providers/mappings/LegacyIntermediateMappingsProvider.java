@@ -24,33 +24,33 @@
 
 package net.fabricmc.loom.configuration.providers.mappings;
 
-import com.google.common.base.Stopwatch;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
+import com.google.common.base.Stopwatch;
 import dev.architectury.loom.util.TempFiles;
+import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.intermediate.IntermediateMappingsProvider;
-
-import net.fabricmc.loom.configuration.providers.forge.fg2.LegacyPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.stitch.commands.CommandGenerateIntermediary;
 
-import org.gradle.api.Project;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 public abstract class LegacyIntermediateMappingsProvider extends IntermediateMappingsProvider {
-
 	@Override
 	public void provide(Path tinyMappings, Project project) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (Files.exists(tinyMappings)) {
+			return;
+		}
+
 		if (!extension.isLegacyForge()) throw new IllegalStateException("Legacy Intermediates are only for legacy forge!");
-		if (((ForgeMinecraftProvider)extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar() == null) throw new IllegalStateException("Merged jar not created!");
+		if (((ForgeMinecraftProvider) extension.getMinecraftProvider()).getPatchedProvider().getMinecraftSrgJar() == null) throw new IllegalStateException("Merged jar not created!");
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		project.getLogger().lifecycle(":generating dummy intermediary");
 

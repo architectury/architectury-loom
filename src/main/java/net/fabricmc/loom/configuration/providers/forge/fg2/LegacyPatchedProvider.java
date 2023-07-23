@@ -40,7 +40,6 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.google.common.base.Stopwatch;
-import dev.architectury.loom.util.TempFiles;
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
 import org.cadixdev.lorenz.MappingSet;

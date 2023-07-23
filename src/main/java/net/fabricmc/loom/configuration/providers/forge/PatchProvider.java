@@ -100,12 +100,12 @@ public class PatchProvider extends DependencyProvider {
 
 	private void splitAndConvertLegacyPatches(Path joinedLegacyPatches) throws IOException {
 		try (JarInputStream in = new JarInputStream(new ByteArrayInputStream(unpack200Lzma(joinedLegacyPatches)));
-			 OutputStream clientFileOut = Files.newOutputStream(clientPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-			 LZMACompressorOutputStream clientLzmaOut = new LZMACompressorOutputStream(clientFileOut);
-			 JarOutputStream clientJarOut = new JarOutputStream(clientLzmaOut);
-			 OutputStream serverFileOut = Files.newOutputStream(serverPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-			 LZMACompressorOutputStream serverLzmaOut = new LZMACompressorOutputStream(serverFileOut);
-			 JarOutputStream serverJarOut = new JarOutputStream(serverLzmaOut);
+				OutputStream clientFileOut = Files.newOutputStream(clientPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				LZMACompressorOutputStream clientLzmaOut = new LZMACompressorOutputStream(clientFileOut);
+				JarOutputStream clientJarOut = new JarOutputStream(clientLzmaOut);
+				OutputStream serverFileOut = Files.newOutputStream(serverPatches, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				LZMACompressorOutputStream serverLzmaOut = new LZMACompressorOutputStream(serverFileOut);
+				JarOutputStream serverJarOut = new JarOutputStream(serverLzmaOut);
 		) {
 			for (JarEntry entry; (entry = in.getNextJarEntry()) != null;) {
 				String name = entry.getName();

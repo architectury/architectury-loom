@@ -12,14 +12,10 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-
-import net.fabricmc.loom.util.ModPlatform;
 
 import org.cadixdev.at.AccessTransformSet;
 import org.cadixdev.at.io.AccessTransformFormats;
@@ -34,6 +30,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.LfWriter;
 import net.fabricmc.loom.util.aw2at.Aw2At;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.service.UnsafeWorkQueueHelper;
 import net.fabricmc.lorenztiny.TinyMappingsReader;
 
@@ -73,6 +70,7 @@ public final class ModBuildExtensions {
 		try (FileSystemUtil.Delegate fileSystem = FileSystemUtil.getJarFileSystem(outputFile, false)) {
 			FileSystem fs = fileSystem.get();
 			Path atPath = platform.get() == ModPlatform.LEGACY_FORGE ? fs.getPath("META-INF/" + Hashing.sha256().hashString(String.join("", new TreeSet<>(atAccessWideners))) + "_at.cfg") : fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
+
 			if (Files.exists(atPath)) {
 				throw new FileAlreadyExistsException("Jar " + outputFile + " already contains an access transformer - cannot convert AWs!");
 			}

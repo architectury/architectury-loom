@@ -104,6 +104,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 					Manifest manifest = new Manifest();
 					manifest.read(new ByteArrayInputStream(manifestBytes));
 					String fmlAT = manifest.getMainAttributes().getValue(Constants.LegacyForge.FMLAT);
+
 					// in legacy forge, mods can have multiple access transformers, separated by spaces.
 					// we will deal with this by adding an entry for every single AT.
 					for (String atPath : fmlAT.split(" ")) {

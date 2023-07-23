@@ -110,6 +110,7 @@ public abstract class RemapTaskConfiguration implements Runnable {
 
 		getProject().afterEvaluate(p -> {
 			SetProperty<String> atAccessWideners = null;
+
 			if (extension.isForge()) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
 					atAccessWideners = Aw2At.setup(getProject(), remapJarTask);
@@ -125,12 +126,15 @@ public abstract class RemapTaskConfiguration implements Runnable {
 					});
 				}
 			}
+
 			if (extension.isLegacyForge()) {
 				Set<File> accessTransformers = extension.getForge().getAccessTransformers().getFiles();
 				Set<String> accessTransformerStrings = new HashSet<>();
+
 				if (atAccessWideners != null) {
 					accessTransformerStrings.add(Hashing.sha256().hashString(String.join("", new TreeSet<>(atAccessWideners.get()))) + "_at.cfg");
 				}
+
 				for (File accessTransformer : accessTransformers) {
 					for (File sourceDirectory : SourceSetHelper.getMainSourceSet(getProject()).getResources().getSourceDirectories()) {
 						if (!sourceDirectory.toPath().resolve("META-INF").toFile().isDirectory()) continue;

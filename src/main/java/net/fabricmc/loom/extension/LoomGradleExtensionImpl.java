@@ -32,9 +32,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import com.google.common.base.Suppliers;
-
-import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
-
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
@@ -51,6 +48,7 @@ import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.providers.forge.DependencyProviders;
 import net.fabricmc.loom.configuration.providers.forge.ForgeRunsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
+import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.library.LibraryProcessorManager;

@@ -28,10 +28,6 @@ import java.io.File;
 import java.util.List;
 import java.util.function.Consumer;
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
-import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
-
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
@@ -52,6 +48,7 @@ import net.fabricmc.loom.api.processor.MinecraftJarProcessor;
 import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
+import net.fabricmc.loom.configuration.providers.mappings.LegacyIntermediateMappingsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.NoOpIntermediateMappingsProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarConfiguration;
 import net.fabricmc.loom.task.GenerateSourcesTask;

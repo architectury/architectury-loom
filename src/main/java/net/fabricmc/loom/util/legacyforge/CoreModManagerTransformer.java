@@ -366,6 +366,7 @@ public class CoreModManagerTransformer extends ClassVisitor {
 			if ("net.minecraft.world.World".equals(value)) {
 				value = "java.lang.Object"; // if this class doesn't exist then i don't know you've gotten this far
 			}
+
 			super.visitLdcInsn(value);
 		}
 	}

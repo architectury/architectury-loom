@@ -51,7 +51,6 @@ import net.fabricmc.loom.task.RemapJarTask;
  * @author Juuz
  */
 public final class Aw2At {
-
 	// returns the extra access wideners
 	public static SetProperty<String> setup(Project project, RemapJarTask remapJar) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
