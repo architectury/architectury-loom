@@ -27,6 +27,7 @@ package net.fabricmc.loom.util;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.StringJoiner;
 import java.util.function.Supplier;
 
 import org.gradle.api.GradleException;
@@ -70,20 +71,17 @@ public enum ModPlatform {
 		assertPlatform(extension, () -> {
 			String msg = "Loom is not running on any of %s.%nYou can switch to it by any of the following: Add any of %s to your gradle.properties";
 			List<String> names = Arrays.stream(platforms).map(Enum::name).toList();
-			StringBuilder platformList = new StringBuilder();
-			platformList.append("[");
-			StringBuilder loomPlatform = new StringBuilder();
+
+			StringJoiner platformList = new StringJoiner(", ");
+			StringJoiner loomPlatform = new StringJoiner(", ");
 
 			for (String name : names) {
 				String lowercaseName = name.toLowerCase(Locale.ROOT);
-				platformList.append(lowercaseName).append(", ");
-				loomPlatform.append("['loom.platform = ").append(lowercaseName).append("'], ");
+				platformList.add(lowercaseName);
+				loomPlatform.add("'loom.platform = " + lowercaseName + "'");
 			}
 
-			platformList.setLength(platformList.length()-2);
-			platformList.append("]");
-			loomPlatform.setLength(loomPlatform.length()-2);
-			return msg.formatted(platformList, loomPlatform);
+			return msg.formatted("[" + platformList + "]", "[" + loomPlatform + "]");
 		}, platforms);
 	}
 
