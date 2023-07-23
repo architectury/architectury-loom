@@ -362,7 +362,7 @@ public class RunConfigSettings implements Named {
 	 * <p>This method can only be used on Forge.
 	 */
 	public void data() {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE, () -> "RunConfigSettings.data() is only usable on Forge.");
+		ModPlatform.assertPlatform(getExtension(), () -> "RunConfigSettings.data() is only usable on Forge.", ModPlatform.FORGE);
 		environment("data");
 		forgeTemplate("data");
 	}
