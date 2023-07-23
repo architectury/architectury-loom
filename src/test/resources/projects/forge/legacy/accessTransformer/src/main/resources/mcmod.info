@@ -1,0 +1,9 @@
+[
+  {
+    "modid": "examplemod",
+    "name": "Example Mod",
+    "description": "This is a very cool mod that does... things.\n\n...and stuff.\n\nHave I reached 280 characters yet?",
+    "version": "${version}",
+    "mcversion": "1.12.2"
+  }
+]

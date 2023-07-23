@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Resources for examplemod",
+    "pack_format": 4,
+    "_comment": "pack_format 4 is the current format for Minecraft 1.12.2. Be aware may have changed by the time you use this template!"
+  }
+}
