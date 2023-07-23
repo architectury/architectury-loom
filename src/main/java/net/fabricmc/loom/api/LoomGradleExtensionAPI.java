@@ -280,15 +280,4 @@ public interface LoomGradleExtensionAPI {
 		ModPlatform.assertPlatform(this, ModPlatform.LEGACY_FORGE);
 		setIntermediateMappingsProvider(LegacyIntermediateMappingsProvider.class, p -> { });
 	}
-
-	@ApiStatus.Experimental
-	default void legacyFabricIntermediateMappings() {
-		getIntermediaryUrl().convention("https://maven.legacyfabric.net/net/legacyfabric/v2/intermediary/%1$s/intermediary-%1$s-v2.jar");
-		// by default, legacy forge changes the intermediate mappings to use LegacyIntermediateMappingsProvider, this changes it back.
-		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
-			provider.getIntermediaryUrl()
-					.convention(getIntermediaryUrl())
-					.finalizeValueOnRead();
-		});
-	}
 }
