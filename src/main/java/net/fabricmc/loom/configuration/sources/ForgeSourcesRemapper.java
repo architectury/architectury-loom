@@ -116,7 +116,6 @@ public class ForgeSourcesRemapper {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		if (extension.isLegacyForge()) {
-			// Step 1: Extract the sources.zip file fron the forge userdev jar.
 			TempFiles tempFiles = new TempFiles();
 			Path sourcesZip = tempFiles.file("sources", ".zip");
 			Files.write(sourcesZip, ZipUtils.unpack(extension.getForgeUserdevProvider().getUserdevJar().toPath(), "sources.zip"));
@@ -125,11 +124,7 @@ public class ForgeSourcesRemapper {
 			project.getLogger().lifecycle(":extracted {} forge source classes", forgeSources.size());
 			remapSources(project, serviceManager, forgeSources);
 			forgeSources.forEach(consumer);
-			return; /*
-			TODO: Sources on legacy forge:
-			forge-userdev.jar/patches.zip contains source patches for minecraft
-			forge-userdev.jar/sources.zip contains sources for forge
-			*/
+			return;
 		}
 
 		String sourceDependency = extension.getForgeUserdevProvider().getJson().getAsJsonPrimitive("sources").getAsString();
