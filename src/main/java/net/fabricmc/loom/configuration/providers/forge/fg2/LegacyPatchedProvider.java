@@ -165,6 +165,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		checkCache();
 
 		this.dirty = false;
+
 		if (minecraftProvider.provideClient() && minecraftProvider.provideServer() && Files.notExists(minecraftMergedJar)) {
 			this.dirty = true;
 			mergeJars();
@@ -189,9 +190,11 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 		project.getLogger().info(":patching jars");
 		MinecraftProvider minecraftProvider = getExtension().getMinecraftProvider();
 		PatchProvider patchProvider = getExtension().getPatchProvider();
+
 		if (minecraftProvider.provideServer()) {
 			patchJars(minecraftProvider.getMinecraftServerJar().toPath(), minecraftServerPatchedJar, patchProvider.serverPatches);
 		}
+
 		if (minecraftProvider.provideClient()) {
 			patchJars(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientPatchedJar, patchProvider.clientPatches);
 		}
@@ -201,6 +204,7 @@ public class LegacyPatchedProvider extends MinecraftPatchedProvider {
 				jarMerger.enableSyntheticParamsOffset();
 				jarMerger.merge();
 			}
+
 			copyMissingClasses(minecraftMergedJar, minecraftMergedPatchedJar);
 			deleteParameterNames(minecraftMergedPatchedJar);
 
