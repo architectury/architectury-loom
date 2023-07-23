@@ -66,6 +66,7 @@ public enum ModPlatform {
 			});
 			return;
 		}
+
 		assertPlatform(extension, () -> {
 			String msg = "Loom is not running on any of %s.%nYou can switch to it by any of the following: Add any of %s to your gradle.properties";
 			List<String> names = Arrays.stream(platforms).map(Enum::name).toList();
@@ -86,25 +87,9 @@ public enum ModPlatform {
 		}, platforms);
 	}
 
-	/**
-	 * @deprecated will remove in future commit
-	 */
-	@Deprecated
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform[] platforms, Supplier<String> message) {
+	public static void assertPlatform(LoomGradleExtensionAPI extension, Supplier<String> message, ModPlatform... platforms) {
 		if (!Arrays.asList(platforms).contains(extension.getPlatform().get())) {
 			throw new GradleException(message.get());
 		}
-	}
-
-	/**
-	 * @deprecated will remove in future commit
-	 */
-	@Deprecated
-	public static void assertPlatform(LoomGradleExtensionAPI extension, ModPlatform platform, Supplier<String> message) {
-		assertPlatform(extension, message, platform);
-	}
-
-	public static void assertPlatform(LoomGradleExtensionAPI extension, Supplier<String> message, ModPlatform... platforms) {
-		assertPlatform(extension, platforms, message);
 	}
 }
