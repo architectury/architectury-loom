@@ -167,7 +167,10 @@ public final class FabricModJsonFactory {
 
 	public static boolean isModJar(Path input, ModPlatform platform) {
 		if (platform == ModPlatform.FORGE) {
-			return ZipUtils.contains(input, "META-INF/mods.toml");
+//			return ZipUtils.contains(input, "META-INF/mods.toml");
+			// Forge don't care if a nested jar contains mod manifest.
+			// Manifest will make the language provider jar loaded to GAME layer
+			return true;
 		} else if (platform == ModPlatform.QUILT) {
 			return ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
 		}
