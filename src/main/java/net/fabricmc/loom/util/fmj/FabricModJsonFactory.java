@@ -166,16 +166,21 @@ public final class FabricModJsonFactory {
 	}
 
 	public static boolean isModJar(Path input, ModPlatform platform) {
-		if (platform == ModPlatform.FORGE) {
-//			return ZipUtils.contains(input, "META-INF/mods.toml");
-			// Forge don't care if a nested jar contains mod manifest.
-			// Manifest will make the language provider jar loaded to GAME layer
-			return true;
-		} else if (platform == ModPlatform.QUILT) {
-			return ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
-		}
+		return switch (platform) {
+			case FORGE -> ZipUtils.contains(input, "META-INF/mods.toml");
+			case QUILT -> ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
+			default -> ZipUtils.contains(input, FABRIC_MOD_JSON);
+		};
+	}
 
-		return ZipUtils.contains(input, FABRIC_MOD_JSON);
+	public static boolean isNestableModJar(File file, ModPlatform platform) {
+		return isNestableModJar(file.toPath(), platform);
+	}
+
+	public static boolean isNestableModJar(Path input, ModPlatform platform) {
+		// Forge don't care if the main jar is mod jar.
+		if (platform == ModPlatform.FORGE) return true;
+		return isModJar(input, platform);
 	}
 
 	public static boolean containsMod(FileSystemUtil.Delegate fs, ModPlatform platform) {
