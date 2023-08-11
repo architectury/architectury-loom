@@ -76,7 +76,7 @@ public class RunConfigSettings implements Named {
 	 *
 	 * <p>By default this is determined from the base name.
 	 */
-	private String name;
+	private String configName;
 
 	/**
 	 * The default main class of the run configuration.
@@ -107,7 +107,7 @@ public class RunConfigSettings implements Named {
 	/**
 	 * The base name of the run configuration, which is the name it is created with, i.e. 'client'
 	 */
-	private final String baseName;
+	private final String name;
 
 	/**
 	 * When true a run configuration file will be generated for IDE's.
@@ -127,14 +127,14 @@ public class RunConfigSettings implements Named {
 	private final NamedDomainObjectContainer<ModSettings> mods;
 
 	@Inject
-	public RunConfigSettings(Project project, String baseName) {
-		this.baseName = baseName;
+	public RunConfigSettings(Project project, String name) {
+		this.name = name;
 		this.project = project;
 		this.extension = LoomGradleExtension.get(project);
 		this.ideConfigGenerated = extension.isRootProject();
 		this.mainClass = project.getObjects().property(String.class).convention(project.provider(() -> {
-			Objects.requireNonNull(environment, "Run config " + baseName + " must specify environment");
-			Objects.requireNonNull(defaultMainClass, "Run config " + baseName + " must specify default main class");
+			Objects.requireNonNull(environment, "Run config " + name + " must specify environment");
+			Objects.requireNonNull(defaultMainClass, "Run config " + name + " must specify default main class");
 			return RunConfig.getMainClass(environment, extension, defaultMainClass);
 		}));
 		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
@@ -180,7 +180,11 @@ public class RunConfigSettings implements Named {
 
 	@Override
 	public String getName() {
-		return baseName;
+		return name;
+	}
+
+	public void setName(String name) {
+		this.configName = name;
 	}
 
 	public List<String> getVmArgs() {
@@ -200,11 +204,11 @@ public class RunConfigSettings implements Named {
 	}
 
 	public String getConfigName() {
-		return name;
+		return configName;
 	}
 
 	public void setConfigName(String name) {
-		this.name = name;
+		this.configName = name;
 	}
 
 	public String getDefaultMainClass() {
@@ -405,7 +409,7 @@ public class RunConfigSettings implements Named {
 		environmentVariables.putAll(parent.environmentVariables);
 
 		environment = parent.environment;
-		name = parent.name;
+		configName = parent.configName;
 		defaultMainClass = parent.defaultMainClass;
 		source = parent.source;
 		ideConfigGenerated = parent.ideConfigGenerated;

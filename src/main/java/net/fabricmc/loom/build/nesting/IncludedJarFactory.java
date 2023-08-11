@@ -60,7 +60,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.task.RemapTaskConfiguration;
 import net.fabricmc.loom.util.Pair;
-import net.fabricmc.loom.util.ZipUtils;
+import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 
 public final class IncludedJarFactory {
@@ -174,7 +174,7 @@ public final class IncludedJarFactory {
 		}
 
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		File tempDir = new File(extension.getFiles().getUserCache(), "temp/modprocessing");
+		File tempDir = new File(extension.getFiles().getProjectBuildCache(), "temp/modprocessing");
 
 		if (!tempDir.exists()) {
 			tempDir.mkdirs();
@@ -190,7 +190,7 @@ public final class IncludedJarFactory {
 			FileUtils.copyFile(input, tempFile);
 
 			// TODO generate Quilt qmjs natively
-			ZipUtils.add(tempFile.toPath(), "fabric.mod.json", generateModForDependency(metadata).getBytes(StandardCharsets.UTF_8));
+			ZipReprocessorUtil.appendZipEntry(tempFile, "fabric.mod.json", generateModForDependency(metadata).getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to add dummy mod while including %s".formatted(input), e);
 		}

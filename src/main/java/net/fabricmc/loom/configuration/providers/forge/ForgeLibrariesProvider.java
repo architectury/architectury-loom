@@ -56,6 +56,8 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree;
 public class ForgeLibrariesProvider {
 	private static final String FML_LOADER_GROUP = "net.minecraftforge";
 	private static final String FML_LOADER_NAME = "fmlloader";
+	private static final String FANCYML_LOADER_GROUP = "net.neoforged.fancymodloader";
+	private static final String FANCYML_LOADER_NAME = "loader";
 
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
@@ -92,10 +94,18 @@ public class ForgeLibrariesProvider {
 		for (ResolvedArtifact artifact : config.getResolvedArtifacts()) {
 			final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
 			final Object dep;
+			final boolean isFML = FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName());
+			final boolean isFancyML = FANCYML_LOADER_GROUP.equals(id.getGroup()) && FANCYML_LOADER_NAME.equals(id.getName());
 
-			if (FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName())) {
+			if (isFML || isFancyML) {
 				// If FML, remap it.
 				try {
+					if (isFML) {
+						project.getLogger().info(":remapping FML loader");
+					} else if (isFancyML) {
+						project.getLogger().info(":remapping FancyML loader");
+					}
+
 					dep = remapFmlLoader(project, artifact, mappingConfiguration);
 				} catch (IOException e) {
 					throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not remap FML", e);
@@ -116,7 +126,6 @@ public class ForgeLibrariesProvider {
 
 	// Returns a Gradle dependency notation.
 	private static Object remapFmlLoader(Project project, ResolvedArtifact artifact, MappingConfiguration mappingConfiguration) throws IOException {
-		project.getLogger().info(":remapping FML loader");
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		// A hash of the current mapping configuration. The transformations only need to be done once per mapping set.

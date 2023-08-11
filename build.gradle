@@ -98,7 +98,7 @@ dependencies {
 	}
 
 	// tinyfile management
-	implementation ('dev.architectury:tiny-remapper:1.8.20')
+	implementation ('dev.architectury:tiny-remapper:1.9.21')
 	implementation 'net.fabricmc:access-widener:2.1.0'
 	implementation 'net.fabricmc:mapping-io:0.2.1'
 
@@ -115,7 +115,7 @@ dependencies {
 	implementation ('dev.architectury:mercury:0.1.2.15')
 
 	// Kotlin
-	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.0') {
+	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.2') {
 		transitive = false
 	}
 

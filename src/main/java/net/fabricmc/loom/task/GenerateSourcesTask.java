@@ -54,6 +54,7 @@ import org.gradle.api.services.ServiceReference;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.process.ExecOperations;
@@ -80,6 +81,7 @@ import net.fabricmc.loom.decompilers.LineNumberRemapper;
 import net.fabricmc.loom.decompilers.linemap.LineMapClassFilter;
 import net.fabricmc.loom.decompilers.linemap.LineMapVisitor;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.IOStringConsumer;
 import net.fabricmc.loom.util.Platform;
@@ -113,15 +115,19 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 	// Unpick
 	@InputFile
+	@Optional
 	public abstract RegularFileProperty getUnpickDefinitions();
 
 	@InputFiles
+	@Optional
 	public abstract ConfigurableFileCollection getUnpickConstantJar();
 
 	@InputFiles
+	@Optional
 	public abstract ConfigurableFileCollection getUnpickClasspath();
 
 	@OutputFile
+	@Optional
 	public abstract RegularFileProperty getUnpickOutputJar();
 
 	// Injects
@@ -360,7 +366,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			try (IPCClient ipcClient = new IPCClient(ipcPath)) {
 				doDecompile(new ThreadedSimpleProgressLogger(ipcClient));
 			} catch (Exception e) {
-				throw new RuntimeException("Failed to decompile", e);
+				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to decompile", e);
 			}
 		}
 
