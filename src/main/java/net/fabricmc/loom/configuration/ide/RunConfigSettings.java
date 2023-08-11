@@ -54,7 +54,6 @@ import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Platform;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 
-@ApiStatus.NonExtendable
 public class RunConfigSettings implements Named {
 	/**
 	 * Arguments for the JVM, such as system properties.
