@@ -166,11 +166,13 @@ public final class FabricModJsonFactory {
 	}
 
 	public static boolean isModJar(Path input, ModPlatform platform) {
-		return switch (platform) {
-			case FORGE -> ZipUtils.contains(input, "META-INF/mods.toml");
-			case QUILT -> ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
-			default -> ZipUtils.contains(input, FABRIC_MOD_JSON);
-		};
+		if (platform == ModPlatform.FORGE) {
+			return ZipUtils.contains(input, "META-INF/mods.toml");
+		} else if (platform == ModPlatform.QUILT) {
+			return ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
+		}
+
+		return ZipUtils.contains(input, FABRIC_MOD_JSON);
 	}
 
 	public static boolean isNestableModJar(File file, ModPlatform platform) {
