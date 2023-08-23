@@ -168,7 +168,7 @@ public final class IncludedJarFactory {
 	}
 
 	private File getNestableJar(final File input, final Metadata metadata) {
-		if (FabricModJsonFactory.isModJar(input, LoomGradleExtension.get(project).getPlatform().get())) {
+		if (FabricModJsonFactory.isNestableModJar(input, LoomGradleExtension.get(project).getPlatform().get())) {
 			// Input is a mod, nothing needs to be done.
 			return input;
 		}
