@@ -121,6 +121,12 @@ public class ModProcessor {
 	}
 
 	private void stripNestedJars(Path path) {
+		try {
+			ZipUtils.deleteIfExists(path, "META-INF/jarjar/metadata.json");
+		} catch (IOException e) {
+			throw new UncheckedIOException("Failed to strip nested jars from %s".formatted(path), e);
+		}
+
 		if (!ZipUtils.contains(path, "fabric.mod.json")) {
 			if (ZipUtils.contains(path, "quilt.mod.json")) {
 				// Strip out all contained jar info as we dont want loader to try and load the jars contained in dev.
