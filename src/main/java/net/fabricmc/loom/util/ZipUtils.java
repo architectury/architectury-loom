@@ -186,7 +186,7 @@ public class ZipUtils {
 
 	public static void deleteIfExists(Path zip, String path) throws IOException {
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(zip, false)) {
-			Files.deleteIfExists(fs.get().getPath(path));
+			Files.deleteIfExists(fs.getPath(path));
 		}
 	}
 
