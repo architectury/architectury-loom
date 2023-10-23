@@ -58,6 +58,9 @@ public record ForgeRunTemplate(
 
 		settings.vmArgs(CollectionUtil.map(jvmArgs, value -> value.resolve(configValueResolver)));
 
+		// Add MOD_CLASSES, this is something that ForgeGradle does
+		env.computeIfAbsent("MOD_CLASSES", $ -> ConfigValue.of("{source_roots}"));
+
 		env.forEach((key, value) -> {
 			String resolved = value.resolve(configValueResolver);
 			settings.getEnvironmentVariables().putIfAbsent(key, resolved);

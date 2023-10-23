@@ -143,7 +143,7 @@ public class MinecraftPatchedProvider {
 		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
 		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-at-patched.jar");
 		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
-		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
+		minecraftClientExtra = forgeWorkingDir.resolve("client-extra.jar");
 	}
 
 	private void cleanAllCache() throws IOException {
