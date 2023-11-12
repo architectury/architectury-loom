@@ -44,7 +44,6 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import dev.architectury.refmapremapper.utils.DescriptorRemapper;
 import org.gradle.api.Project;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -123,7 +122,8 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 
 	public void updateFieldMigration(Project project) throws IOException {
 		if (!Files.exists(migratedFieldsCache)) {
-			generateNewFieldMigration(project);
+			migratedFields.clear();
+			migratedFields.addAll(generateNewFieldMigration(project, MinecraftPatchedProvider.get(project).getMinecraftPatchedSrgJar(), MappingsNamespace.SRG.toString(), rawTinyMappingsWithSrg).entrySet());
 			Map<String, String> map = new HashMap<>();
 			migratedFields.forEach(entry -> {
 				map.put(entry.getKey().owner + "#" + entry.getKey().field, entry.getValue());
@@ -173,7 +173,7 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 		}
 	}
 
-	private void generateNewFieldMigration(Project project) throws IOException {
+	private static Map<FieldMember, String> generateNewFieldMigration(Project project, Path patchedJar, String patchedJarNamespace, Path mappingsPath) throws IOException {
 		Map<FieldMember, String> fieldDescriptorMap = new ConcurrentHashMap<>();
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		ThreadingUtils.TaskCompleter completer = ThreadingUtils.taskCompleter();
@@ -198,8 +198,7 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 		}
 
 		Visitor visitor = new Visitor(Opcodes.ASM9);
-		Path patchedSrgJar = MinecraftPatchedProvider.get(project).getMinecraftPatchedSrgJar();
-		FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedSrgJar, false);
+		FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedJar, false);
 		completer.onComplete(value -> system.close());
 
 		for (Path fsPath : (Iterable<? extends Path>) Files.walk(system.get().getPath("/"))::iterator) {
@@ -214,40 +213,29 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 		completer.complete();
 		Map<FieldMember, String> migratedFields = new HashMap<>();
 
-		try (BufferedReader reader = Files.newBufferedReader(rawTinyMappingsWithSrg)) {
+		try (BufferedReader reader = Files.newBufferedReader(mappingsPath)) {
 			MemoryMappingTree mappings = new MemoryMappingTree();
 			MappingReader.read(reader, mappings);
-			Map<String, String> srgToIntermediary = new HashMap<>();
-
-			for (MappingTree.ClassMapping aClass : mappings.getClasses()) {
-				srgToIntermediary.put(aClass.getName("srg"), aClass.getName("intermediary"));
-			}
 
 			for (MappingTree.ClassMapping classDef : mappings.getClasses()) {
-				String ownerSrg = classDef.getName("srg");
-				String ownerIntermediary = classDef.getName("intermediary");
-
 				for (MappingTree.FieldMapping fieldDef : classDef.getFields()) {
-					String fieldSrg = fieldDef.getName("srg");
-					String descriptorSrg = fieldDef.getDesc("srg");
+					String newDescriptor = fieldDescriptorMap.get(new FieldMember(classDef.getName(patchedJarNamespace), fieldDef.getName(patchedJarNamespace)));
+					String existingDescriptor = fieldDef.getDesc(patchedJarNamespace);
 
-					FieldMember member = new FieldMember(ownerSrg, fieldSrg);
-					String newDescriptor = fieldDescriptorMap.get(member);
-
-					if (newDescriptor != null && !newDescriptor.equals(descriptorSrg)) {
-						String fieldIntermediary = fieldDef.getName("intermediary");
-						String descriptorIntermediary = fieldDef.getDesc("intermediary");
-						String newDescriptorRemapped = DescriptorRemapper.remapDescriptor(newDescriptor,
-								clazz -> srgToIntermediary.getOrDefault(clazz, clazz));
-						migratedFields.put(new FieldMember(ownerIntermediary, fieldIntermediary), newDescriptorRemapped);
-						project.getLogger().info("Found migration of " + ownerIntermediary + "#" + fieldIntermediary + ": " + descriptorIntermediary + " -> " + newDescriptorRemapped);
+					if (newDescriptor != null && !newDescriptor.equals(existingDescriptor)) {
+						String ownerIntermediary = classDef.getName(MappingsNamespace.INTERMEDIARY.toString());
+						String fieldIntermediary = fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString());
+						String descriptorIntermediary = fieldDef.getDesc(MappingsNamespace.INTERMEDIARY.toString());
+						String newDescriptorIntermediary = mappings.mapDesc(newDescriptor, mappings.getNamespaceId(patchedJarNamespace),
+								mappings.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString()));
+						migratedFields.put(new FieldMember(ownerIntermediary, fieldIntermediary), newDescriptorIntermediary);
+						project.getLogger().info("Found migration of " + ownerIntermediary + "#" + fieldIntermediary + ": " + descriptorIntermediary + " -> " + newDescriptorIntermediary);
 					}
 				}
 			}
 		}
 
-		this.migratedFields.clear();
-		this.migratedFields.addAll(migratedFields.entrySet());
+		return migratedFields;
 	}
 
 	public static class FieldMember {
