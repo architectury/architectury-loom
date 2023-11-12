@@ -195,7 +195,6 @@ public class MappingConfiguration {
 
 	public void setupPost(Project project) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		manipulateMappings(project, tinyMappingsJar);
 
 		if (extension.shouldGenerateSrgTiny()) {
 			if (Files.notExists(tinyMappingsWithSrg) || extension.refreshDeps()) {
@@ -206,6 +205,8 @@ public class MappingConfiguration {
 				project.getLogger().info(":merged srg mappings in " + stopwatch.stop());
 			}
 		}
+
+		manipulateMappings(project, tinyMappingsJar);
 	}
 
 	public void applyToProject(Project project, DependencyInfo dependency) throws IOException {

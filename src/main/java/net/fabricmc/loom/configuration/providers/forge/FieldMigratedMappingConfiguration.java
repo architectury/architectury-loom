@@ -26,8 +26,8 @@ package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -58,7 +58,6 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
 import net.fabricmc.loom.util.service.SharedServiceManager;
-import net.fabricmc.loom.util.srg.SrgMerger;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -110,14 +109,6 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 		this.rawTinyMappings = tinyMappings;
 		this.rawTinyMappingsWithSrg = tinyMappingsWithSrg;
 
-		if (extension.shouldGenerateSrgTiny()) {
-			if (Files.notExists(rawTinyMappingsWithSrg) || extension.refreshDeps()) {
-				// Merge tiny mappings with srg
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), rawTinyMappings, rawTinyMappingsWithSrg, extraMappings, true);
-			}
-		}
-
 		tinyMappings = mappingsWorkingDir().resolve("mappings-field-migrated.tiny");
 		tinyMappingsWithSrg = mappingsWorkingDir().resolve("mappings-srg-field-migrated.tiny");
 
@@ -139,39 +130,46 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 			});
 			Files.writeString(migratedFieldsCache, new Gson().toJson(map));
 			Files.deleteIfExists(tinyMappings);
+			Files.deleteIfExists(tinyMappingsWithSrg);
 		}
 
-		if (!Files.exists(tinyMappings)) {
+		if (Files.notExists(tinyMappings) || Files.notExists(tinyMappingsWithSrg)) {
 			Table<String, String, String> fieldDescriptorMap = HashBasedTable.create();
 
 			for (Map.Entry<FieldMember, String> entry : migratedFields) {
 				fieldDescriptorMap.put(entry.getKey().owner, entry.getKey().field, entry.getValue());
 			}
 
-			MemoryMappingTree mappings = new MemoryMappingTree();
+			injectMigration(project, fieldDescriptorMap, rawTinyMappings, tinyMappings);
+			injectMigration(project, fieldDescriptorMap, rawTinyMappingsWithSrg, tinyMappingsWithSrg);
+		}
+	}
 
-			try (BufferedReader reader = Files.newBufferedReader(rawTinyMappings)) {
-				MappingReader.read(reader, mappings);
+	private static void injectMigration(Project project, Table<String, String, String> fieldDescriptorMap, Path source, Path out) throws IOException {
+		MemoryMappingTree mappings = new MemoryMappingTree();
 
-				for (MappingTree.ClassMapping classDef : new ArrayList<>(mappings.getClasses())) {
-					Map<String, String> row = fieldDescriptorMap.row(classDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
+		try (BufferedReader reader = Files.newBufferedReader(source)) {
+			MappingReader.read(reader, mappings);
+		}
 
-					if (!row.isEmpty()) {
-						for (MappingTree.FieldMapping fieldDef : new ArrayList<>(classDef.getFields())) {
-							String newDescriptor = row.get(fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
+		for (MappingTree.ClassMapping classDef : new ArrayList<>(mappings.getClasses())) {
+			Map<String, String> row = fieldDescriptorMap.row(classDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
 
-							if (newDescriptor != null) {
-								fieldDef.setSrcDesc(mappings.mapDesc(newDescriptor, mappings.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString()), MappingTreeView.SRC_NAMESPACE_ID));
-							}
-						}
+			if (!row.isEmpty()) {
+				for (MappingTree.FieldMapping fieldDef : new ArrayList<>(classDef.getFields())) {
+					String newDescriptor = row.get(fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
+
+					if (newDescriptor != null) {
+						String prev = fieldDef.getDesc(MappingsNamespace.INTERMEDIARY.toString());
+						fieldDef.setSrcDesc(mappings.mapDesc(newDescriptor, mappings.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString()), MappingTreeView.SRC_NAMESPACE_ID));
+						project.getLogger().info("Migrated field descriptor of field {}#{} from {} to {}", classDef.getName(MappingsNamespace.INTERMEDIARY.toString()), fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString()), prev, newDescriptor);
 					}
 				}
 			}
+		}
 
-			StringWriter stringWriter = new StringWriter();
-			Tiny2Writer tiny2Writer = new Tiny2Writer(stringWriter, false);
-			mappings.accept(tiny2Writer);
-			Files.writeString(tinyMappings, stringWriter.toString(), StandardOpenOption.CREATE);
+		try (Writer writer = Files.newBufferedWriter(out, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+			mappings.accept(new Tiny2Writer(writer, false));
 		}
 	}
 
@@ -242,7 +240,7 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 						String newDescriptorRemapped = DescriptorRemapper.remapDescriptor(newDescriptor,
 								clazz -> srgToIntermediary.getOrDefault(clazz, clazz));
 						migratedFields.put(new FieldMember(ownerIntermediary, fieldIntermediary), newDescriptorRemapped);
-						project.getLogger().info(ownerIntermediary + "#" + fieldIntermediary + ": " + descriptorIntermediary + " -> " + newDescriptorRemapped);
+						project.getLogger().info("Found migration of " + ownerIntermediary + "#" + fieldIntermediary + ": " + descriptorIntermediary + " -> " + newDescriptorRemapped);
 					}
 				}
 			}
