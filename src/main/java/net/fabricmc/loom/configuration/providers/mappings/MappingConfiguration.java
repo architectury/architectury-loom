@@ -44,7 +44,6 @@ import java.util.Objects;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
-import dev.architectury.loom.neoforge.MojangMappingsMerger;
 import dev.architectury.loom.util.MappingOption;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
@@ -70,10 +69,11 @@ import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.service.ScopedSharedServiceManager;
 import net.fabricmc.loom.util.service.SharedServiceManager;
 import net.fabricmc.loom.util.srg.MCPReader;
-import net.fabricmc.loom.util.srg.SrgMerger;
+import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
 import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
 import net.fabricmc.stitch.commands.tinyv2.TinyFile;
@@ -213,7 +213,11 @@ public class MappingConfiguration {
 			if (Files.notExists(tinyMappingsWithMojang) || extension.refreshDeps()) {
 				final Stopwatch stopwatch = Stopwatch.createStarted();
 				final MappingContext context = new GradleMappingContext(project, "tmp-neoforge");
-				MojangMappingsMerger.mergeMojangMappings(context, tinyMappings, tinyMappingsWithMojang);
+
+				try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(tinyMappingsWithMojang), false)) {
+					ForgeMappingsMerger.mergeMojang(context, tinyMappings, null, true).accept(writer);
+				}
+
 				project.getLogger().info(":merged mojang mappings in {}", stopwatch.stop());
 			}
 		}
@@ -222,8 +226,12 @@ public class MappingConfiguration {
 			if (Files.notExists(tinyMappingsWithSrg) || extension.refreshDeps()) {
 				// Merge tiny mappings with srg
 				Stopwatch stopwatch = Stopwatch.createStarted();
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
-				SrgMerger.mergeSrg(getRawSrgFile(project), tinyMappings, tinyMappingsWithSrg, extraMappings, true);
+				ForgeMappingsMerger.ExtraMappings extraMappings = ForgeMappingsMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
+
+				try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(tinyMappingsWithSrg), false)) {
+					ForgeMappingsMerger.mergeSrg(getRawSrgFile(project), tinyMappings, extraMappings, true).accept(writer);
+				}
+
 				project.getLogger().info(":merged srg mappings in " + stopwatch.stop());
 			}
 		}

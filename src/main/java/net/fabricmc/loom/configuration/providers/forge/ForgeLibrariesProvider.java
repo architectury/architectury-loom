@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.hash.Hashing;
-import dev.architectury.loom.neoforge.MojangMappingsMerger;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -52,7 +51,7 @@ import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.PropertyUtil;
 import net.fabricmc.loom.util.srg.RemapObjectHolderVisitor;
-import net.fabricmc.loom.util.srg.SrgMerger;
+import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class ForgeLibrariesProvider {
@@ -194,8 +193,8 @@ public class ForgeLibrariesProvider {
 			// Merge SRG mappings. The real SRG mapping file hasn't been created yet since the usual SRG merging
 			// process occurs after all Forge libraries have been provided.
 			// Forge libs are needed for MC, which is needed for the mappings.
-			final SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(MappingConfiguration.getMojmapSrgFileIfPossible(project));
-			final MemoryMappingTree mappings = SrgMerger.mergeSrg(MappingConfiguration.getRawSrgFile(project), mappingConfiguration.tinyMappings, extraMappings, true);
+			final ForgeMappingsMerger.ExtraMappings extraMappings = ForgeMappingsMerger.ExtraMappings.ofMojmapTsrg(MappingConfiguration.getMojmapSrgFileIfPossible(project));
+			final MemoryMappingTree mappings = ForgeMappingsMerger.mergeSrg(MappingConfiguration.getRawSrgFile(project), mappingConfiguration.tinyMappings, extraMappings, true);
 
 			// Remap the object holders.
 			RemapObjectHolderVisitor.remapObjectHolder(
@@ -213,7 +212,7 @@ public class ForgeLibrariesProvider {
 			// process occurs after all Forge libraries have been provided.
 			// Forge libs are needed for MC, which is needed for the mappings.
 			final MappingContext context = new GradleMappingContext(project, "tmp-neoforge-libs");
-			final MemoryMappingTree mappings = MojangMappingsMerger.mergeMojangMappings(context, mappingConfiguration.tinyMappings);
+			final MemoryMappingTree mappings = ForgeMappingsMerger.mergeMojang(context, mappingConfiguration.tinyMappings, null, true);
 
 			// Remap the object holders.
 			RemapObjectHolderVisitor.remapObjectHolder(

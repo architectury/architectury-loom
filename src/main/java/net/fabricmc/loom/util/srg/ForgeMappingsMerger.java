@@ -37,53 +37,56 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import org.jetbrains.annotations.Nullable;
 
+import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
 import net.fabricmc.loom.util.MappingException;
 import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.mappingio.FlatMappingVisitor;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
 import net.fabricmc.mappingio.adapter.MappingNsRenamer;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.adapter.RegularAsFlatMappingVisitor;
 import net.fabricmc.mappingio.format.MappingFormat;
-import net.fabricmc.mappingio.format.Tiny2Writer;
 import net.fabricmc.mappingio.format.TsrgReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 /**
- * Merges a Tiny file with an SRG file.
+ * Merges a Tiny file with a new namespace.
  *
  * @author Juuz
  */
-public final class SrgMerger {
+public final class ForgeMappingsMerger {
 	private static final List<String> INPUT_NAMESPACES = List.of("official", "intermediary", "named");
-	private final MemoryMappingTree srg;
+	private final MemoryMappingTree newNs;
 	private final MemoryMappingTree src;
 	private final MemoryMappingTree output;
 	private final FlatMappingVisitor flatOutput;
 	private final boolean lenient;
 	private final @Nullable MemoryMappingTree extra;
-	private final ListMultimap<SrgMethodKey, MethodData> methodsBySrgName;
+	private final ListMultimap<MethodKey, MethodData> methodsByNewNs;
 
-	private SrgMerger(Path srg, Path tiny, @Nullable ExtraMappings extraMappings, boolean lenient) throws IOException {
-		this.srg = readSrg(srg);
-		this.src = new MemoryMappingTree();
+	private ForgeMappingsMerger(MemoryMappingTree newNs, MemoryMappingTree src, @Nullable ExtraMappings extraMappings, boolean lenient) throws IOException {
+		this.newNs = newNs;
+		Preconditions.checkArgument(this.newNs.getDstNamespaces().size() == 1, "New namespace must have exactly one destination namespace");
+		this.src = src;
 		this.output = new MemoryMappingTree();
 		this.flatOutput = new RegularAsFlatMappingVisitor(output);
 		this.lenient = lenient;
-		this.methodsBySrgName = ArrayListMultimap.create();
+		this.methodsByNewNs = ArrayListMultimap.create();
 
 		if (extraMappings != null) {
 			this.extra = new MemoryMappingTree();
-			MappingSourceNsSwitch nsSwitch = new MappingSourceNsSwitch(extra, "official");
-			MappingVisitor visitor = nsSwitch;
+			MappingVisitor visitor = new MappingSourceNsSwitch(this.extra, MappingsNamespace.OFFICIAL.toString());
 
 			if (!extraMappings.hasCorrectNamespaces()) {
 				Map<String, String> namespaces = Map.of(
@@ -98,33 +101,34 @@ public final class SrgMerger {
 			this.extra = null;
 		}
 
-		MappingReader.read(tiny, this.src);
-		checkInputNamespaces(tiny);
-
-		this.output.visitNamespaces(this.src.getSrcNamespace(), Stream.concat(Stream.of("srg"), this.src.getDstNamespaces().stream()).collect(Collectors.toList()));
+		this.output.visitNamespaces(this.src.getSrcNamespace(), Stream.concat(Stream.of(this.newNs.getDstNamespaces().get(0)), this.src.getDstNamespaces().stream()).collect(Collectors.toList()));
 	}
 
-	private void checkInputNamespaces(Path tiny) {
-		List<String> inputNamespaces = new ArrayList<>(this.src.getDstNamespaces());
-		inputNamespaces.add(0, this.src.getSrcNamespace());
+	private static MemoryMappingTree readInput(Path tiny) throws IOException {
+		MemoryMappingTree src = new MemoryMappingTree();
+		MappingReader.read(tiny, src);
+		List<String> inputNamespaces = new ArrayList<>(src.getDstNamespaces());
+		inputNamespaces.add(0, src.getSrcNamespace());
 
 		if (!inputNamespaces.equals(INPUT_NAMESPACES)) {
 			throw new MappingException("Mapping file " + tiny + " does not have 'official, intermediary, named' as its namespaces! Found: " + inputNamespaces);
 		}
+
+		return src;
 	}
 
 	/**
 	 * Creates a destination name array where the first element
-	 * will be the srg name of the mapping element.
+	 * will be the new namespace name of the mapping element.
 	 */
-	private String[] createDstNameArray(MappingTree.ElementMappingView srg) {
+	private String[] createDstNameArray(MappingTree.ElementMappingView newNs) {
 		String[] dstNames = new String[output.getDstNamespaces().size()];
-		dstNames[0] = srg.getDstName(0);
+		dstNames[0] = newNs.getDstName(0);
 		return dstNames;
 	}
 
 	/**
-	 * Copies all the non-srg destination names from an element.
+	 * Copies all the non-new-namespace destination names from an element.
 	 */
 	private void copyDstNames(String[] dstNames, MappingTreeView.ElementMappingView from) {
 		for (int i = 1; i < dstNames.length; i++) {
@@ -135,37 +139,37 @@ public final class SrgMerger {
 	/**
 	 * Fills in an array of destination names with the element's source name.
 	 */
-	private void fillMappings(String[] names, MappingTree.ElementMappingView srg) {
+	private void fillMappings(String[] names, MappingTree.ElementMappingView newNs) {
 		for (int i = 1; i < names.length; i++) {
-			names[i] = srg.getSrcName();
+			names[i] = newNs.getSrcName();
 		}
 	}
 
 	public MemoryMappingTree merge() throws IOException {
-		for (MappingTree.ClassMapping srgClass : srg.getClasses()) {
-			String[] dstNames = createDstNameArray(srgClass);
-			MappingTree.ClassMapping tinyClass = src.getClass(srgClass.getSrcName());
+		for (MappingTree.ClassMapping newNsClass : newNs.getClasses()) {
+			String[] dstNames = createDstNameArray(newNsClass);
+			MappingTree.ClassMapping tinyClass = src.getClass(newNsClass.getSrcName());
 			String comment = null;
 
 			if (tinyClass != null) {
 				copyDstNames(dstNames, tinyClass);
 				comment = tinyClass.getComment();
 			} else if (lenient) {
-				// Tiny class not found, we'll just use srg names
-				fillMappings(dstNames, srgClass);
+				// Tiny class not found, we'll just use new namespace names
+				fillMappings(dstNames, newNsClass);
 			} else {
-				throw new MappingException("Could not find class " + srgClass.getSrcName() + "|" + srgClass.getDstName(0));
+				throw new MappingException("Could not find class " + newNsClass.getSrcName() + "|" + newNsClass.getDstName(0));
 			}
 
-			flatOutput.visitClass(srgClass.getSrcName(), dstNames);
-			if (comment != null) flatOutput.visitClassComment(srgClass.getSrcName(), comment);
+			flatOutput.visitClass(newNsClass.getSrcName(), dstNames);
+			if (comment != null) flatOutput.visitClassComment(newNsClass.getSrcName(), comment);
 
-			for (MappingTree.FieldMapping field : srgClass.getFields()) {
-				mergeField(srgClass, field, tinyClass);
+			for (MappingTree.FieldMapping field : newNsClass.getFields()) {
+				mergeField(newNsClass, field, tinyClass);
 			}
 
-			for (MappingTree.MethodMapping method : srgClass.getMethods()) {
-				mergeMethod(srgClass, method, tinyClass);
+			for (MappingTree.MethodMapping method : newNsClass.getMethods()) {
+				mergeMethod(newNsClass, method, tinyClass);
 			}
 		}
 
@@ -174,20 +178,20 @@ public final class SrgMerger {
 		return output;
 	}
 
-	private void mergeField(MappingTree.ClassMapping srgClass, MappingTree.FieldMapping srgField, @Nullable MappingTree.ClassMapping tinyClass) throws IOException {
-		String[] dstNames = createDstNameArray(srgField);
+	private void mergeField(MappingTree.ClassMapping newNsClass, MappingTree.FieldMapping newNsField, @Nullable MappingTree.ClassMapping tinyClass) throws IOException {
+		String[] dstNames = createDstNameArray(newNsField);
 		MappingTree.FieldMapping tinyField = null;
-		String srcDesc = srgField.getSrcDesc();
+		String srcDesc = newNsField.getSrcDesc();
 		String comment = null;
 
 		if (tinyClass != null) {
 			if (srcDesc != null) {
-				tinyField = tinyClass.getField(srgField.getSrcName(), srgField.getSrcDesc());
+				tinyField = tinyClass.getField(newNsField.getSrcName(), newNsField.getSrcDesc());
 			} else {
-				tinyField = CollectionUtil.find(tinyClass.getFields(), field -> field.getSrcName().equals(srgField.getSrcName())).orElse(null);
+				tinyField = CollectionUtil.find(tinyClass.getFields(), field -> field.getSrcName().equals(newNsField.getSrcName())).orElse(null);
 			}
 		} else if (!lenient) {
-			throw new MappingException("Could not find field " + srgClass.getDstName(0) + '.' + srgField.getDstName(0) + ' ' + srgField.getDstDesc(0));
+			throw new MappingException("Could not find field " + newNsClass.getDstName(0) + '.' + newNsField.getDstName(0) + ' ' + newNsField.getDstDesc(0));
 		}
 
 		if (tinyField != null) {
@@ -195,27 +199,27 @@ public final class SrgMerger {
 			srcDesc = tinyField.getSrcDesc();
 			comment = tinyField.getComment();
 		} else {
-			fillMappings(dstNames, srgField);
+			fillMappings(dstNames, newNsField);
 		}
 
 		if (srcDesc != null) {
-			flatOutput.visitField(srgClass.getSrcName(), srgField.getSrcName(), srcDesc, dstNames);
-			if (comment != null) flatOutput.visitFieldComment(srgClass.getSrcName(), srgField.getSrcName(), srcDesc, comment);
+			flatOutput.visitField(newNsClass.getSrcName(), newNsField.getSrcName(), srcDesc, dstNames);
+			if (comment != null) flatOutput.visitFieldComment(newNsClass.getSrcName(), newNsField.getSrcName(), srcDesc, comment);
 		} else if (!lenient) {
-			throw new MappingException("Could not find descriptor for field " + srgClass.getDstName(0) + '.' + srgField.getDstName(0));
+			throw new MappingException("Could not find descriptor for field " + newNsClass.getDstName(0) + '.' + newNsField.getDstName(0));
 		}
 	}
 
-	private void mergeMethod(MappingTree.ClassMapping srgClass, MappingTree.MethodMapping srgMethod, @Nullable MappingTree.ClassMapping tinyClass) throws IOException {
-		String[] dstNames = createDstNameArray(srgMethod);
+	private void mergeMethod(MappingTree.ClassMapping newNsClass, MappingTree.MethodMapping newNsMethod, @Nullable MappingTree.ClassMapping tinyClass) throws IOException {
+		String[] dstNames = createDstNameArray(newNsMethod);
 		MappingTree.MethodMapping tinyMethod = null;
 		String intermediaryName, namedName;
 		String comment = null;
 
 		if (tinyClass != null) {
-			tinyMethod = tinyClass.getMethod(srgMethod.getSrcName(), srgMethod.getSrcDesc());
+			tinyMethod = tinyClass.getMethod(newNsMethod.getSrcName(), newNsMethod.getSrcDesc());
 		} else if (!lenient) {
-			throw new MappingException("Could not find method " + srgClass.getDstName(0) + '.' + srgMethod.getDstName(0) + ' ' + srgMethod.getDstDesc(0));
+			throw new MappingException("Could not find method " + newNsClass.getDstName(0) + '.' + newNsMethod.getDstName(0) + ' ' + newNsMethod.getDstDesc(0));
 		}
 
 		if (tinyMethod != null) {
@@ -224,7 +228,7 @@ public final class SrgMerger {
 			namedName = tinyMethod.getName("named");
 			comment = tinyMethod.getComment();
 		} else {
-			if (srgMethod.getSrcName().equals(srgMethod.getDstName(0))) {
+			if (newNsMethod.getSrcName().equals(newNsMethod.getDstName(0))) {
 				// These are only methods like <init> or toString which have the same name in every NS.
 				// We can safely ignore those.
 				return;
@@ -233,7 +237,7 @@ public final class SrgMerger {
 			@Nullable MappingTree.MethodMapping fillMethod = null;
 
 			if (extra != null) {
-				MappingTree.MethodMapping extraMethod = extra.getMethod(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc());
+				MappingTree.MethodMapping extraMethod = extra.getMethod(newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc());
 
 				if (extraMethod != null && extraMethod.getSrcName().equals(extraMethod.getDstName(0))) {
 					fillMethod = extraMethod;
@@ -246,33 +250,33 @@ public final class SrgMerger {
 			} else {
 				// Do not allow missing methods as these are typically subclass methods and cause issues where
 				// class B extends A, and overrides a method from the superclass. Then the subclass method
-				// DOES get a srg name but not a yarn/intermediary name.
+				// DOES get a new namespace name but not a yarn/intermediary name.
 				return;
 			}
 		}
 
-		if (!srgMethod.getSrcName().equals(dstNames[0])) { // ignore <init> and the likes
-			methodsBySrgName.put(
-					new SrgMethodKey(dstNames[0], srgMethod.getSrcDesc()),
-					new MethodData(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(), tinyMethod != null, intermediaryName, namedName)
+		if (!newNsMethod.getSrcName().equals(dstNames[0])) { // ignore <init> and the likes
+			methodsByNewNs.put(
+					new MethodKey(dstNames[0], newNsMethod.getSrcDesc()),
+					new MethodData(newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc(), tinyMethod != null, intermediaryName, namedName)
 			);
 		}
 
-		flatOutput.visitMethod(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(), dstNames);
-		if (comment != null) flatOutput.visitMethodComment(srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(), comment);
+		flatOutput.visitMethod(newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc(), dstNames);
+		if (comment != null) flatOutput.visitMethodComment(newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc(), comment);
 
 		if (tinyMethod != null) {
 			for (MappingTree.MethodArgMapping arg : tinyMethod.getArgs()) {
 				String[] argDstNames = new String[output.getDstNamespaces().size()];
 				copyDstNames(argDstNames, arg);
 				flatOutput.visitMethodArg(
-						srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(),
+						newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc(),
 						arg.getArgPosition(), arg.getLvIndex(), arg.getSrcName(), argDstNames
 				);
 
 				if (arg.getComment() != null) {
 					flatOutput.visitMethodArgComment(
-							srgClass.getSrcName(), srgMethod.getSrcName(), srgMethod.getSrcDesc(),
+							newNsClass.getSrcName(), newNsMethod.getSrcName(), newNsMethod.getSrcDesc(),
 							arg.getArgPosition(), arg.getLvIndex(), arg.getSrcName(),
 							arg.getComment()
 					);
@@ -282,14 +286,14 @@ public final class SrgMerger {
 	}
 
 	/**
-	 * Resolves conflicts where multiple methods map to an SRG method.
+	 * Resolves conflicts where multiple methods map to a method in the new namespace.
 	 * We will prefer the ones with the Tiny mappings.
 	 */
 	private void resolveConflicts() {
 		List<String> conflicts = new ArrayList<>();
 
-		for (SrgMethodKey srg : methodsBySrgName.keySet()) {
-			List<MethodData> methods = methodsBySrgName.get(srg);
+		for (MethodKey methodKey : methodsByNewNs.keySet()) {
+			List<MethodData> methods = methodsByNewNs.get(methodKey);
 			if (methods.size() == 1) continue;
 
 			// Determine whether the names conflict
@@ -326,8 +330,8 @@ public final class SrgMerger {
 		List<MethodData> hasTiny = CollectionUtil.filter(methods, MethodData::hasTiny);
 
 		// Record conflicts if needed
-		if (hasTiny.size() > 1) { // Multiple methods map to this SRG name
-			// Sometimes unrelated methods share an SRG name. Probably overrides from a past version?
+		if (hasTiny.size() > 1) { // Multiple methods map to this new name
+			// Sometimes unrelated methods share an new name. Probably overrides from a past version?
 			Set<String> intermediaryNames = new HashSet<>();
 
 			for (MethodData method : methods) {
@@ -337,7 +341,7 @@ public final class SrgMerger {
 			// Only record a conflict if we map one intermediary name with multiple named names
 			if (intermediaryNames.size() == 1) {
 				StringBuilder message = new StringBuilder();
-				message.append("- multiple preferred methods for ").append(srg).append(':');
+				message.append("- multiple preferred methods for ").append(newNs).append(':');
 
 				for (MethodData preferred : hasTiny) {
 					message.append("\n\t> ").append(preferred);
@@ -347,48 +351,12 @@ public final class SrgMerger {
 			}
 
 			return null;
-		} else if (hasTiny.isEmpty()) { // No methods map to this SRG name
-			conflictReporter.accept("- no preferred methods found for " + srg + ", available: " + methods);
+		} else if (hasTiny.isEmpty()) { // No methods map to this new name
+			conflictReporter.accept("- no preferred methods found for " + newNs + ", available: " + methods);
 			return null;
 		}
 
 		return hasTiny.get(0);
-	}
-
-	/**
-	 * Merges SRG mappings with a tiny mappings tree through the obf names.
-	 * This overload writes the mappings into a file.
-	 *
-	 * <p>The namespaces in the tiny file should be {@code official, intermediary, named}.
-	 * The SRG names will add a new namespace called {@code srg} so that the final namespaces
-	 * are {@code official, srg, intermediary, named}.
-	 *
-	 * <p>This method does not include local variables in the output.
-	 * It can, however, be used for remapping the game jar since it has all
-	 * classes, methods, fields, parameters and javadoc comments.
-	 *
-	 * <p>If {@code lenient} is true, the merger will not error when encountering names not present
-	 * in the tiny mappings. Instead, the names will be filled from the {@code official} namespace.
-	 *
-	 * @param srg           the SRG file in .tsrg format
-	 * @param tiny          the tiny file
-	 * @param out           the output file, will be in tiny v2
-	 * @param extraMappings an extra mappings file that will be used to determine
-	 *                      whether an unobfuscated name is needed in the result file
-	 * @param lenient       whether lenient mode is enabled
-	 * @throws IOException      if an IO error occurs while reading or writing the mappings
-	 * @throws MappingException if the input tiny mappings' namespaces are incorrect
-	 *                          or if an element mentioned in the SRG file does not have tiny mappings in non-lenient mode
-	 */
-	public static void mergeSrg(Path srg, Path tiny, Path out, @Nullable ExtraMappings extraMappings, boolean lenient)
-			throws IOException, MappingException {
-		MemoryMappingTree tree = mergeSrg(srg, tiny, extraMappings, lenient);
-
-		try (Tiny2Writer writer = new Tiny2Writer(Files.newBufferedWriter(out), false)) {
-			tree.accept(writer);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 
 	/**
@@ -418,20 +386,29 @@ public final class SrgMerger {
 	 */
 	public static MemoryMappingTree mergeSrg(Path srg, Path tiny, @Nullable ExtraMappings extraMappings, boolean lenient)
 			throws IOException, MappingException {
-		return new SrgMerger(srg, tiny, extraMappings, lenient).merge();
+		return new ForgeMappingsMerger(readSrg(srg), readInput(tiny), extraMappings, lenient).merge();
 	}
 
-	private MemoryMappingTree readSrg(Path srg) throws IOException {
+	public static MemoryMappingTree mergeMojang(MappingContext context, Path tiny, @Nullable ExtraMappings extraMappings, boolean lenient)
+			throws IOException, MappingException {
+		MemoryMappingTree mojang = new MemoryMappingTree();
+		SrgProvider.visitMojangMappings(new MappingNsRenamer(mojang, Map.of(MappingsNamespace.NAMED.toString(), MappingsNamespace.MOJANG.toString())), context);
+		return new ForgeMappingsMerger(mojang, readInput(tiny), extraMappings, lenient).merge();
+	}
+
+	private static MemoryMappingTree readSrg(Path srg) throws IOException {
 		try (BufferedReader reader = Files.newBufferedReader(srg)) {
-			MemoryMappingTree tsrg = new MemoryMappingTree();
-			MemoryMappingTree temp = new MemoryMappingTree();
-			TsrgReader.read(reader, temp);
-			Map<String, String> namespaces = Map.of(
-					temp.getSrcNamespace(), MappingsNamespace.OFFICIAL.toString(),
-					temp.getDstNamespaces().get(0), MappingsNamespace.SRG.toString()
-			);
-			temp.accept(new MappingNsRenamer(tsrg, namespaces));
-			return tsrg;
+			MemoryMappingTree output = new MemoryMappingTree();
+			TsrgReader.read(reader, new ForwardingMappingVisitor(output) {
+				// Override the namespaces to be official -> srg
+				@Override
+				public void visitNamespaces(String srcNamespace, List<String> dstNamespaces) throws IOException {
+					List<String> newDstNamespaces = new ArrayList<>(dstNamespaces);
+					newDstNamespaces.set(0, MappingsNamespace.SRG.toString());
+					super.visitNamespaces(MappingsNamespace.OFFICIAL.toString(), newDstNamespaces);
+				}
+			});
+			return output;
 		}
 	}
 
@@ -445,7 +422,7 @@ public final class SrgMerger {
 		}
 	}
 
-	private record SrgMethodKey(String name, String desc) {
+	private record MethodKey(String name, String desc) {
 		@Override
 		public String toString() {
 			return name + desc;
