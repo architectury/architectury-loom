@@ -104,10 +104,6 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 
 	@Override
 	public List<String> getDataGenMods() {
-		if (extension.isNeoForge()) {
-			throw new UnsupportedOperationException("getDataGenMods is not available on NeoForge.");
-		}
-
 		// unmod list prevents uncontrolled additions (we want to create the run config too)
 		return Collections.unmodifiableList(dataGenMods);
 	}
@@ -115,10 +111,6 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@SuppressWarnings("Convert2Lambda")
 	@Override
 	public void dataGen(Action<DataGenConsumer> action) {
-		if (extension.isNeoForge()) {
-			throw new UnsupportedOperationException("dataGen is not available on NeoForge.");
-		}
-
 		action.execute(new DataGenConsumer() {
 			@Override
 			public void mod(String... modIds) {

@@ -70,7 +70,8 @@ public class ForgeLibrariesProvider {
 			String dep = null;
 
 			if (lib.startsWith("org.spongepowered:mixin:")) {
-				if (PropertyUtil.getAndFinalize(extension.getForge().getUseCustomMixin())) {
+				// Don't apply custom mixin on NeoForge.
+				if (extension.isForge() && PropertyUtil.getAndFinalize(extension.getForge().getUseCustomMixin())) {
 					if (lib.contains("0.8.2")) {
 						dep = "net.fabricmc:sponge-mixin:0.8.2+build.24";
 					} else {

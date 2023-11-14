@@ -141,14 +141,14 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 				} else {
 					launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", getExtension().getMappingConfiguration().srgToNamedSrg.toAbsolutePath().toString());
 				}
-			}
 
-			Set<String> mixinConfigs = PropertyUtil.getAndFinalize(getExtension().getForge().getMixinConfigs());
+				Set<String> mixinConfigs = PropertyUtil.getAndFinalize(getExtension().getForge().getMixinConfigs());
 
-			if (!mixinConfigs.isEmpty()) {
-				for (String config : mixinConfigs) {
-					launchConfig.argument("-mixin.config");
-					launchConfig.argument(config);
+				if (!mixinConfigs.isEmpty()) {
+					for (String config : mixinConfigs) {
+						launchConfig.argument("-mixin.config");
+						launchConfig.argument(config);
+					}
 				}
 			}
 
