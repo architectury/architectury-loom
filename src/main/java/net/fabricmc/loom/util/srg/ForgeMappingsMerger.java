@@ -101,7 +101,10 @@ public final class ForgeMappingsMerger {
 			this.extra = null;
 		}
 
-		this.output.visitNamespaces(this.src.getSrcNamespace(), Stream.concat(Stream.of(this.newNs.getDstNamespaces().get(0)), this.src.getDstNamespaces().stream()).collect(Collectors.toList()));
+		var newDstNamespaces = new ArrayList<String>();
+		newDstNamespaces.add(this.newNs.getDstNamespaces().get(0));
+		newDstNamespaces.addAll(this.src.getDstNamespaces());
+		this.output.visitNamespaces(this.src.getSrcNamespace(), newDstNamespaces);
 	}
 
 	private static MemoryMappingTree readInput(Path tiny) throws IOException {
@@ -128,7 +131,7 @@ public final class ForgeMappingsMerger {
 	}
 
 	/**
-	 * Copies all the non-new-namespace destination names from an element.
+	 * Copies all the original destination names from an element.
 	 */
 	private void copyDstNames(String[] dstNames, MappingTreeView.ElementMappingView from) {
 		for (int i = 1; i < dstNames.length; i++) {
@@ -331,7 +334,7 @@ public final class ForgeMappingsMerger {
 
 		// Record conflicts if needed
 		if (hasTiny.size() > 1) { // Multiple methods map to this new name
-			// Sometimes unrelated methods share an new name. Probably overrides from a past version?
+			// Sometimes unrelated methods share a SRG name. Probably overrides from a past version?
 			Set<String> intermediaryNames = new HashSet<>();
 
 			for (MethodData method : methods) {
