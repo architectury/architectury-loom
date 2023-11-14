@@ -24,8 +24,6 @@
 
 package net.fabricmc.loom.test.unit.forge
 
-import net.fabricmc.mappingio.format.Tiny2Writer
-
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -35,6 +33,7 @@ import spock.lang.TempDir
 import net.fabricmc.loom.util.srg.ForgeMappingsMerger
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.format.MappingFormat
+import net.fabricmc.mappingio.format.Tiny2Writer
 
 class SrgMergerTest extends Specification {
 	@TempDir
