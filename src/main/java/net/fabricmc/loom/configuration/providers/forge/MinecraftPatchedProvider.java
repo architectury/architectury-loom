@@ -443,7 +443,7 @@ public class MinecraftPatchedProvider {
 		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
 		final TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(serviceManager, mappingOption);
 		final MappingTree mappings = mappingsService.getMappingTree();
-		CoreModClassRemapper.remapJar(project, patchedJar, mappings);
+		CoreModClassRemapper.remapJar(project, getExtension().getPlatform().get(), patchedJar, mappings);
 	}
 
 	private void patchJars() throws Exception {

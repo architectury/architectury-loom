@@ -279,7 +279,7 @@ public class ModProcessor {
 
 			if (extension.isForgeLike()) {
 				AtRemapper.remap(project, output, mappings);
-				CoreModClassRemapper.remapJar(project, output, mappings);
+				CoreModClassRemapper.remapJar(project, extension.getPlatform().get(), output, mappings);
 			}
 
 			dependency.copyToCache(project, output, null);
