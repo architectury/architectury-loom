@@ -105,10 +105,10 @@ public final class CoreModClassRemapper {
 				String remapped = CollectionUtil.find(mappings.getClasses(), def -> def.getName(sourceNamespace).equals(className))
 						.map(def -> def.getName("named"))
 						.orElse(className);
+				lastClassName = remapped;
 
 				if (!className.equals(remapped)) {
 					output.set(i, matcher.group(1) + remapped.replace('/', '.') + matcher.group(3));
-					lastClassName = remapped;
 				}
 			} else if (platform == ModPlatform.NEOFORGE && lastClassName != null) {
 				matcher = REDIRECT_FIELD_TO_METHOD_PATTERN.matcher(line);
