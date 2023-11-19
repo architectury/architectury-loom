@@ -37,10 +37,12 @@ import org.cadixdev.mercury.Mercury;
 import org.cadixdev.mercury.remapper.MercuryRemapper;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.task.RemapSourcesJarTask;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -51,11 +53,14 @@ import net.fabricmc.loom.util.service.SharedServiceManager;
 import net.fabricmc.lorenztiny.TinyMappingsReader;
 
 public final class SourceRemapperService implements SharedService {
-	public static synchronized SourceRemapperService create(SharedServiceManager serviceManager, RemapSourcesJarTask task) {
+	public static synchronized @Nullable SourceRemapperService create(SharedServiceManager serviceManager, RemapSourcesJarTask task) {
 		final Project project = task.getProject();
 		final String to = task.getTargetNamespace().get();
 		final String from = task.getSourceNamespace().get();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		if (extension.isNeoForge() && extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c && c.isMojangMappedProject()) {
+			return null;
+		}
 		final String id = extension.getMappingConfiguration().getBuildServiceName("sourceremapper", from, to);
 		final int javaCompileRelease = SourceRemapper.getJavaCompileRelease(project);
 

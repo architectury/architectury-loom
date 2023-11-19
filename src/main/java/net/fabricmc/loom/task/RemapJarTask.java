@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -61,6 +62,7 @@ import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskDependency;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,7 +203,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				}
 			}
 
-			params.getTinyRemapperBuildServiceUuid().set(UnsafeWorkQueueHelper.create(getTinyRemapperService()));
+			final var trService = getTinyRemapperService();
+			if (trService != null) {
+				params.getTinyRemapperBuildServiceUuid().set(UnsafeWorkQueueHelper.create(trService));
+			}
 			params.getRemapClasspath().from(getClasspath());
 			params.getMultiProjectOptimisation().set(getLoomExtension().multiProjectOptimisation());
 
@@ -294,11 +299,15 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	public abstract static class RemapAction extends AbstractRemapAction<RemapParams> {
 		private static final Logger LOGGER = LoggerFactory.getLogger(RemapAction.class);
 
-		private final TinyRemapperService tinyRemapperService;
-		private TinyRemapper tinyRemapper;
+		private final @Nullable TinyRemapperService tinyRemapperService;
+		private @Nullable TinyRemapper tinyRemapper;
 
 		public RemapAction() {
-			this.tinyRemapperService = UnsafeWorkQueueHelper.get(getParameters().getTinyRemapperBuildServiceUuid(), TinyRemapperService.class);
+			if (getParameters().getTinyRemapperBuildServiceUuid().isPresent()) {
+				this.tinyRemapperService = UnsafeWorkQueueHelper.get(getParameters().getTinyRemapperBuildServiceUuid(), TinyRemapperService.class);
+			} else {
+				this.tinyRemapperService = null;
+			}
 		}
 
 		@Override
@@ -310,9 +319,13 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 					prepare();
 				}
 
-				tinyRemapper = tinyRemapperService.getTinyRemapperForRemapping();
+				tinyRemapper = tinyRemapperService == null ? null : tinyRemapperService.getTinyRemapperForRemapping();
 
-				remap();
+				if (tinyRemapper == null) {
+					Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
+				} else {
+					remap();
+				}
 
 				if (getParameters().getClientOnlyEntries().isPresent()) {
 					markClientOnlyClasses();
@@ -333,7 +346,9 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				rewriteJar();
 
 				if (!getParameters().getMultiProjectOptimisation().get()) {
-					tinyRemapperService.close();
+					if (tinyRemapperService != null) {
+						tinyRemapperService.close();
+					}
 				}
 
 				LOGGER.debug("Finished remapping {}", inputFile);
@@ -350,10 +365,14 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		private void prepare() {
 			final Path inputFile = getParameters().getInputFile().getAsFile().get().toPath();
-			PrepareJarRemapTask.prepare(tinyRemapperService, inputFile);
+			if (tinyRemapperService != null) {
+				PrepareJarRemapTask.prepare(tinyRemapperService, inputFile);
+			}
 		}
 
 		private void remap() throws IOException {
+			Objects.requireNonNull(tinyRemapper);
+			Objects.requireNonNull(tinyRemapperService);
 			try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(outputFile).build()) {
 				outputConsumer.addNonClassFiles(inputFile);
 				tinyRemapper.apply(outputConsumer, tinyRemapperService.getOrCreateTag(inputFile));
@@ -408,6 +427,9 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		}
 
 		private byte[] remapAccessWidener(byte[] input) {
+			if (this.tinyRemapper == null) {
+				return input;
+			}
 			int version = AccessWidenerReader.readVersion(input);
 
 			AccessWidenerWriter writer = new AccessWidenerWriter(version);
@@ -471,7 +493,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	}
 
 	@Internal
-	public TinyRemapperService getTinyRemapperService() {
+	public @Nullable TinyRemapperService getTinyRemapperService() {
 		return TinyRemapperService.getOrCreate(serviceManagerProvider.get().get(), this);
 	}
 }

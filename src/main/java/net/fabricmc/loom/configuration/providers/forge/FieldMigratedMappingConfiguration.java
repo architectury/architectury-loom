@@ -69,9 +69,15 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 	private Path rawTinyMappings;
 	private Path rawTinyMappingsWithSrg;
 	private Path rawTinyMappingsWithMojang;
+	private final boolean mojangMappedProject;
 
-	public FieldMigratedMappingConfiguration(String mappingsIdentifier, Path mappingsWorkingDir) {
+	public FieldMigratedMappingConfiguration(String mappingsIdentifier, Path mappingsWorkingDir, boolean mojangMappedProject) {
 		super(mappingsIdentifier, mappingsWorkingDir);
+		this.mojangMappedProject = mojangMappedProject;
+	}
+
+	public boolean isMojangMappedProject() {
+		return this.mojangMappedProject;
 	}
 
 	@Override

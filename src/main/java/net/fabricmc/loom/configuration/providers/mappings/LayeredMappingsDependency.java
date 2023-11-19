@@ -49,6 +49,8 @@ import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.api.mappings.layered.MappingLayer;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.mappings.extras.unpick.UnpickLayer;
+import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
+import net.fabricmc.loom.configuration.providers.mappings.parchment.ParchmentMappingsSpec;
 import net.fabricmc.loom.configuration.providers.mappings.utils.AddConstructorMappingVisitor;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
@@ -185,5 +187,11 @@ public class LayeredMappingsDependency implements SelfResolvingDependency, FileC
 	@Override
 	public FileCollection getFiles() {
 		return project.files(resolve());
+	}
+
+	public boolean isMojangMappings() {
+		return this.layeredMappingSpec.layers().stream()
+				.skip(1) // see LayeredMappingSpecBuilderImpl
+				.allMatch(spec -> spec instanceof MojangMappingsSpec || spec instanceof ParchmentMappingsSpec);
 	}
 }
