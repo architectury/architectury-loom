@@ -144,7 +144,15 @@ public class MappingConfiguration {
 		MappingConfiguration mappingConfiguration;
 
 		if (extension.isForgeLike()) {
-			mappingConfiguration = new FieldMigratedMappingConfiguration(mappingsIdentifier, workingDir);
+			final boolean mojmap;
+
+			if (dependency.getDependency() instanceof LayeredMappingsDependency layered) {
+				mojmap = layered.isMojangMappings();
+			} else {
+				mojmap = false;
+			}
+
+			mappingConfiguration = new FieldMigratedMappingConfiguration(mappingsIdentifier, workingDir, mojmap);
 		} else {
 			mappingConfiguration = new MappingConfiguration(mappingsIdentifier, workingDir);
 		}
