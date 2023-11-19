@@ -66,6 +66,7 @@ import org.jetbrains.annotations.ApiStatus;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.task.service.JarManifestService;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.ZipUtils;
@@ -166,6 +167,15 @@ public abstract class AbstractRemapJarTask extends Jar {
 	}
 
 	protected abstract List<String> getClientOnlyEntries(SourceSet sourceSet);
+
+	@ApiStatus.Internal
+	public boolean shouldSkipRemap(LoomGradleExtension extension) {
+		return extension.isNeoForge()
+				&& extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c
+				&& c.isMojangMappedProject()
+				&& MappingsNamespace.of(this.getSourceNamespace().get()) == MappingsNamespace.NAMED
+				&& MappingsNamespace.of(this.getTargetNamespace().get()) == MappingsNamespace.MOJANG;
+	}
 
 	public interface AbstractRemapParams extends WorkParameters {
 		RegularFileProperty getInputFile();

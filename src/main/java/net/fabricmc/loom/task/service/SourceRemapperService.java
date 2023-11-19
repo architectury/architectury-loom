@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.task.RemapSourcesJarTask;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -58,7 +57,7 @@ public final class SourceRemapperService implements SharedService {
 		final String to = task.getTargetNamespace().get();
 		final String from = task.getSourceNamespace().get();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
-		if (extension.isNeoForge() && extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c && c.isMojangMappedProject()) {
+		if (task.shouldSkipRemap(extension)) {
 			return null;
 		}
 		final String id = extension.getMappingConfiguration().getBuildServiceName("sourceremapper", from, to);

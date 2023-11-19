@@ -48,7 +48,6 @@ import org.jetbrains.annotations.Nullable;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.build.mixin.AnnotationProcessorInvoker;
-import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.task.AbstractRemapJarTask;
 import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
@@ -64,7 +63,7 @@ public class TinyRemapperService implements SharedService {
 		final String to = remapJarTask.getTargetNamespace().get();
 		final String from = remapJarTask.getSourceNamespace().get();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
-		if (extension.isNeoForge() && extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c && c.isMojangMappedProject()) {
+		if (remapJarTask.shouldSkipRemap(extension)) {
 			return null;
 		}
 		final boolean legacyMixin = extension.getMixin().getUseLegacyMixinAp().get();
