@@ -61,11 +61,9 @@ public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
 	public void run() {
 		final LoomGradleExtension extension = LoomGradleExtension.get(getProject());
 
-		if (shouldSkipRemap(extension)) {
-			getSourceNamespace().convention(getTargetNamespace());
-		}
-
 		submitWork(RemapSourcesAction.class, params -> {
+			autoSkipRemap(extension, params);
+
 			if (!params.namespacesMatch()) {
 				params.getSourcesRemapperServiceUuid().set(UnsafeWorkQueueHelper.create(SourceRemapperService.create(serviceManagerProvider.get().get(), this)));
 			}

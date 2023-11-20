@@ -112,6 +112,11 @@ public abstract class AbstractRemapJarTask extends Jar {
 	@ApiStatus.Internal
 	public abstract Property<String> getJarType();
 
+	@ApiStatus.Experimental
+	@Input
+	@Optional
+	public abstract Property<Boolean> getAutoSkipRemap();
+
 	private final Provider<JarManifestService> jarManifestServiceProvider;
 
 	@Inject
@@ -124,6 +129,20 @@ public abstract class AbstractRemapJarTask extends Jar {
 
 		jarManifestServiceProvider = JarManifestService.get(getProject());
 		usesService(jarManifestServiceProvider);
+	}
+
+	protected final <P extends AbstractRemapParams> void autoSkipRemap(LoomGradleExtension extension, P params) {
+		if (getAutoSkipRemap().getOrElse(true) && shouldSkipRemap(extension)) {
+			params.getSourceNamespace().set(getTargetNamespace());
+		}
+	}
+
+	private boolean shouldSkipRemap(LoomGradleExtension extension) {
+		return extension.isNeoForge()
+				&& extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c
+				&& c.isMojangMappedProject()
+				&& MappingsNamespace.of(this.getSourceNamespace().get()) == MappingsNamespace.NAMED
+				&& MappingsNamespace.of(this.getTargetNamespace().get()) == MappingsNamespace.MOJANG;
 	}
 
 	public final <P extends AbstractRemapParams> void submitWork(Class<? extends AbstractRemapAction<P>> workAction, Action<P> action) {
@@ -159,15 +178,6 @@ public abstract class AbstractRemapJarTask extends Jar {
 	}
 
 	protected abstract List<String> getClientOnlyEntries(SourceSet sourceSet);
-
-	@ApiStatus.Internal
-	public boolean shouldSkipRemap(LoomGradleExtension extension) {
-		return extension.isNeoForge()
-				&& extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c
-				&& c.isMojangMappedProject()
-				&& MappingsNamespace.of(this.getSourceNamespace().get()) == MappingsNamespace.NAMED
-				&& MappingsNamespace.of(this.getTargetNamespace().get()) == MappingsNamespace.MOJANG;
-	}
 
 	public interface AbstractRemapParams extends WorkParameters {
 		RegularFileProperty getInputFile();
