@@ -204,9 +204,11 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			}
 
 			final var trService = getTinyRemapperService();
+
 			if (trService != null) {
 				params.getTinyRemapperBuildServiceUuid().set(UnsafeWorkQueueHelper.create(trService));
 			}
+
 			params.getRemapClasspath().from(getClasspath());
 			params.getMultiProjectOptimisation().set(getLoomExtension().multiProjectOptimisation());
 
@@ -365,6 +367,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		private void prepare() {
 			final Path inputFile = getParameters().getInputFile().getAsFile().get().toPath();
+
 			if (tinyRemapperService != null) {
 				PrepareJarRemapTask.prepare(tinyRemapperService, inputFile);
 			}
@@ -373,6 +376,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		private void remap() throws IOException {
 			Objects.requireNonNull(tinyRemapper);
 			Objects.requireNonNull(tinyRemapperService);
+
 			try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(outputFile).build()) {
 				outputConsumer.addNonClassFiles(inputFile);
 				tinyRemapper.apply(outputConsumer, tinyRemapperService.getOrCreateTag(inputFile));
@@ -430,6 +434,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			if (this.tinyRemapper == null) {
 				return input;
 			}
+
 			int version = AccessWidenerReader.readVersion(input);
 
 			AccessWidenerWriter writer = new AccessWidenerWriter(version);

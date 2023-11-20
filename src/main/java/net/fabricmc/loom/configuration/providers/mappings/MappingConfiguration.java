@@ -145,11 +145,13 @@ public class MappingConfiguration {
 
 		if (extension.isForgeLike()) {
 			final boolean mojmap;
+
 			if (dependency.getDependency() instanceof LayeredMappingsDependency layered) {
 				mojmap = layered.isMojangMappings();
 			} else {
 				mojmap = false;
 			}
+
 			mappingConfiguration = new FieldMigratedMappingConfiguration(mappingsIdentifier, workingDir, mojmap);
 		} else {
 			mappingConfiguration = new MappingConfiguration(mappingsIdentifier, workingDir);

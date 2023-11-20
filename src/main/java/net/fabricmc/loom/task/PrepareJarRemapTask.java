@@ -73,6 +73,7 @@ public abstract class PrepareJarRemapTask extends AbstractLoomTask {
 	@TaskAction
 	public void run() {
 		final var service = remapJarTask.getTinyRemapperService();
+
 		if (service == null) {
 			return;
 		}

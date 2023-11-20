@@ -57,9 +57,11 @@ public final class SourceRemapperService implements SharedService {
 		final String to = task.getTargetNamespace().get();
 		final String from = task.getSourceNamespace().get();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
 		if (task.shouldSkipRemap(extension)) {
 			return null;
 		}
+
 		final String id = extension.getMappingConfiguration().getBuildServiceName("sourceremapper", from, to);
 		final int javaCompileRelease = SourceRemapper.getJavaCompileRelease(project);
 

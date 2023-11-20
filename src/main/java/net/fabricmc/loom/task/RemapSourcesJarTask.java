@@ -60,6 +60,7 @@ public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
 	public void run() {
 		submitWork(RemapSourcesAction.class, params -> {
 			final @Nullable var service = SourceRemapperService.create(serviceManagerProvider.get().get(), this);
+
 			if (service != null) {
 				params.getSourcesRemapperServiceUuid().set(UnsafeWorkQueueHelper.create(service));
 			}

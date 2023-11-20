@@ -63,9 +63,11 @@ public class TinyRemapperService implements SharedService {
 		final String to = remapJarTask.getTargetNamespace().get();
 		final String from = remapJarTask.getSourceNamespace().get();
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
 		if (remapJarTask.shouldSkipRemap(extension)) {
 			return null;
 		}
+
 		final boolean legacyMixin = extension.getMixin().getUseLegacyMixinAp().get();
 		final @Nullable KotlinClasspathService kotlinClasspathService = KotlinClasspathService.getOrCreateIfRequired(serviceManager, project);
 
