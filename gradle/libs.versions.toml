@@ -11,7 +11,7 @@ tiny-remapper = "1.10.23"
 access-widener = "2.1.0"
 mapping-io = "0.4.2"
 lorenz-tiny = "4.0.2"
-mercury = "0.1.2.15"
+mercury = "0.1.4.17"
 kotlinx-metadata = "0.7.0"
 
 # Plugins
