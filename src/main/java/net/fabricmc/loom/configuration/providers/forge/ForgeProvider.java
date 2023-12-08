@@ -86,6 +86,7 @@ public class ForgeProvider extends DependencyProvider {
 		private final String combined;
 		private final String minecraftVersion;
 		private final String forgeVersion;
+		private final int forgeMajorVersion;
 
 		public ForgeVersion(String combined) {
 			this.combined = combined;
@@ -93,6 +94,7 @@ public class ForgeProvider extends DependencyProvider {
 			if (combined == null) {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = "NO_VERSION";
+				this.forgeMajorVersion = -1;
 				return;
 			}
 
@@ -105,6 +107,20 @@ public class ForgeProvider extends DependencyProvider {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = combined;
 			}
+
+			int major;
+
+			try {
+				if (this.forgeVersion.contains(".")) {
+					major = Integer.parseInt(this.forgeVersion.substring(0, this.forgeVersion.indexOf('.')));
+				} else {
+					major = Integer.parseInt(this.forgeVersion);
+				}
+			} catch (NumberFormatException e) {
+				major = -1;
+			}
+
+			this.forgeMajorVersion = major;
 		}
 
 		public String getCombined() {
@@ -117,6 +133,10 @@ public class ForgeProvider extends DependencyProvider {
 
 		public String getForgeVersion() {
 			return forgeVersion;
+		}
+
+		public int getForgeMajorVersion() {
+			return forgeMajorVersion;
 		}
 	}
 }

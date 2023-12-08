@@ -152,6 +152,17 @@ public abstract class CompileConfiguration implements Runnable {
 					}
 				}
 			}
+
+			if (extension.isForge() && extension.getForgeProvider().getVersion().getForgeMajorVersion() >= 49) {
+				// Merge all source set resources and classes into the same directory
+				// This is required for Forge 1.20.3+ to work properly
+				// This is really a hack in itself, thank you Forge
+				getProject().getExtensions().getByType(JavaPluginExtension.class).getSourceSets().forEach(sourceSet -> {
+					var dir = getProject().getLayout().getBuildDirectory().dir("sourcesSets/%s".formatted(sourceSet.getName()));
+					sourceSet.getOutput().setResourcesDir(dir);
+					sourceSet.getJava().getDestinationDirectory().set(dir);
+				});
+			}
 		});
 
 		finalizedBy("idea", "genIdeaWorkspace");
