@@ -62,7 +62,7 @@ public class AccessWidenerUtils {
 			return null;
 		}
 
-		final FabricModJson fabricModJson = FabricModJsonFactory.createFromZip(inputJar);
+		final FabricModJson fabricModJson = FabricModJsonFactory.createFromZip(inputJar, platform);
 		final List<String> classTweakers = List.copyOf(fabricModJson.getClassTweakers().keySet());
 
 		if (classTweakers.isEmpty()) {

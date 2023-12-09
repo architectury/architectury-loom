@@ -71,24 +71,23 @@ public final class FabricModJsonFactory {
 		};
 	}
 
-	public static FabricModJson createFromZip(Path zipPath) {
+	public static FabricModJson createFromZip(Path zipPath, ModPlatform platform) {
 		try {
-			return create(ZipUtils.unpackGson(zipPath, FABRIC_MOD_JSON, JsonObject.class), new FabricModJsonSource.ZipSource(zipPath));
-		} catch (IOException e) {
-			// Try another mod metadata file if fabric.mod.json wasn't found.
-			try {
+			if (platform == ModPlatform.FABRIC)
+				return create(ZipUtils.unpackGson(zipPath, FABRIC_MOD_JSON, JsonObject.class), new FabricModJsonSource.ZipSource(zipPath));
+			else {
 				@Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromJar(zipPath);
 
 				if (modMetadata != null) {
 					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.ZipSource(zipPath));
 				}
-			} catch (IOException e2) {
-				var unchecked = new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e2);
-				unchecked.addSuppressed(e);
-				throw unchecked;
-			}
 
-			throw new UncheckedIOException("Failed to read fabric.mod.json file in zip: " + zipPath, e);
+				throw null;
+			}
+		} catch (IOException e) {
+			var unchecked = new UncheckedIOException("Failed to read mod metadata file in zip: " + zipPath, e);
+			unchecked.addSuppressed(e);
+			throw unchecked;
 		}
 	}
 
