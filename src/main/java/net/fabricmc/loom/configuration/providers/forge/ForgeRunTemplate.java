@@ -112,7 +112,7 @@ public record ForgeRunTemplate(
 
 		final ForgeProvider forgeProvider = settings.getExtension().getForgeProvider();
 
-		if (forgeProvider.getVersion().getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
+		if (settings.getExtension().isForge() && forgeProvider.getVersion().getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
 			settings.defaultMainClass(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS);
 			settings.property(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS_PROPERTY, main);
 		}

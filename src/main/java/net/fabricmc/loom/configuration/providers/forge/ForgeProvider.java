@@ -51,7 +51,7 @@ public class ForgeProvider extends DependencyProvider {
 		addDependency(dependency.getDepString() + ":userdev", Constants.Configurations.FORGE_USERDEV);
 		addDependency(dependency.getDepString() + ":installer", Constants.Configurations.FORGE_INSTALLER);
 
-		if (version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
+		if (getExtension().isForge() && version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
 			addDependency(LoomVersions.UNION_RELAUNCHER.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
 		}
 	}
