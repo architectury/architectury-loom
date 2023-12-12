@@ -32,6 +32,7 @@ import org.gradle.api.Project;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.ModPlatform;
 
 public class ForgeProvider extends DependencyProvider {
@@ -49,6 +50,10 @@ public class ForgeProvider extends DependencyProvider {
 		version = new ForgeVersion(dependency.getResolvedVersion());
 		addDependency(dependency.getDepString() + ":userdev", Constants.Configurations.FORGE_USERDEV);
 		addDependency(dependency.getDepString() + ":installer", Constants.Configurations.FORGE_INSTALLER);
+
+		if (version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
+			addDependency(LoomVersions.UNION_RELAUNCHER.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
+		}
 	}
 
 	public ForgeVersion getVersion() {
@@ -86,6 +91,7 @@ public class ForgeProvider extends DependencyProvider {
 		private final String combined;
 		private final String minecraftVersion;
 		private final String forgeVersion;
+		private final int majorVersion;
 
 		public ForgeVersion(String combined) {
 			this.combined = combined;
@@ -93,6 +99,7 @@ public class ForgeProvider extends DependencyProvider {
 			if (combined == null) {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = "NO_VERSION";
+				this.majorVersion = -1;
 				return;
 			}
 
@@ -105,6 +112,21 @@ public class ForgeProvider extends DependencyProvider {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = combined;
 			}
+
+			int dotIndex = forgeVersion.indexOf('.');
+			int major;
+
+			try {
+				if (dotIndex >= 0) {
+					major = Integer.parseInt(forgeVersion.substring(0, dotIndex));
+				} else {
+					major = Integer.parseInt(forgeVersion);
+				}
+			} catch (NumberFormatException e) {
+				major = -1;
+			}
+
+			this.majorVersion = major;
 		}
 
 		public String getCombined() {
@@ -117,6 +139,10 @@ public class ForgeProvider extends DependencyProvider {
 
 		public String getForgeVersion() {
 			return forgeVersion;
+		}
+
+		public int getMajorVersion() {
+			return majorVersion;
 		}
 	}
 }

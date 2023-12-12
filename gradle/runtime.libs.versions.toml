@@ -18,6 +18,7 @@ access-transformers = "3.0.1"
 access-transformers-new = "8.0.5"
 unprotect = "1.2.0"
 asm = "9.3"
+union-relauncher = "1.0.0"
 
 [libraries]
 # Decompilers
@@ -41,3 +42,4 @@ access-transformers = { module = "net.minecraftforge:accesstransformers", versio
 access-transformers-new = { module = "net.minecraftforge:accesstransformers", version.ref = "access-transformers-new" }
 unprotect = { module = "io.github.juuxel:unprotect", version.ref = "unprotect" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
+union-relauncher = { module = "io.github.juuxel:union-relauncher", version.ref = "union-relauncher" }

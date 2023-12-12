@@ -155,6 +155,13 @@ public class Constants {
 		public static final String ACCESS_TRANSFORMER_PATH = "META-INF/accesstransformer.cfg";
 		public static final String MIXIN_CONFIGS_MANIFEST_KEY = "MixinConfigs";
 
+		/**
+		 * The minimum Forge version that needs Union Relauncher to use {@code MOD_CLASSES}.
+		 */
+		public static final int MIN_UNION_RELAUNCHER_VERSION = 49;
+		public static final String UNION_RELAUNCHER_MAIN_CLASS = "juuxel.unionrelauncher.UnionRelauncher";
+		public static final String UNION_RELAUNCHER_MAIN_CLASS_PROPERTY = "unionRelauncher.mainClass";
+
 		private Forge() {
 		}
 	}
