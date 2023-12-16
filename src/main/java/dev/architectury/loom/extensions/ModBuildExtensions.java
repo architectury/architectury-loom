@@ -16,9 +16,8 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.cadixdev.at.AccessTransformSet;
-import org.cadixdev.at.io.AccessTransformFormats;
-import org.cadixdev.lorenz.MappingSet;
+import dev.architectury.at.AccessTransformSet;
+import dev.architectury.at.io.AccessTransformFormats;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +28,6 @@ import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.LfWriter;
 import net.fabricmc.loom.util.aw2at.Aw2At;
 import net.fabricmc.loom.util.service.UnsafeWorkQueueHelper;
-import net.fabricmc.lorenztiny.TinyMappingsReader;
 
 public final class ModBuildExtensions {
 	public static Set<String> readMixinConfigsFromManifest(File jarFile) {
@@ -87,11 +85,7 @@ public final class ModBuildExtensions {
 			}
 
 			MappingsService service = UnsafeWorkQueueHelper.get(mappingBuildServiceUuid, MappingsService.class);
-
-			try (TinyMappingsReader reader = new TinyMappingsReader(service.getMemoryMappingTree(), service.getFromNamespace(), service.getToNamespace())) {
-				MappingSet mappingSet = reader.read();
-				at = at.remap(mappingSet);
-			}
+			at = at.remap(service.getMemoryMappingTree(), service.getFromNamespace(), service.getToNamespace());
 
 			try (Writer writer = new LfWriter(Files.newBufferedWriter(atPath))) {
 				AccessTransformFormats.FML.write(writer, at);

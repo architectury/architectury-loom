@@ -29,6 +29,7 @@ opencsv = "5.4"
 forge-diffpatch = "2.0.7"
 night-config = "3.6.6"
 datafixerupper = "6.0.8"
+at = "1.0.1"
 
 [libraries]
 # Loom compile libraries
@@ -62,6 +63,7 @@ opencsv = { module = "com.opencsv:opencsv", version.ref = "opencsv" }
 forge-diffpatch = { module = "net.minecraftforge:DiffPatch", version.ref = "forge-diffpatch" }
 night-config-toml = { module = "com.electronwill.night-config:toml", version.ref = "night-config" }
 datafixerupper = { module = "com.mojang:datafixerupper", version.ref = "datafixerupper" }
+at = { module = "dev.architectury:at", version.ref = "at" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

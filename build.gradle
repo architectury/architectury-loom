@@ -187,6 +187,7 @@ dependencies {
 	implementation libs.opencsv
 	implementation libs.forge.diffpatch
 	implementation libs.datafixerupper
+	implementation libs.at
 
 	// Forge mods.toml parsing
 	implementation libs.night.config.toml

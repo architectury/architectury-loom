@@ -40,9 +40,9 @@ import javax.inject.Inject;
 
 import com.google.common.hash.Hashing;
 import com.google.common.io.MoreFiles;
+import dev.architectury.at.AccessTransformSet;
+import dev.architectury.at.io.AccessTransformFormats;
 import dev.architectury.loom.util.TempFiles;
-import org.cadixdev.at.AccessTransformSet;
-import org.cadixdev.at.io.AccessTransformFormats;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
@@ -61,7 +61,6 @@ import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.ForgeToolExecutor;
 import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.fmj.FabricModJson;
-import net.fabricmc.lorenztiny.TinyMappingsReader;
 
 public class AccessTransformerJarProcessor implements MinecraftJarProcessor<AccessTransformerJarProcessor.Spec> {
 	private static final Logger LOGGER = Logging.getLogger(AccessTransformerJarProcessor.class);
@@ -139,7 +138,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 			}
 		}
 
-		accessTransformSet = accessTransformSet.remap(new TinyMappingsReader(context.getMappings(), IntermediaryNamespaces.intermediary(project), MappingsNamespace.NAMED.toString()).read());
+		accessTransformSet = accessTransformSet.remap(context.getMappings(), IntermediaryNamespaces.intermediary(project), MappingsNamespace.NAMED.toString());
 
 		final Path accessTransformerPath = tempFiles.file("accesstransformer-merged", ".cfg");
 
