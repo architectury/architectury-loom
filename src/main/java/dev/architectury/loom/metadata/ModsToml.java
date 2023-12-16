@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.util.ExceptionUtil;
+import net.fabricmc.loom.util.ModPlatform;
 
 public final class ModsToml implements ModMetadataFile {
 	public static final String FILE_PATH = "META-INF/mods.toml";
@@ -69,6 +71,26 @@ public final class ModsToml implements ModMetadataFile {
 
 	@Override
 	public Set<String> getAccessWideners() {
+		return Set.of();
+	}
+
+	@Override
+	public Set<String> getAccessTransformers(ModPlatform platform) {
+		if (platform == ModPlatform.NEOFORGE) {
+			final List<? extends Config> ats = config.get("accessTransformers");
+
+			if (ats != null) {
+				final Set<String> result = new HashSet<>();
+
+				for (Config atEntry : ats) {
+					final String file = atEntry.get("file");
+					if (file != null) result.add(file);
+				}
+
+				return result;
+			}
+		}
+
 		return Set.of();
 	}
 

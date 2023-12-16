@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
+import dev.architectury.loom.neoforge.NeoForgeModDependencies;
 import dev.architectury.loom.util.MappingOption;
 import dev.architectury.tinyremapper.InputTag;
 import dev.architectury.tinyremapper.NonClassCopyMode;
@@ -67,7 +68,7 @@ import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.kotlin.KotlinClasspathService;
 import net.fabricmc.loom.util.kotlin.KotlinRemapperClassloader;
 import net.fabricmc.loom.util.service.SharedServiceManager;
-import net.fabricmc.loom.util.srg.AtRemapper;
+import net.fabricmc.loom.util.srg.AtClassRemapper;
 import net.fabricmc.loom.util.srg.CoreModClassRemapper;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
@@ -271,7 +272,14 @@ public class ModProcessor {
 			remapJarManifestEntries(output);
 
 			if (extension.isForgeLike()) {
-				AtRemapper.remap(project, output, mappings);
+				if (extension.isNeoForge()) {
+					// NeoForge: Fully map ATs
+					NeoForgeModDependencies.remapAts(output, mappings, fromM, toM);
+				} else {
+					// Forge: only map class names, the rest are mapped srg -> named at runtime
+					AtClassRemapper.remap(project, output, mappings);
+				}
+
 				CoreModClassRemapper.remapJar(project, extension.getPlatform().get(), output, mappings);
 			}
 

@@ -48,7 +48,7 @@ import net.fabricmc.mappingio.tree.MappingTree;
  *
  * @author Juuz
  */
-public final class AtRemapper {
+public final class AtClassRemapper {
 	public static void remap(Project project, Path jar, MappingTree mappings) throws IOException {
 		final Logger logger = project.getLogger();
 		final String sourceNamespace = IntermediaryNamespaces.intermediary(project);

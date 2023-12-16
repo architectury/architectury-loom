@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.function.CollectionUtil;
 
 public final class QuiltModJson implements JsonBackedModMetadataFile, SingleIdModMetadataFile {
@@ -82,6 +83,11 @@ public final class QuiltModJson implements JsonBackedModMetadataFile, SingleIdMo
 		} else {
 			return Set.of();
 		}
+	}
+
+	@Override
+	public Set<String> getAccessTransformers(ModPlatform platform) {
+		return Set.of();
 	}
 
 	@Override

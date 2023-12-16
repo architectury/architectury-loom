@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+import net.fabricmc.loom.util.ModPlatform;
 
 public final class ArchitecturyCommonJson implements JsonBackedModMetadataFile, SingleIdModMetadataFile {
 	public static final String FILE_NAME = "architectury.common.json";
@@ -66,6 +67,11 @@ public final class ArchitecturyCommonJson implements JsonBackedModMetadataFile, 
 		} else {
 			return Set.of();
 		}
+	}
+
+	@Override
+	public Set<String> getAccessTransformers(ModPlatform platform) {
+		return Set.of();
 	}
 
 	@Override
