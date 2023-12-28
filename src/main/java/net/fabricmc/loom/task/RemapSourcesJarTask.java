@@ -40,6 +40,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.task.service.SourceRemapperService;
 import net.fabricmc.loom.util.service.BuildSharedServiceManager;
 import net.fabricmc.loom.util.service.UnsafeWorkQueueHelper;
@@ -58,7 +59,11 @@ public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
 
 	@TaskAction
 	public void run() {
+		final LoomGradleExtension extension = LoomGradleExtension.get(getProject());
+
 		submitWork(RemapSourcesAction.class, params -> {
+			autoSkipRemap(extension, params);
+
 			if (!params.namespacesMatch()) {
 				params.getSourcesRemapperServiceUuid().set(UnsafeWorkQueueHelper.create(SourceRemapperService.create(serviceManagerProvider.get().get(), this)));
 			}

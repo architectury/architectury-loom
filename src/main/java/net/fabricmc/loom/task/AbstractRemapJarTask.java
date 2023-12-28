@@ -65,6 +65,7 @@ import org.jetbrains.annotations.ApiStatus;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.configuration.providers.forge.FieldMigratedMappingConfiguration;
 import net.fabricmc.loom.task.service.JarManifestService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
@@ -111,6 +112,11 @@ public abstract class AbstractRemapJarTask extends Jar {
 	@ApiStatus.Internal
 	public abstract Property<String> getJarType();
 
+	@ApiStatus.Experimental
+	@Input
+	@Optional
+	public abstract Property<Boolean> getAutoSkipRemap();
+
 	private final Provider<JarManifestService> jarManifestServiceProvider;
 
 	@Inject
@@ -123,6 +129,20 @@ public abstract class AbstractRemapJarTask extends Jar {
 
 		jarManifestServiceProvider = JarManifestService.get(getProject());
 		usesService(jarManifestServiceProvider);
+	}
+
+	protected final <P extends AbstractRemapParams> void autoSkipRemap(LoomGradleExtension extension, P params) {
+		if (getAutoSkipRemap().getOrElse(true) && shouldSkipRemap(extension)) {
+			params.getSourceNamespace().set(getTargetNamespace());
+		}
+	}
+
+	private boolean shouldSkipRemap(LoomGradleExtension extension) {
+		return extension.isNeoForge()
+				&& extension.getMappingConfiguration() instanceof FieldMigratedMappingConfiguration c
+				&& c.isMojangMappedProject()
+				&& MappingsNamespace.of(this.getSourceNamespace().get()) == MappingsNamespace.NAMED
+				&& MappingsNamespace.of(this.getTargetNamespace().get()) == MappingsNamespace.MOJANG;
 	}
 
 	public final <P extends AbstractRemapParams> void submitWork(Class<? extends AbstractRemapAction<P>> workAction, Action<P> action) {

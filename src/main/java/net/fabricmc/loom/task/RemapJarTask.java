@@ -201,6 +201,8 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		final LoomGradleExtension extension = LoomGradleExtension.get(getProject());
 
 		submitWork(RemapAction.class, params -> {
+			autoSkipRemap(extension, params);
+
 			if (getAddNestedDependencies().get()) {
 				params.getNestedJars().from(getNestedJars());
 
