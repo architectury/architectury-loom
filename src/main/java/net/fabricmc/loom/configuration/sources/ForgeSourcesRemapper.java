@@ -88,6 +88,7 @@ public class ForgeSourcesRemapper {
 	}
 
 	public static void addForgeSources(Project project, SharedServiceManager serviceManager, Path sourcesJar) throws IOException {
+		if (LoomGradleExtension.get(project).isLegacyForge()) return; // don't even try
 		try (FileSystemUtil.Delegate delegate = FileSystemUtil.getJarFileSystem(sourcesJar, true)) {
 			ThreadingUtils.TaskCompleter taskCompleter = ThreadingUtils.taskCompleter();
 

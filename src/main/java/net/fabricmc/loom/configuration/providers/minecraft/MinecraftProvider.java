@@ -207,7 +207,7 @@ public abstract class MinecraftProvider {
 		}
 	}
 
-	protected final void extractBundledServerJar() throws IOException {
+	public final void extractBundledServerJar() throws IOException {
 		Preconditions.checkArgument(provideServer(), "Not configured to provide server jar");
 		Objects.requireNonNull(getServerBundleMetadata(), "Cannot bundled mc jar from none bundled server jar");
 

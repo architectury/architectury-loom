@@ -310,7 +310,7 @@ public final class RunConfigSettings implements Named {
 	 * Add the {@code -XstartOnFirstThread} JVM argument when on OSX.
 	 */
 	public void startFirstThread() {
-		if (Platform.CURRENT.getOperatingSystem().isMacOS()) {
+		if (Platform.CURRENT.getOperatingSystem().isMacOS() && !extension.isLegacyForge()) {
 			vmArg("-XstartOnFirstThread");
 		}
 	}
@@ -355,7 +355,7 @@ public final class RunConfigSettings implements Named {
 	 * <p>This method can only be used on Forge.
 	 */
 	public void data() {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE, () -> "RunConfigSettings.data() is only usable on Forge.");
+		ModPlatform.assertPlatform(getExtension(), () -> "RunConfigSettings.data() is only usable on Forge.", ModPlatform.FORGE);
 		environment("data");
 		forgeTemplate("data");
 	}
@@ -370,7 +370,7 @@ public final class RunConfigSettings implements Named {
 	 * @since 1.0
 	 */
 	public void forgeTemplate(String templateName) {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE);
+		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE, ModPlatform.LEGACY_FORGE);
 		defaultMainClass(Constants.Forge.UNDETERMINED_MAIN_CLASS);
 		// Evaluate later if Forge hasn't been resolved yet.
 		evaluateNowOrLater(() -> {

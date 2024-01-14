@@ -113,7 +113,7 @@ public final class FieldMigratedMappingConfiguration extends MappingConfiguratio
 		if (extension.shouldGenerateSrgTiny()) {
 			if (Files.notExists(rawTinyMappingsWithSrg) || extension.refreshDeps()) {
 				// Merge tiny mappings with srg
-				SrgMerger.ExtraMappings extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
+				SrgMerger.ExtraMappings extraMappings = extension.isLegacyForge() ? null : SrgMerger.ExtraMappings.ofMojmapTsrg(getMojmapSrgFileIfPossible(project));
 				SrgMerger.mergeSrg(getRawSrgFile(project), rawTinyMappings, rawTinyMappingsWithSrg, extraMappings, true);
 			}
 		}

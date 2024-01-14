@@ -127,8 +127,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		this.modProvidedJavadoc = project.getObjects().property(Boolean.class)
 				.convention(project.provider(() -> !isForge()));
 		this.modProvidedJavadoc.finalizeValueOnRead();
-		this.intermediary = project.getObjects().property(String.class)
-				.convention("https://maven.fabricmc.net/net/fabricmc/intermediary/%1$s/intermediary-%1$s-v2.jar");
 
 		this.intermediateMappingsProvider = project.getObjects().property(IntermediateMappingsProvider.class);
 		this.intermediateMappingsProvider.finalizeValueOnRead();
@@ -190,6 +188,8 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 
 			return ModPlatform.FABRIC;
 		})::get);
+		this.intermediary = project.getObjects().property(String.class)
+				.convention(isLegacyForge() ? "https://maven.legacyfabric.net/net/legacyfabric/v2/intermediary/%1$s/intermediary-%1$s-v2.jar" : "https://maven.fabricmc.net/net/fabricmc/intermediary/%1$s/intermediary-%1$s-v2.jar");
 	}
 
 	@Override

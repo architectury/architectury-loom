@@ -168,6 +168,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 		args.add(output.toAbsolutePath().toString());
 
 		configuration.apply(args);
+		project.getLogger().info(args.toString());
 
 		ForgeToolExecutor.exec(project, spec -> {
 			spec.getMainClass().set("net.minecraftforge.accesstransformer.TransformerProcessor");

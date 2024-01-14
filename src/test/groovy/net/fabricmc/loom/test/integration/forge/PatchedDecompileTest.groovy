@@ -37,6 +37,7 @@ class PatchedDecompileTest extends Specification implements GradleProjectTestTra
 	def "decompile #mcVersion #forgeVersion"() {
 		setup:
 		def gradle = gradleProject(project: "forge/simple", version: DEFAULT_GRADLE)
+		gradle.getGradleProperties().text = gradle.getGradleProperties().text.replace("@PLATFORM@", mcVersion == "1.12.2" || mcVersion == "1.8.9" ? "legacy_forge" : "forge")
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@FORGEVERSION@', forgeVersion)
 				.replace('@MAPPINGS@', 'loom.officialMojangMappings()')
@@ -52,5 +53,7 @@ class PatchedDecompileTest extends Specification implements GradleProjectTestTra
 		'1.19.2'  | "43.1.1"
 		'1.18.1'  | "39.0.63"
 		'1.17.1'  | "37.0.67"
+		'1.12.2'  | "14.23.0.2486"
+		'1.8.9'   | "11.14.4.1563"
 	}
 }

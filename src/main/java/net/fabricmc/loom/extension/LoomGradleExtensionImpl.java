@@ -278,7 +278,7 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 
 	@Override
 	public ForgeExtensionAPI getForge() {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		ModPlatform.assertPlatform(this, ModPlatform.FORGE, ModPlatform.LEGACY_FORGE);
 		return forgeExtension.get();
 	}
 
@@ -294,13 +294,13 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 
 	@Override
 	public ForgeRunsProvider getForgeRunsProvider() {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		ModPlatform.assertPlatform(this, ModPlatform.FORGE, ModPlatform.LEGACY_FORGE);
 		return forgeRunsProvider;
 	}
 
 	@Override
 	public void setForgeRunsProvider(ForgeRunsProvider forgeRunsProvider) {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		ModPlatform.assertPlatform(this, ModPlatform.FORGE, ModPlatform.LEGACY_FORGE);
 		this.forgeRunsProvider = forgeRunsProvider;
 	}
 }
