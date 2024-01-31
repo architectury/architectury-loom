@@ -24,6 +24,8 @@ import net.fabricmc.loom.util.function.CollectionUtil;
 
 public final class QuiltModJson implements JsonBackedModMetadataFile, SingleIdModMetadataFile {
 	public static final String FILE_NAME = "quilt.mod.json";
+	// See RFC 0083
+	public static final String JSON5_FILE_NAME = "quilt.mod.json5";
 	private static final Logger LOGGER = LoggerFactory.getLogger(QuiltModJson.class);
 	private static final String ACCESS_WIDENER_KEY = "access_widener";
 	private static final String MIXIN_KEY = "mixin";
