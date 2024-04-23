@@ -1,0 +1,87 @@
+plugins {
+	id 'dev.architectury.loom'
+	id 'maven-publish'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+base {
+	archivesName = project.archives_base_name
+}
+
+version = project.mod_version
+group = project.maven_group
+
+def mcVersion = "@MCVERSION@"
+def neoforgeVersion = "@NEOFORGEVERSION@"
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+	maven { url "https://maven.neoforged.net/releases/" }
+	maven {
+		name 'Maven for PR #835' // https://github.com/neoforged/NeoForge/pull/835
+		url 'https://prmaven.neoforged.net/NeoForge/pr835'
+		content {
+			includeModule('net.neoforged', 'neoforge')
+			includeModule('net.neoforged', 'testframework')
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:$mcVersion"
+	mappings loom.layered {
+		it.mappings(@MAPPINGS@)
+		it.mappings(rootProject.rootDir.toPath().resolve("23w13a.tiny").toFile())
+	}
+
+	neoForge "net.neoforged:neoforge:$neoforgeVersion"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${project.archivesBaseName}"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			// add all the jars that should be included when publishing to maven
+			artifact(remapJar) {
+				builtBy remapJar
+			}
+			artifact(sourcesJar) {
+				builtBy remapSourcesJar
+			}
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
