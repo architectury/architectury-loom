@@ -403,7 +403,7 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
-		logger.lifecycle(":remapping minecraft (TinyRemapper," + (getExtension().isNeoForge() ? "mojang -> mojang)" : " srg -> official)"));
+		logger.lifecycle(":remapping minecraft (TinyRemapper," + (getExtension().isNeoForge() ? " mojang -> mojang)" : " srg -> official)"));
 		Path mcInput = minecraftPatchedIntermediateAtJar;
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
