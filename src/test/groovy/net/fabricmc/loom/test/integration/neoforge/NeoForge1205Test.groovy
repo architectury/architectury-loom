@@ -52,6 +52,6 @@ class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 		where:
 		mcVersion | neoforgeVersion | mappings
 		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()'
-		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | '"net.fabricmc:yarn:1.20.5-rc1+build.3:v2"'
+		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | "'net.fabricmc:yarn:1.20.5-rc1+build.3:v2'"
 	}
 }
