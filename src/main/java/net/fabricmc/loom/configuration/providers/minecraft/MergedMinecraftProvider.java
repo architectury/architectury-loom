@@ -62,6 +62,7 @@ public class MergedMinecraftProvider extends MinecraftProvider {
 
 	@Override
 	public MappingsNamespace getOfficialNamespace() {
+		if (getExtension().isNeoForge()) return MappingsNamespace.MOJANG;
 		return MappingsNamespace.OFFICIAL;
 	}
 

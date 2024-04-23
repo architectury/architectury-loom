@@ -45,6 +45,7 @@ public abstract sealed class IntermediaryMinecraftProvider<M extends MinecraftPr
 
 	@Override
 	public final MappingsNamespace getTargetNamespace() {
+		if (extension.isNeoForge()) return MappingsNamespace.MOJANG;
 		return MappingsNamespace.INTERMEDIARY;
 	}
 

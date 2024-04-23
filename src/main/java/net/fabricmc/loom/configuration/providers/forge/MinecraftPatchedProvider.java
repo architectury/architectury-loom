@@ -232,8 +232,8 @@ public class MinecraftPatchedProvider {
 		MemoryMappingTree mappings = mappingsService.getMappingTree();
 
 		TinyRemapper remapper = TinyRemapper.newRemapper()
-				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, "official", true))
-				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, "official"))
+				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, hasIntermediary() ? "official" : sourceNamespace, true))
+				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, hasIntermediary() ? "official" : sourceNamespace))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true)
 				.build();
@@ -403,7 +403,7 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
-		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
+		logger.lifecycle(":remapping minecraft (TinyRemapper," + (getExtension().isNeoForge() ? "mojang -> mojang)" : " srg -> official)"));
 		Path mcInput = minecraftPatchedIntermediateAtJar;
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
@@ -570,6 +570,10 @@ public class MinecraftPatchedProvider {
 				manifest.write(stream);
 			}
 		}
+	}
+
+	public boolean hasIntermediary() {
+		return !getExtension().isNeoForge();
 	}
 
 	public McpExecutor createMcpExecutor(Path cache) {

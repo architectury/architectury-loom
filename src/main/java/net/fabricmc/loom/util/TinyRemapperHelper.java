@@ -74,7 +74,7 @@ public final class TinyRemapperHelper {
 		MemoryMappingTree mappingTree = extension.getMappingConfiguration().getMappingsService(serviceManager, mappingOption).getMappingTree();
 
 		if (fixRecords && !mappingTree.getSrcNamespace().equals(fromM)) {
-			throw new IllegalStateException("Mappings src namespace must match remap src namespace, expected " + fromM + " but got " + mappingTree.getSrcNamespace());
+			project.getLogger().warn("Mappings src namespace must match remap src namespace, expected " + fromM + " but got " + mappingTree.getSrcNamespace());
 		}
 
 		int intermediaryNsId = mappingTree.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString());
