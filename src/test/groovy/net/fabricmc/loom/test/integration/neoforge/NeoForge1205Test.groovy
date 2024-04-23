@@ -31,7 +31,7 @@ import spock.lang.Unroll
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class NeoForge12005Test extends Specification implements GradleProjectTestTrait {
+class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build #mcVersion #neoforgeVersion #mappings"() {
 		setup:
@@ -41,14 +41,14 @@ class NeoForge12005Test extends Specification implements GradleProjectTestTrait 
 				.replace('@MAPPINGS@', mappings)
 
 		when:
-		def result = gradle.run(task: "runClient")
+		def result = gradle.run(task: "build")
 
 		then:
-		result.task(":runClient").outcome == SUCCESS
+		result.task(":build").outcome == SUCCESS
 
 		where:
 		mcVersion | neoforgeVersion | mappings
-		//'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()'
+		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()'
 		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | '"net.fabricmc:yarn:1.20.5-rc1+build.3:v2"'
 	}
 }
