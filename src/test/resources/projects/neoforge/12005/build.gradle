@@ -38,9 +38,13 @@ repositories {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:$mcVersion"
-	mappings loom.layered {
-		it.mappings(@MAPPINGS@)
-		it.mappings(rootProject.rootDir.toPath().resolve("23w13a.tiny").toFile())
+	if ("@MAPPINGS@".equals("loom.officialMojangMappings()")) {
+		mappings loom.officialMojangMappings();
+	} else {
+		mappings loom.layered {
+			it.mappings(MAPPINGS)
+			it.mappings(rootProject.rootDir.toPath().resolve("23w13a.tiny").toFile())
+		}
 	}
 
 	neoForge "net.neoforged:neoforge:$neoforgeVersion"
