@@ -38,7 +38,7 @@ repositories {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:$mcVersion"
-	if ("@MAPPINGS@".equals("loom.officialMojangMappings()")) {
+	if ("MAPPINGS".equals("loom.officialMojangMappings()")) {
 		mappings loom.officialMojangMappings();
 	} else {
 		mappings loom.layered {
