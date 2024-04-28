@@ -43,7 +43,7 @@ dependencies {
 	} else {
 		mappings loom.layered {
 			it.mappings(MAPPINGS)
-			it.mappings(rootProject.rootDir.toPath().resolve("23w13a.tiny").toFile())
+			it.mappings(PATCHES)
 		}
 	}
 

@@ -55,6 +55,7 @@ public final class SplitMinecraftProvider extends MinecraftProvider {
 
 	@Override
 	public MappingsNamespace getOfficialNamespace() {
+		// MinecraftPatchedProvider uses Mojang mappings for NeoForge.
 		if (getExtension().isNeoForge()) return MappingsNamespace.MOJANG;
 		return MappingsNamespace.OFFICIAL;
 	}
