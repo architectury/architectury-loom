@@ -146,7 +146,8 @@ public class MinecraftPatchedProvider {
 
 		minecraftProvider.setJarPrefix(patchId);
 
-		final String intermediateId = getExtension().isNeoForge() ? "mojang" : "srg";
+		String intermediateId = getExtension().isNeoForge() ? "mojang" : "srg";
+		if (!hasIntermediary()) intermediateId += "-no-intermediary";
 		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
 		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
 		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
