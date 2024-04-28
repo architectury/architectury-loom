@@ -42,6 +42,7 @@ class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@NEOFORGEVERSION@', neoforgeVersion)
 				.replace('MAPPINGS', mappings) // Spotless doesn't like the @'s
+				.replace('PATCHES', patches)
 
 		when:
 		def result = gradle.run(task: "build")
@@ -51,7 +52,7 @@ class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 
 		where:
 		mcVersion | neoforgeVersion | mappings | patches
-		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()'
-		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | "'net.fabricmc:yarn:1.20.5-rc1+build.3:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.20.5+build.3"
+		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()' | ''
+		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | "'net.fabricmc:yarn:1.20.5-rc1+build.3:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.20.5+build.3'"
 	}
 }
