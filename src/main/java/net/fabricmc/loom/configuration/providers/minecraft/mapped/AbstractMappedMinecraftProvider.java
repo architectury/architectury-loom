@@ -226,7 +226,7 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to remap JAR " + remappedJars.inputJar() + " with mappings from " + mappingConfiguration.tinyMappings, e);
 		} finally {
-			project.getLogger().lifecycle(":remapping minecraft (TinyRemapper, " + fromM + " -> " + toM + ")");
+			project.getLogger().info(":remapping minecraft (TinyRemapper, " + fromM + " -> " + toM + ")");
 			remapper.finish();
 		}
 
