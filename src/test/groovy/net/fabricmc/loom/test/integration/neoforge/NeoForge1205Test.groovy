@@ -34,8 +34,11 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
-	def "build #mcVersion #neoforgeVersion #mappings"() {
-		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 21) return // Do not run this test with Java 17
+	def "build #mcVersion #neoforgeVersion #mappings #patches"() {
+		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 21) {
+			println("This test requires Java 21. Currently you have Java ${System.getProperty("java.version")}.")
+			return
+		}
 
 		setup:
 		def gradle = gradleProject(project: "neoforge/1205", version: DEFAULT_GRADLE)
