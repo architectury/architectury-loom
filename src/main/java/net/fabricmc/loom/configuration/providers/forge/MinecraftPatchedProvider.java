@@ -147,7 +147,7 @@ public class MinecraftPatchedProvider {
 		minecraftProvider.setJarPrefix(patchId);
 
 		String intermediateId = getExtension().isNeoForge() ? "mojang" : "srg";
-		if (!hasIntermediary()) intermediateId += "-no-intermediary";
+		if (usesMojmapAsIntermediate()) intermediateId += "-no-intermediary";
 		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
 		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
 		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
@@ -233,8 +233,8 @@ public class MinecraftPatchedProvider {
 		MemoryMappingTree mappings = mappingsService.getMappingTree();
 
 		TinyRemapper remapper = TinyRemapper.newRemapper()
-				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, hasIntermediary() ? "official" : sourceNamespace, true))
-				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, hasIntermediary() ? "official" : sourceNamespace))
+				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, !usesMojmapAsIntermediate() ? "official" : sourceNamespace, true))
+				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, !usesMojmapAsIntermediate() ? "official" : sourceNamespace))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true)
 				.build();
@@ -573,8 +573,8 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	public boolean hasIntermediary() {
-		return !getExtension().isNeoForge();
+	public boolean usesMojmapAsIntermediate() {
+		return getExtension().isNeoForge();
 	}
 
 	public McpExecutor createMcpExecutor(Path cache) {
