@@ -423,7 +423,7 @@ task writeActionsTestMatrix() {
 					return
 				}
 
-				if (it.name.endsWith("NeoForge1205Test.groovy")) {
+				if (it.name.endsWith("NeoForge1206Test.groovy")) {
 					// Arch: This test requires Java 21.
 					return
 				}

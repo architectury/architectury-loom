@@ -167,10 +167,10 @@ jobs:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
 
-      - run: ./gradlew test --tests *NeoForge1205Test --stacktrace --warning-mode fail
+      - run: ./gradlew test --tests *NeoForge1206Test --stacktrace --warning-mode fail
 
       - uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: NeoForge 1.20.5 Build Results
+          name: NeoForge 1.20.6 Build Results
           path: build/reports/

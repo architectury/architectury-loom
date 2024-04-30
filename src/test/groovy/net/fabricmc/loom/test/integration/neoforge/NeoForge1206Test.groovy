@@ -32,7 +32,7 @@ import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
+class NeoForge1206Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build #mcVersion #neoforgeVersion #mappings #patches"() {
 		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 21) {
@@ -41,7 +41,7 @@ class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 		}
 
 		setup:
-		def gradle = gradleProject(project: "neoforge/1205", version: DEFAULT_GRADLE)
+		def gradle = gradleProject(project: "neoforge/1206", version: DEFAULT_GRADLE)
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@NEOFORGEVERSION@', neoforgeVersion)
 				.replace('MAPPINGS', mappings) // Spotless doesn't like the @'s
@@ -55,7 +55,7 @@ class NeoForge1205Test extends Specification implements GradleProjectTestTrait {
 
 		where:
 		mcVersion | neoforgeVersion | mappings | patches
-		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | 'loom.officialMojangMappings()' | ''
-		'1.20.5-rc1'  | '20.5.0-alpha.1.20.5-rc1.20240422.033338' | "'net.fabricmc:yarn:1.20.5-rc1+build.3:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.20.5+build.3'"
+		'1.20.6'  | '20.6.5' | 'loom.officialMojangMappings()' | ''
+		'1.20.6'  | '20.6.5' | "'net.fabricmc:yarn:1.20.6+build.1:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.20.5+build.3'"
 	}
 }
