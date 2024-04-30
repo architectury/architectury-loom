@@ -150,7 +150,7 @@ jobs:
           path: build/reports/
 
   # Special case this test to run on Java 21
-  neoForge1205Test:
+  neoForge1206Test:
     needs: build
 
     strategy:
