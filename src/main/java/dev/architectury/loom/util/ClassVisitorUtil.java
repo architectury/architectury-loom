@@ -1,5 +1,7 @@
 package dev.architectury.loom.util;
 
+import net.fabricmc.loom.util.ExceptionUtil;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -23,7 +25,7 @@ public final class ClassVisitorUtil {
 				Files.write(path, outputBytes);
 			}
 		} catch (IOException e) {
-			throw new IOException("Failed to patch " + path, e);
+			throw ExceptionUtil.createDescriptiveWrapper(IOException::new, "Failed to patch " + path, e);
 		}
 	}
 }
