@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.hash.Hashing;
+import dev.architectury.loom.neoforge.LaunchHandlerPatcher;
+import dev.architectury.loom.util.ClassVisitorUtil;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -59,6 +61,10 @@ public class ForgeLibrariesProvider {
 	private static final String FML_LOADER_NAME = "fmlloader";
 	private static final String FANCYML_LOADER_GROUP = "net.neoforged.fancymodloader";
 	private static final String FANCYML_LOADER_NAME = "loader";
+
+	private static final String FORGE_OBJECT_HOLDER_FILE = "net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class";
+	private static final String NEOFORGE_OBJECT_HOLDER_FILE = "net/neoforged/fml/common/asm/ObjectHolderDefinalize.class";
+	private static final String NEOFORGE_LAUNCH_HANDLER_FILE = "net/neoforged/fml/loading/targets/CommonUserdevLaunchHandler.class";
 
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
@@ -166,12 +172,16 @@ public class ForgeLibrariesProvider {
 				Path path = fs.get().getPath("META-INF/services/cpw.mods.modlauncher.api.INameMappingService");
 				Files.deleteIfExists(path);
 
-				if (Files.exists(fs.get().getPath("net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class"))) {
+				if (Files.exists(fs.get().getPath(FORGE_OBJECT_HOLDER_FILE))) {
 					remapObjectHolder(project, outputJar, mappingConfiguration);
 				}
 
-				if (Files.exists(fs.getPath("net/neoforged/fml/common/asm/ObjectHolderDefinalize.class"))) {
+				if (Files.exists(fs.getPath(NEOFORGE_OBJECT_HOLDER_FILE))) {
 					remapNeoForgeObjectHolder(project, outputJar, mappingConfiguration);
+				}
+
+				if (Files.exists(fs.getPath(NEOFORGE_LAUNCH_HANDLER_FILE))) {
+					ClassVisitorUtil.rewriteClassFile(fs.getPath(NEOFORGE_LAUNCH_HANDLER_FILE), LaunchHandlerPatcher::new);
 				}
 			}
 
