@@ -1,16 +1,16 @@
 package dev.architectury.loom.util;
 
-import net.fabricmc.loom.util.ExceptionUtil;
-
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.function.UnaryOperator;
+
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.ClassWriter;
+
+import net.fabricmc.loom.util.ExceptionUtil;
 
 public final class ClassVisitorUtil {
 	public static void rewriteClassFile(Path path, UnaryOperator<ClassVisitor> visitorFactory) throws IOException {
