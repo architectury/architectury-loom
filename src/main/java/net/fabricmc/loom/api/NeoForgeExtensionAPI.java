@@ -25,11 +25,30 @@
 package net.fabricmc.loom.api;
 
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 
 /**
  * This is the NeoForge extension API available to build scripts.
  */
 public interface NeoForgeExtensionAPI {
+	/**
+	 * If true, {@linkplain LoomGradleExtensionAPI#getAccessWidenerPath() the project access widener file}
+	 * will be remapped to an access transformer file if set.
+	 *
+	 * @return the property
+	 */
+	Property<Boolean> getConvertAccessWideners();
+
+	/**
+	 * A set of additional access widener files that will be converted to access transformers
+	 * {@linkplain #getConvertAccessWideners() if enabled}. The files are specified as paths in jar files
+	 * (e.g. {@code path/to/my_aw.accesswidener}).
+	 *
+	 * @return the property
+	 */
+	SetProperty<String> getExtraAccessWideners();
+
 	/**
 	 * A collection of all project access transformers.
 	 * The collection should only contain AT files, and not directories or other files.

@@ -78,7 +78,13 @@ public final class Aw2At {
 			remapJar.getAtAccessWideners().add(awName);
 		}
 
-		remapJar.getAtAccessWideners().addAll(extension.getForge().getExtraAccessWideners());
+		if (extension.isForge()) {
+			remapJar.getAtAccessWideners().addAll(extension.getForge().getExtraAccessWideners());
+		} else if (extension.isNeoForge()) {
+			remapJar.getAtAccessWideners().addAll(extension.getNeoForge().getExtraAccessWideners());
+		} else {
+			throw new IllegalStateException("Unexpected extension!");
+		}
 	}
 
 	/**

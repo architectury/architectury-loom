@@ -28,15 +28,31 @@ import javax.inject.Inject;
 
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 
 import net.fabricmc.loom.api.NeoForgeExtensionAPI;
 
 public class NeoForgeExtensionImpl implements NeoForgeExtensionAPI {
+	private final Property<Boolean> convertAccessWideners;
+	private final SetProperty<String> extraAccessWideners;
 	private final ConfigurableFileCollection accessTransformers;
 
 	@Inject
 	public NeoForgeExtensionImpl(Project project) {
+		convertAccessWideners = project.getObjects().property(Boolean.class).convention(false);
+		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
 		accessTransformers = project.getObjects().fileCollection();
+	}
+
+	@Override
+	public Property<Boolean> getConvertAccessWideners() {
+		return convertAccessWideners;
+	}
+
+	@Override
+	public SetProperty<String> getExtraAccessWideners() {
+		return extraAccessWideners;
 	}
 
 	@Override

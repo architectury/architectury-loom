@@ -121,6 +121,10 @@ public abstract class RemapTaskConfiguration implements Runnable {
 						});
 					});
 				}
+			} else if (extension.isNeoForge()) {
+				if (PropertyUtil.getAndFinalize(extension.getNeoForge().getConvertAccessWideners())) {
+					Aw2At.setup(getProject(), (RemapJarTask) getTasks().getByName(REMAP_JAR_TASK_NAME));
+				}
 			}
 		});
 
