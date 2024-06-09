@@ -196,5 +196,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: NeoForge 1.20.6 Build Results
+          name: Forge 1.20.6 Build Results
           path: build/reports/
