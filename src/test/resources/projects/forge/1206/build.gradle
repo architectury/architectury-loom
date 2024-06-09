@@ -24,7 +24,6 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
-	maven { url "https://maven.neoforged.net/releases/" }
 }
 
 dependencies {
@@ -80,4 +79,14 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+processResources {
+	doLast {
+		java.nio.file.Path.of(outputs.files.asPath).resolve("META-INF/MANIFEST.MF").text = "Manifest-Version: 1.0\n" +
+				"Automatic-Module-Name: ignoreme"
+	}
+}
+
+configurations.all {
+	resolutionStrategy.force("net.sf.jopt-simple:jopt-simple:5.0.4")
 }

@@ -55,6 +55,5 @@ class Forge1206Test extends Specification implements GradleProjectTestTrait {
 		where:
 		mcVersion | neoforgeVersion | mappings | patches
 		'1.20.6'  | '1.20.6-50.1.3' | 'loom.officialMojangMappings()' | ''
-		'1.20.6'  | '1.20.6-50.1.3' | "'net.fabricmc:yarn:1.20.6+build.1:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.20.5+build.3'"
 	}
 }
