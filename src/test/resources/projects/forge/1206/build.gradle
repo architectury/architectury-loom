@@ -83,7 +83,7 @@ publishing {
 processResources {
 	doLast {
 		java.nio.file.Path.of(outputs.files.asPath).resolve("META-INF/MANIFEST.MF").text = "Manifest-Version: 1.0\n" +
-				"Automatic-Module-Name: ignoreme"
+				"Automatic-Module-Name: ignoreme\n"
 	}
 }
 
