@@ -43,13 +43,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.tools.ant.util.StringUtils;
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.util.MappingOption;
-
-import net.fabricmc.mappingio.tree.MemoryMappingTree;
-
-import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.jetbrains.annotations.Nullable;
@@ -283,7 +280,7 @@ public class MappingConfiguration {
 			throw new UncheckedIOException(e);
 		}
 	}
-	
+
 	private static void mergeMojang(Project project, Path source, Path target) throws IOException {
 		final Stopwatch stopwatch = Stopwatch.createStarted();
 		final MappingContext context = new GradleMappingContext(project, "tmp-mojang");
