@@ -32,9 +32,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import javax.inject.Inject;
 
 import com.google.common.base.Suppliers;
-import javax.inject.Inject;
 
 import org.gradle.api.Project;
 import org.gradle.api.configuration.BuildFeatures;

@@ -36,11 +36,12 @@ import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import org.gradle.api.UncheckedIOException;
 import org.slf4j.Logger;
 
+import net.fabricmc.loom.build.nesting.NestableJarGenerationTask.NestedFile;
 import net.fabricmc.loom.LoomGradlePlugin;
-import net.fabricmc.loom.build.nesting.IncludedJarFactory.NestedFile;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ZipUtils;
@@ -146,7 +147,7 @@ public class JarNester {
 		JsonArray nestedJars = new JsonArray();
 
 		for (NestedFile nestedFile : forgeJars) {
-			IncludedJarFactory.Metadata metadata = nestedFile.metadata();
+			NestableJarGenerationTask.Metadata metadata = nestedFile.metadata();
 			File file = nestedFile.file();
 			String nestedJarPath = "META-INF/jars/" + file.getName();
 

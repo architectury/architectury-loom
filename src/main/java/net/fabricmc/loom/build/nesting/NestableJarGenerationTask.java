@@ -34,13 +34,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.hash.Hashing;
 import com.google.gson.JsonObject;
+
+import net.fabricmc.loom.LoomGradleExtension;
+
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.Project;
 import org.gradle.api.artifacts.ArtifactView;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
@@ -50,6 +55,7 @@ import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
@@ -222,7 +228,7 @@ public abstract class NestableJarGenerationTask extends DefaultTask {
 			throw new UncheckedIOException("Failed to copy mod file %s".formatted(input), e);
 		}
 
-		if (FabricModJsonFactory.isModJar(input)) {
+		if (FabricModJsonFactory.isModJar(input, LoomGradleExtension.get(getProject()).getPlatform().get())) {
 			// Input is a mod, nothing needs to be done.
 			return;
 		}
@@ -247,6 +253,18 @@ public abstract class NestableJarGenerationTask extends DefaultTask {
 		@Override
 		public String toString() {
 			return group + ":" + name + ":" + version + classifier();
+		}
+	}
+
+	public record NestedFile(Metadata metadata, File file) implements Serializable { }
+
+	public record LazyNestedFile(Metadata metadata, Provider<File> file) implements Serializable {
+		public LazyNestedFile(Project project, Metadata metadata, Supplier<File> file) {
+			this(metadata, project.provider(file::get));
+		}
+
+		public NestedFile resolve() {
+			return new NestedFile(metadata, file.get());
 		}
 	}
 }
