@@ -160,6 +160,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	@ApiStatus.Experimental
 	public abstract Property<Boolean> getUseCache();
 
+	@Input
+	@Option(option = "reset-cache", description = "When set the cache will be reset")
+	@ApiStatus.Experimental
+	public abstract Property<Boolean> getResetCache();
+
 	// Internal outputs
 	@ApiStatus.Internal
 	@Internal
@@ -192,6 +197,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		getUnpickRuntimeClasspath().from(getProject().getConfigurations().getByName(Constants.Configurations.UNPICK_CLASSPATH));
 
 		getUseCache().convention(true);
+		getResetCache().convention(extension.refreshDeps());
 	}
 
 	@TaskAction
@@ -206,7 +212,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			try (var timer = new Timer("Decompiled sources")) {
 				runWithoutCache();
 			} catch (Exception e) {
-				ExceptionUtil.printFileLocks(e, getProject());
+				ExceptionUtil.processException(e, getProject());
 				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to decompile", e);
 			}
 
@@ -218,6 +224,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		try (var timer = new Timer("Decompiled sources with cache")) {
 			final Path cacheFile = getDecompileCacheFile().getAsFile().get().toPath();
 
+			if (getResetCache().get()) {
+				LOGGER.warn("Resetting decompile cache");
+				Files.deleteIfExists(cacheFile);
+			}
+
 			// TODO ensure we have a lock on this file to prevent multiple tasks from running at the same time
 			// TODO handle being unable to read the cache file
 			Files.createDirectories(cacheFile.getParent());
@@ -226,7 +237,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 				runWithCache(fs.getRoot());
 			}
 		} catch (Exception e) {
-			ExceptionUtil.printFileLocks(e, getProject());
+			ExceptionUtil.processException(e, getProject());
 			throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to decompile", e);
 		}
 	}
@@ -254,16 +265,16 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 		if (job instanceof CachedJarProcessor.WorkToDoJob workToDoJob) {
 			Path inputJar = workToDoJob.incomplete();
-			@Nullable Path existing = (job instanceof CachedJarProcessor.PartialWorkJob partialWorkJob) ? partialWorkJob.existing() : null;
+			@Nullable Path existingClasses = (job instanceof CachedJarProcessor.PartialWorkJob partialWorkJob) ? partialWorkJob.existingClasses() : null;
 
 			if (getUnpickDefinitions().isPresent()) {
 				try (var timer = new Timer("Unpick")) {
-					inputJar = unpickJar(inputJar, existing);
+					inputJar = unpickJar(inputJar, existingClasses);
 				}
 			}
 
 			try (var timer = new Timer("Decompile")) {
-				outputLineNumbers = runDecompileJob(inputJar, workToDoJob.output(), existing);
+				outputLineNumbers = runDecompileJob(inputJar, workToDoJob.output(), existingClasses);
 				removeForgeInnerClassSources(workToDoJob.output());
 				outputLineNumbers = filterForgeLineNumbers(outputLineNumbers);
 			}
@@ -282,6 +293,8 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		try (var timer = new Timer("Complete job")) {
 			cachedJarProcessor.completeJob(sourcesJar, job, outputLineNumbers);
 		}
+
+		LOGGER.info("Decompiled sources written to {}", sourcesJar);
 
 		// This is the minecraft jar used at runtime.
 		final Path classesJar = minecraftJar.getPath();
@@ -333,6 +346,8 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		if (Files.notExists(sourcesJar)) {
 			throw new RuntimeException("Failed to decompile sources");
 		}
+
+		LOGGER.info("Decompiled sources written to {}", sourcesJar);
 
 		if (lineNumbers == null) {
 			LOGGER.info("No line numbers to remap, skipping remapping");
@@ -514,9 +529,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		);
 	}
 
-	private Path unpickJar(Path inputJar, @Nullable Path existingJar) {
+	private Path unpickJar(Path inputJar, @Nullable Path existingClasses) {
 		final Path outputJar = getUnpickOutputJar().get().getAsFile().toPath();
-		final List<String> args = getUnpickArgs(inputJar, outputJar, existingJar);
+		final List<String> args = getUnpickArgs(inputJar, outputJar, existingClasses);
 
 		ExecResult result = getExecOperations().javaexec(spec -> {
 			spec.getMainClass().set("daomephsta.unpick.cli.Main");
@@ -530,7 +545,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		return outputJar;
 	}
 
-	private List<String> getUnpickArgs(Path inputJar, Path outputJar, @Nullable Path existingJar) {
+	private List<String> getUnpickArgs(Path inputJar, Path outputJar, @Nullable Path existingClasses) {
 		var fileArgs = new ArrayList<File>();
 
 		fileArgs.add(inputJar.toFile());
@@ -547,8 +562,8 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			fileArgs.add(file);
 		}
 
-		if (existingJar != null) {
-			fileArgs.add(existingJar.toFile());
+		if (existingClasses != null) {
+			fileArgs.add(existingClasses.toFile());
 		}
 
 		return fileArgs.stream()
@@ -583,15 +598,15 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		LOGGER.info("Wrote linemap to {}", lineMap);
 	}
 
-	private void doWork(@Nullable IPCServer ipcServer, Path inputJar, Path outputJar, Path linemapFile, @Nullable Path existingJar) {
+	private void doWork(@Nullable IPCServer ipcServer, Path inputJar, Path outputJar, Path linemapFile, @Nullable Path existingClasses) {
 		final String jvmMarkerValue = UUID.randomUUID().toString();
 		final WorkQueue workQueue = createWorkQueue(jvmMarkerValue);
 
 		ConfigurableFileCollection classpath = getProject().files();
 		classpath.from(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
 
-		if (existingJar != null) {
-			classpath.from(existingJar);
+		if (existingClasses != null) {
+			classpath.from(existingClasses);
 		}
 
 		workQueue.submit(DecompileAction.class, params -> {
@@ -619,7 +634,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 				boolean stopped = WorkerDaemonClientsManagerHelper.stopIdleJVM(getWorkerDaemonClientsManager(), jvmMarkerValue);
 
 				if (!stopped && ipcServer.hasReceivedMessage()) {
-					throw new RuntimeException("Failed to stop decompile worker JVM");
+					LOGGER.info("Failed to stop decompile worker JVM, it may have already been stopped?");
 				}
 			}
 		}

@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2021 FabricMC
+ * Copyright (c) 2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,35 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.minecraft;
+package net.fabricmc.loom.test.integration
 
-import java.util.List;
-import java.util.Map;
+import spock.lang.Specification
+import spock.lang.Unroll
 
-import org.jetbrains.annotations.Nullable;
+import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-public record ManifestVersion(List<Versions> versions, Map<String, String> latest) {
-	public static class Versions {
-		public String id, url, sha1;
-	}
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
+import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-	@Nullable
-	public Versions getVersion(String id) {
-		return versions.stream()
-				.filter(versions -> versions.id.equalsIgnoreCase(id))
-				.findFirst()
-				.orElse(null);
+class DaemonShutdownTest extends Specification implements GradleProjectTestTrait {
+	@Unroll
+	def "custom decompiler (gradle #version)"() {
+		setup:
+		def gradle = gradleProject(project: "minimalBase", version: version)
+		gradle.buildSrc("stopDaemon")
+		gradle.buildGradle << '''
+                dependencies {
+                    minecraft "com.mojang:minecraft:1.20.4"
+                    mappings "net.fabricmc:yarn:1.20.4+build.3:v2"
+                }
+		'''
+		when:
+		def result = gradle.run(task: "help")
+
+		then:
+		result.task(":help").outcome == SUCCESS
+
+		where:
+		version << STANDARD_TEST_VERSIONS
 	}
 }

@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.util;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.objectweb.asm.Opcodes;
 
 public class Constants {
@@ -49,6 +50,7 @@ public class Constants {
 		public static final String MOD_COMPILE_CLASSPATH = "modCompileClasspath";
 		public static final String MOD_COMPILE_CLASSPATH_MAPPED = "modCompileClasspathMapped";
 		public static final String INCLUDE = "include";
+		public static final String INCLUDE_INTERNAL = "includeInternal";
 		public static final String MINECRAFT = "minecraft";
 
 		public static final String MINECRAFT_COMPILE_LIBRARIES = "minecraftLibraries";
@@ -140,6 +142,13 @@ public class Constants {
 		}
 	}
 
+	public static final class Task {
+		public static final String PROCESS_INCLUDE_JARS = "processIncludeJars";
+
+		private Task() {
+		}
+	}
+
 	public static final class CustomModJsonKeys {
 		public static final String INJECTED_INTERFACE = "loom:injected_interfaces";
 		public static final String PROVIDED_JAVADOC = "loom:provided_javadoc";
@@ -152,6 +161,8 @@ public class Constants {
 		public static final String DISABLE_PROJECT_DEPENDENT_MODS = "fabric.loom.disableProjectDependentMods";
 		public static final String LIBRARY_PROCESSORS = "fabric.loom.libraryProcessors";
 		public static final String ALLOW_MISMATCHED_PLATFORM_VERSION = "loom.allowMismatchedPlatformVersion";
+		@ApiStatus.Experimental
+		public static final String SANDBOX = "fabric.loom.experimental.sandbox";
 	}
 
 	public static final class Manifest {
@@ -172,6 +183,7 @@ public class Constants {
 		public static final String FABRIC_LOADER_VERSION = "Fabric-Loader-Version";
 		public static final String MIXIN_VERSION = "Fabric-Mixin-Version";
 		public static final String MIXIN_GROUP = "Fabric-Mixin-Group";
+		public static final String KNOWN_IDY_BSMS = "Fabric-Loom-Known-Indy-BSMS";
 	}
 
 	public static final class Forge {

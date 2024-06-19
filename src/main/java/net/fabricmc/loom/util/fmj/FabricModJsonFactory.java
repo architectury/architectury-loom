@@ -94,6 +94,8 @@ public final class FabricModJsonFactory {
 			}
 
 			throw new UncheckedIOException("Failed to read fabric.mod.json file in zip: " + zipPath, e);
+		} catch (JsonSyntaxException e) {
+			throw new JsonSyntaxException("Failed to parse fabric.mod.json in zip: " + zipPath, e);
 		}
 	}
 
@@ -105,6 +107,8 @@ public final class FabricModJsonFactory {
 			jsonObject = ZipUtils.unpackGsonNullable(zipPath, FABRIC_MOD_JSON, JsonObject.class);
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to read zip: " + zipPath, e);
+		} catch (JsonSyntaxException e) {
+			throw new JsonSyntaxException("Failed to parse fabric.mod.json in zip: " + zipPath, e);
 		}
 
 		if (jsonObject == null) {
@@ -127,23 +131,6 @@ public final class FabricModJsonFactory {
 
 	public static Optional<FabricModJson> createFromZipOptional(Path zipPath) {
 		return Optional.ofNullable(createFromZipNullable(zipPath));
-	}
-
-	public static FabricModJson createFromDirectory(Path directory) throws IOException {
-		final Path path = directory.resolve(FABRIC_MOD_JSON);
-
-		// Try another mod metadata file if fabric.mod.json wasn't found.
-		if (Files.notExists(path)) {
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
-
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory));
-			}
-		}
-
-		try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-			return create(LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class), new FabricModJsonSource.DirectorySource(directory));
-		}
 	}
 
 	@Nullable

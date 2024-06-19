@@ -83,9 +83,8 @@ loom {
 	}
 }
 
-shadowJar {
+task shadowJar(type: Jar) {
 	archiveClassifier.set("universal-dev")
-	configurations = []
 
 	from(sourceSets["main"].output)
 	from(sourceSets["mixin"].output)

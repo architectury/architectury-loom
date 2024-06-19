@@ -76,11 +76,13 @@ import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpec;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpecBuilderImpl;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsFactory;
+import net.fabricmc.loom.configuration.providers.minecraft.ManifestLocations;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarConfiguration;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.DeprecationHelper;
 import net.fabricmc.loom.util.ModPlatform;
+import net.fabricmc.loom.util.MirrorUtil;
 import net.fabricmc.loom.util.fmj.FabricModJson;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
@@ -97,7 +99,8 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	protected final ListProperty<JarProcessor> jarProcessors;
 	protected final ConfigurableFileCollection log4jConfigs;
 	protected final RegularFileProperty accessWidener;
-	protected final Property<String> customManifest;
+	protected final ManifestLocations versionsManifests;
+	protected final Property<String> customMetadata;
 	protected final SetProperty<String> knownIndyBsms;
 	protected final Property<Boolean> transitiveAccessWideners;
 	protected final Property<Boolean> modProvidedJavadoc;
@@ -137,7 +140,10 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 				.empty();
 		this.log4jConfigs = project.files(directories.getDefaultLog4jConfigFile());
 		this.accessWidener = project.getObjects().fileProperty();
-		this.customManifest = project.getObjects().property(String.class);
+		this.versionsManifests = new ManifestLocations("versions_manifest");
+		this.versionsManifests.addBuiltIn(-2, MirrorUtil.getVersionManifests(project), "versions_manifest");
+		this.versionsManifests.addBuiltIn(-1, MirrorUtil.getExperimentalVersions(project), "experimental_versions_manifest");
+		this.customMetadata = project.getObjects().property(String.class);
 		this.knownIndyBsms = project.getObjects().setProperty(String.class).convention(Set.of(
 				"java/lang/invoke/StringConcatFactory",
 				"java/lang/runtime/ObjectMethods",
@@ -301,8 +307,13 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	}
 
 	@Override
-	public Property<String> getCustomMinecraftManifest() {
-		return customManifest;
+	public ManifestLocations getVersionsManifests() {
+		return versionsManifests;
+	}
+
+	@Override
+	public Property<String> getCustomMinecraftMetadata() {
+		return customMetadata;
 	}
 
 	@Override

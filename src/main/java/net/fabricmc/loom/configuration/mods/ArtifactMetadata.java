@@ -29,6 +29,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
@@ -45,7 +48,7 @@ import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 
 // ARCH: isFabricMod means "is mod on current platform"
-public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequirements, @Nullable InstallerData installerData, MixinRemapType mixinRemapType) {
+public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequirements, @Nullable InstallerData installerData, MixinRemapType mixinRemapType, List<String> knownIdyBsms) {
 	private static final String INSTALLER_PATH = "fabric-installer.json";
 
 	// ARCH: Quilt support
@@ -60,6 +63,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 		RemapRequirements remapRequirements = RemapRequirements.DEFAULT;
 		InstallerData installerData = null;
 		MixinRemapType refmapRemapType = MixinRemapType.MIXIN;
+		List<String> knownIndyBsms = new ArrayList<>();
 
 		// Force-remap all mods on Forge and NeoForge.
 		if (platform.isForgeLike()) {
@@ -76,6 +80,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 				final String remapValue = mainAttributes.getValue(Constants.Manifest.REMAP_KEY);
 				final String loomVersion = mainAttributes.getValue(Constants.Manifest.LOOM_VERSION);
 				final String mixinRemapType = mainAttributes.getValue(Constants.Manifest.MIXIN_REMAP_TYPE);
+				final String knownIndyBsmsValue = mainAttributes.getValue(Constants.Manifest.KNOWN_IDY_BSMS);
 
 				if (remapValue != null) {
 					// Support opting into and out of remapping with "Fabric-Loom-Remap" manifest entry
@@ -98,6 +103,10 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 				if (loomVersion != null && refmapRemapType != MixinRemapType.STATIC) {
 					validateLoomVersion(loomVersion, currentLoomVersion);
 				}
+
+				if (knownIndyBsmsValue != null) {
+					Collections.addAll(knownIndyBsms, knownIndyBsmsValue.split(","));
+				}
 			}
 
 			final String installerFile = platform == ModPlatform.QUILT ? QUILT_INSTALLER_PATH : INSTALLER_PATH;
@@ -109,7 +118,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 			}
 		}
 
-		return new ArtifactMetadata(isFabricMod, remapRequirements, installerData, refmapRemapType);
+		return new ArtifactMetadata(isFabricMod, remapRequirements, installerData, refmapRemapType, Collections.unmodifiableList(knownIndyBsms));
 	}
 
 	// Validates that the version matches or is less than the current loom version

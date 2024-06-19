@@ -131,7 +131,7 @@ public abstract class CompileConfiguration implements Runnable {
 				extension.setDependencyManager(dependencyManager);
 				dependencyManager.handleDependencies(getProject(), serviceManager);
 			} catch (Exception e) {
-				ExceptionUtil.printFileLocks(e, getProject());
+				ExceptionUtil.processException(e, getProject());
 				disownLock();
 				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to setup Minecraft", e);
 			}

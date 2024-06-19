@@ -60,6 +60,7 @@ import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskDependency;
+import org.gradle.api.tasks.TaskProvider;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -73,6 +74,7 @@ import net.fabricmc.loom.build.nesting.IncludedJarFactory;
 import net.fabricmc.loom.build.nesting.IncludedJarFactory.LazyNestedFile;
 import net.fabricmc.loom.build.nesting.IncludedJarFactory.NestedFile;
 import net.fabricmc.loom.build.nesting.JarNester;
+import net.fabricmc.loom.build.nesting.NestableJarGenerationTask;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.mods.ArtifactMetadata;
 import net.fabricmc.loom.extension.MixinExtension;
@@ -158,20 +160,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForgeLike()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
 
-		Configuration includeConfiguration = configurations.getByName(Constants.Configurations.INCLUDE);
-		IncludedJarFactory factory = new IncludedJarFactory(getProject());
-
-		if (!LoomGradleExtension.get(getProject()).isForgeLike()) {
-			getNestedJars().from(factory.getNestedJars(includeConfiguration));
-		} else {
-			Provider<Pair<List<LazyNestedFile>, TaskDependency>> forgeNestedJars = factory.getForgeNestedJars(includeConfiguration);
-			getForgeNestedJars().value(forgeNestedJars.map(Pair::left).map(pairs -> {
-				return pairs.stream()
-						.map(LazyNestedFile::resolve)
-						.toList();
-			}));
-			getNestedJars().builtBy(forgeNestedJars.map(Pair::right));
-		}
+		// TODO FIX
+		TaskProvider<NestableJarGenerationTask> processIncludeJars = getProject().getTasks().named(Constants.Task.PROCESS_INCLUDE_JARS, NestableJarGenerationTask.class);
+		getNestedJars().from(getProject().fileTree(processIncludeJars.get().getOutputDirectory()));
+		getNestedJars().builtBy(processIncludeJars);
 
 		getUseMixinAP().set(LoomGradleExtension.get(getProject()).getMixin().getUseLegacyMixinAp());
 

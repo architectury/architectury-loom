@@ -105,6 +105,14 @@ public class RunConfigSettings implements Named {
 	private final Property<String> mainClass;
 
 	/**
+	 * The true entrypoint, this is usually dev launch injector.
+	 * This should not be changed unless you know what you are doing.
+	 */
+	@ApiStatus.Internal
+	@ApiStatus.Experimental
+	private final Property<String> devLaunchMainClass;
+
+	/**
 	 * The source set getter, which obtains the source set from the given project.
 	 */
 	private Function<Project, SourceSet> source;
@@ -149,6 +157,7 @@ public class RunConfigSettings implements Named {
 			return RunConfig.getMainClass(environment, extension, defaultMainClass);
 		}));
 		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
+		this.devLaunchMainClass = project.getObjects().property(String.class).convention("net.fabricmc.devlaunchinjector.Main");
 
 		setSource(p -> {
 			final String sourceSetName = MinecraftSourceSets.get(p).getSourceSetForEnv(getEnvironment());
@@ -473,5 +482,11 @@ public class RunConfigSettings implements Named {
 	@ApiStatus.Experimental
 	public void mods(Action<NamedDomainObjectContainer<ModSettings>> action) {
 		action.execute(getMods());
+	}
+
+	@ApiStatus.Internal
+	@ApiStatus.Experimental
+	public Property<String> devLaunchMainClass() {
+		return devLaunchMainClass;
 	}
 }

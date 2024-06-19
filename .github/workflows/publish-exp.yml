@@ -1,0 +1,32 @@
+name: Publish
+on:
+  push:
+    branches:
+      - 'exp/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: setup jdk
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - uses: actions/checkout@v4
+      - uses: gradle/wrapper-validation-action@v2
+
+      # Generate the build number based on tags to allow per branch build numbers, not something github provides by default.
+      - name: Generate build number
+        id: buildnumber
+        uses: onyxmueller/build-tag-number@v1
+        with:
+          token: ${{ secrets.github_token }}
+          prefix: "build/exp/${{ github.ref }}"
+
+      - run: ./gradlew build publish -x test --stacktrace
+        env:
+          MAVEN_URL: ${{ secrets.MAVEN_URL }}
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          EXPERIMENTAL: true

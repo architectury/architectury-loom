@@ -78,7 +78,7 @@ public class SingleJarDecompileConfiguration extends DecompileConfiguration<Mapp
 			task.setDescription("Decompile minecraft using the default decompiler.");
 			task.setGroup(Constants.TaskGroup.FABRIC);
 
-			task.dependsOn(project.getTasks().named("genSourcesWithCfr"));
+			task.dependsOn(project.getTasks().named("genSourcesWith" + DecompileConfiguration.DEFAULT_DECOMPILER));
 		});
 
 		// TODO: Support for env-only jars?

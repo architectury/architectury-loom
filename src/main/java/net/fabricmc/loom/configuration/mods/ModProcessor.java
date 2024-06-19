@@ -165,6 +165,13 @@ public class ModProcessor {
 	private void remapJars(List<ModDependency> remapList) throws IOException {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
+
+		Set<String> knownIndyBsms = new HashSet<>(extension.getKnownIndyBsms().get());
+
+		for (ModDependency modDependency : remapList) {
+			knownIndyBsms.addAll(modDependency.getMetadata().knownIdyBsms());
+		}
+
 		String fromM = IntermediaryNamespaces.intermediary(project);
 
 		Stopwatch stopwatch = Stopwatch.createStarted();
@@ -173,8 +180,8 @@ public class ModProcessor {
 		MemoryMappingTree mappings = mappingConfiguration.getMappingsService(serviceManager, mappingOption).getMappingTree();
 		LoggerFilter.replaceSystemOut();
 		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
-				.withKnownIndyBsm(extension.getKnownIndyBsms().get())
-				.withMappings(TinyRemapperHelper.create(mappings, fromM, toM, false))
+				.withKnownIndyBsm(knownIndyBsms)
+				.withMappings(TinyRemapperHelper.create(mappingConfiguration.getMappingsService(serviceManager).getMappingTree(), fromM, toM, false))
 				.renameInvalidLocals(false)
 				.extraAnalyzeVisitor(AccessWidenerAnalyzeVisitorProvider.createFromMods(fromM, remapList, extension.getPlatform().get()));
 

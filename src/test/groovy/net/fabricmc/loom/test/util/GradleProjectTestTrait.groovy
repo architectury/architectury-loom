@@ -29,6 +29,7 @@ import groovy.transform.Immutable
 import org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.util.GradleVersion
 import spock.lang.Shared
 
 import net.fabricmc.loom.test.LoomTestConstants
@@ -150,6 +151,7 @@ trait GradleProjectTestTrait {
 		private String gradleHomeDir
 		private String warningMode
 		private boolean useBuildSrc
+		private boolean enableDebugging = true
 
 		BuildResult run(Map options) {
 			// Setup the system props to tell loom that its running in a test env
@@ -163,6 +165,14 @@ trait GradleProjectTestTrait {
 
 			if (options.task) {
 				args << options.task
+			}
+
+			if (options.configurationCache || System.getenv("LOOM_TEST_CONFIGURATION_CACHE") != null) {
+				args << "--configuration-cache"
+			}
+
+			if (options.isloatedProjects) {
+				args << "-Dorg.gradle.unsafe.isolated-projects=true"
 			}
 
 			args.addAll(options.tasks ?: [])
@@ -179,6 +189,10 @@ trait GradleProjectTestTrait {
 				writeBuildSrcDeps(runner)
 			}
 
+			if (options.disableDebugging) {
+				enableDebugging = false
+			}
+
 			return options.expectFailure ? runner.buildAndFail() : runner.build()
 		}
 
@@ -188,7 +202,8 @@ trait GradleProjectTestTrait {
 					.withPluginClasspath()
 					.withGradleVersion(gradleVersion)
 					.forwardOutput()
-					.withDebug(true)
+					// Only enable debugging when the current gradle version matches the version we are testing
+					.withDebug(enableDebugging && gradleVersion == GradleVersion.current().getVersion())
 		}
 
 		File getProjectDir() {
