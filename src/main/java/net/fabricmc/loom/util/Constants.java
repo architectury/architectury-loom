@@ -187,7 +187,7 @@ public class Constants {
 		public static final String UNION_RELAUNCHER_MAIN_CLASS_PROPERTY = "unionRelauncher.mainClass";
 
 		/**
-		 * The minimum version of Forge that uses "mojang" as the namespace at runtime.
+		 * The minimum version of Forge that uses "mojang" as the namespace in production.
 		 */
 		public static final int MIN_USE_MOJANG_NS_VERSION = 50;
 
