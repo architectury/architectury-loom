@@ -165,6 +165,11 @@ public class MappingConfiguration {
 	}
 
 	public TinyMappingsService getMappingsService(SharedServiceManager serviceManager, MappingOption mappingOption) {
+		if (extension.getForgeProvider().usesMojangAtRuntime() && mappingOption == MappingOption.WITH_MOJANG) {
+			// Mojang mappings are merged into the SRG file.
+			return getMappingsService(serviceManager, MappingOption.WITH_SRG);
+		}
+
 		final Path tinyMappings = switch (mappingOption) {
 		case WITH_SRG -> {
 			if (Files.notExists(this.tinyMappingsWithSrg)) {
