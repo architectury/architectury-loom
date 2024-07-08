@@ -50,7 +50,7 @@ public abstract class MixinExtensionApiImpl implements MixinExtensionAPI {
 	public MixinExtensionApiImpl(Project project) {
 		this.project = Objects.requireNonNull(project);
 		this.useMixinAp = project.getObjects().property(Boolean.class)
-				.convention(project.provider(() -> !LoomGradleExtension.get(project).isNeoForge() && (!LoomGradleExtension.get(project).isForge() || !LoomGradleExtension.get(project).getForgeProvider().usesMojangAtRuntime())));
+				.convention(project.provider(() -> !LoomGradleExtension.get(project).isNeoForge() && (!LoomGradleExtension.get(project).isForge() || !LoomGradleExtension.get(project).getForgeProvider() /* FIXME Forge Provider might not be loaded yet */.usesMojangAtRuntime())));
 
 		this.refmapTargetNamespace = project.getObjects().property(String.class)
 				.convention(project.provider(() -> IntermediaryNamespaces.runtimeIntermediary(project)));
