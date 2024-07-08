@@ -21,6 +21,7 @@ def forgeVersion = "@FORGEVERSION@"
 loom {
 	mixin {
 		System.out.println(useLegacyMixinAp.get())
+		useLegacyMixinAp = false
 	}
 	forge {
 		mixinConfig "examplemod.mixins.json"
