@@ -99,6 +99,7 @@ public class MappingConfiguration {
 	private boolean hasUnpickDefinitions;
 	private UnpickMetadata unpickMetadata;
 	private Map<String, String> signatureFixes;
+	private LoomGradleExtension extension;
 
 	protected MappingConfiguration(String mappingsIdentifier, Path mappingsWorkingDir) {
 		this.mappingsIdentifier = mappingsIdentifier;
@@ -205,7 +206,7 @@ public class MappingConfiguration {
 	}
 
 	public void setupPost(Project project) throws IOException {
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		this.extension = LoomGradleExtension.get(project);
 
 		if (extension.isNeoForge()) {
 			// Generate the Mojmap-merged mappings if needed.
