@@ -23,9 +23,6 @@ loom {
 		System.out.println(useLegacyMixinAp.get())
 		useLegacyMixinAp = false
 	}
-	forge {
-		mixinConfig "examplemod.mixins.json"
-	}
 }
 
 repositories {
@@ -34,11 +31,19 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+	maven {
+		// location of the maven that hosts JEI files since January 2023
+		name = "Jared's maven"
+		url = "https://maven.blamejared.com/"
+	}
 }
 
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:$mcVersion"
+	modImplementation "mezz.jei:jei-1.20.6-forge:18.0.0.65", {
+		transitive = false
+	}
 	if ("MAPPINGS".equals("loom.officialMojangMappings()")) {
 		mappings loom.officialMojangMappings()
 	} else {
