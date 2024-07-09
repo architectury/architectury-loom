@@ -89,6 +89,7 @@ import net.fabricmc.loom.util.srg.CoreModClassRemapper;
 import net.fabricmc.loom.util.srg.InnerClassRemapper;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.extension.mixin.MixinExtension;
 import net.fabricmc.tinyremapper.InputTag;
 import net.fabricmc.tinyremapper.NonClassCopyMode;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
@@ -231,12 +232,17 @@ public class MinecraftPatchedProvider {
 		final String sourceNamespace = IntermediaryNamespaces.intermediary(project);
 		MemoryMappingTree mappings = mappingsService.getMappingTree();
 
-		TinyRemapper remapper = TinyRemapper.newRemapper()
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
 				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, "official", true))
 				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, "official"))
 				.renameInvalidLocals(true)
-				.rebuildSourceFilenames(true)
-				.build();
+				.rebuildSourceFilenames(true);
+
+		if (getExtension().isNeoForge()) {
+			builder.extension(new MixinExtension(inputTag -> true));
+		}
+
+		TinyRemapper remapper = builder.build();
 
 		if (project.getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) < 0) {
 			MappingsProviderVerbose.saveFile(remapper);
