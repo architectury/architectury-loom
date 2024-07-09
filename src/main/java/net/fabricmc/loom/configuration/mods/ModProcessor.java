@@ -208,7 +208,9 @@ public class ModProcessor {
 		final TinyRemapper remapper = builder.build();
 
 		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.intermediaryNamespace(project)).toArray(Path[]::new));
-		ForgeSrgToMojangUtil.replaceSrgWithMojangMappings(remapper, mappings);
+		if (extension.isForge() && extension.getForgeProvider().usesMojangAtRuntime()) {
+			ForgeSrgToMojangUtil.replaceSrgWithMojangMappings(remapper, mappings);
+		}
 
 		final Map<ModDependency, InputTag> tagMap = new HashMap<>();
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();
