@@ -11,6 +11,7 @@ import net.fabricmc.tinyremapper.MemberInstance;
 import net.fabricmc.tinyremapper.TinyRemapper;
 import net.fabricmc.tinyremapper.api.TrMember;
 
+// FIXME: There has to be a better way to fix the mappings
 public final class ForgeSrgToMojangUtil {
 	private ForgeSrgToMojangUtil() {
 
