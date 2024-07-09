@@ -208,6 +208,7 @@ public class ModProcessor {
 		final TinyRemapper remapper = builder.build();
 
 		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.intermediaryNamespace(project)).toArray(Path[]::new));
+
 		if (extension.isForge() && extension.getForgeProvider().usesMojangAtRuntime()) {
 			ForgeSrgToMojangUtil.replaceSrgWithMojangMappings(remapper, mappings);
 		}
