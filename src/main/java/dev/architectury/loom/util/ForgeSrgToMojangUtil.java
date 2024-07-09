@@ -44,59 +44,36 @@ public final class ForgeSrgToMojangUtil {
 		}
 		Map<String, MemberInstance> copy = (Map<String, MemberInstance>) members.clone();
 		members.clear();
-		int methods = 0;
-		int fields = 0;
-		int fixedMethods = 0;
-		int fixedFields = 0;
 		for (Map.Entry<String, MemberInstance> entry : copy.entrySet()) {
 			TrMember.MemberType type = entry.getValue().getType();
-			// String key = entry.getKey();
 			MemberInstance memberInstance = entry.getValue();
-			// System.out.println("OLD: " + key + " -> " + memberInstance.getId());
+			String name;
 			if (type == TrMember.MemberType.FIELD) {
-				fields++;
 				MappingTree.FieldMapping field = tree.getField(value.getName(), memberInstance.getName(), memberInstance.getDesc(), srg);
 				if (field == null) {
-					// String name = memberInstance.getOwner().getName();
-					// System.out.println(name.substring(name.lastIndexOf("/") + 1) + "#" + memberInstance.getName() + " has no exact match! Trying again without the descriptor...");
 					field = tree.getField(value.getName(), memberInstance.getName(), null, srg);
 					if (field == null) {
-						// System.out.println(name.substring(name.lastIndexOf("/") + 1) + "#" + memberInstance.getName() + " has no exact match! Tried with no descriptor!");
 						members.put(memberInstance.getId(), memberInstance);
 						continue;
 					}
 				}
-				String name = field.getName(mojang);
-				MemberInstance instance = of(type, value, name, memberInstance.getDesc(), memberInstance.getAccess(), memberInstance.getIndex());
-				members.put(instance.getId(), instance);
-				// memberInstance = instance;
-				// key = instance.getId();
-				fixedFields++;
+				name = field.getName(mojang);
 			} else if (type == TrMember.MemberType.METHOD) {
-				methods++;
 				MappingTree.MethodMapping method = tree.getMethod(value.getName(), memberInstance.getName(), memberInstance.getDesc(), srg);
 				if (method == null) {
-					// String name = memberInstance.getOwner().getName();
-					// System.out.println(name.substring(name.lastIndexOf("/") + 1) + "#" + memberInstance.getName() + " has no exact match! Trying again without the descriptor...");
 					method = tree.getMethod(value.getName(), memberInstance.getName(), null, srg);
 					if (method == null) {
-						//System.out.println(name.substring(name.lastIndexOf("/") + 1) + "#" + memberInstance.getName() + " has no exact match! Tried with no descriptor!");
 						members.put(memberInstance.getId(), memberInstance);
 						continue;
 					}
 				}
-				String name = method.getName(mojang);
-				MemberInstance instance = of(type, value, name, memberInstance.getDesc(), memberInstance.getAccess(), memberInstance.getIndex());
-				members.put(instance.getId(), instance);
-				// memberInstance = instance;
-				// key = instance.getId();
-				fixedMethods++;
+				name = method.getName(mojang);
 			} else {
-				members.put(memberInstance.getId(), memberInstance);
+				throw new AssertionError();
 			}
-			// System.out.println("NEW: " + key + " -> " + memberInstance.getId());
+			MemberInstance instance = of(type, value, name, memberInstance.getDesc(), memberInstance.getAccess(), memberInstance.getIndex());
+			members.put(instance.getId(), instance);
 		}
-		System.out.println(value.getName() + ": Fields: " + fixedFields + "/" + fields + ", Methods: " + fixedMethods + "/" + methods);
 	}
 
 	private static MemberInstance of(TrMember.MemberType type, ClassInstance cls, String name, String desc, int access, int index) {
