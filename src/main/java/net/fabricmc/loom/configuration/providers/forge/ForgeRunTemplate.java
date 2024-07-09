@@ -123,8 +123,6 @@ public record ForgeRunTemplate(
 			return modClasses;
 		});
 
-		final ForgeProvider forgeProvider = settings.getExtension().getForgeProvider();
-
 		if (settings.getExtension().isForge() && forgeProvider.usesUnionRelauncher()) {
 			settings.defaultMainClass(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS);
 			settings.property(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS_PROPERTY, main);
