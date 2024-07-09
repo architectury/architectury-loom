@@ -51,7 +51,7 @@ public class ForgeProvider extends DependencyProvider {
 		addDependency(dependency.getDepString() + ":userdev", Constants.Configurations.FORGE_USERDEV);
 		addDependency(dependency.getDepString() + ":installer", Constants.Configurations.FORGE_INSTALLER);
 
-		if (getExtension().isForge() && version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
+		if (getExtension().isForge() && usesUnionRelauncher()) {
 			addDependency(LoomVersions.UNION_RELAUNCHER.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
 		}
 	}
@@ -61,7 +61,16 @@ public class ForgeProvider extends DependencyProvider {
 	}
 
 	public boolean usesMojangAtRuntime() {
-		return platform == ModPlatform.NEOFORGE || version.getMajorVersion() >= Constants.Forge.MIN_USE_MOJANG_NS_VERSION;
+		return platform == ModPlatform.NEOFORGE || version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION;
+	}
+
+	public boolean usesUnionRelauncher() {
+		return platform == ModPlatform.FORGE && version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION && !usesBootstrapDev();
+	}
+	public boolean usesBootstrapDev() {
+		boolean forge50OrOver = version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION;
+		boolean point0dot38 = version.getMajorVersion() >= 50 || version.getMinorVersion() >= 1 || version.getPatchVersion() >= 38;
+		return platform == ModPlatform.FORGE && forge50OrOver && point0dot38;
 	}
 
 	public File getGlobalCache() {
@@ -96,6 +105,8 @@ public class ForgeProvider extends DependencyProvider {
 		private final String minecraftVersion;
 		private final String forgeVersion;
 		private final int majorVersion;
+		private final int minorVersion;
+		private final int patchVersion;
 
 		public ForgeVersion(String combined) {
 			this.combined = combined;
@@ -104,6 +115,8 @@ public class ForgeProvider extends DependencyProvider {
 				this.minecraftVersion = "NO_VERSION";
 				this.forgeVersion = "NO_VERSION";
 				this.majorVersion = -1;
+				this.minorVersion = -1;
+				this.patchVersion = -1;
 				return;
 			}
 
@@ -117,20 +130,22 @@ public class ForgeProvider extends DependencyProvider {
 				this.forgeVersion = combined;
 			}
 
-			int dotIndex = forgeVersion.indexOf('.');
-			int major;
+			int major, minor, patch;
 
 			try {
-				if (dotIndex >= 0) {
-					major = Integer.parseInt(forgeVersion.substring(0, dotIndex));
-				} else {
-					major = Integer.parseInt(forgeVersion);
-				}
-			} catch (NumberFormatException e) {
+				String[] versionComponents = forgeVersion.split("\\.");
+				major = Integer.parseInt(versionComponents[0]);
+				minor = Integer.parseInt(versionComponents[1]);
+				patch = Integer.parseInt(versionComponents[2]);
+			} catch (Exception e) {
 				major = -1;
+				minor = -1;
+				patch = -1;
 			}
 
 			this.majorVersion = major;
+			this.minorVersion = minor;
+			this.patchVersion = patch;
 		}
 
 		public String getCombined() {
@@ -147,6 +162,14 @@ public class ForgeProvider extends DependencyProvider {
 
 		public int getMajorVersion() {
 			return majorVersion;
+		}
+
+		public int getMinorVersion() {
+			return minorVersion;
+		}
+
+		public int getPatchVersion() {
+			return patchVersion;
 		}
 	}
 }

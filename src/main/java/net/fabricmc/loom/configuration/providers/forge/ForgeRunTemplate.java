@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -110,12 +111,21 @@ public record ForgeRunTemplate(
 			settings.getEnvironmentVariables().putIfAbsent(key, resolved);
 		});
 
+		final ForgeProvider forgeProvider = settings.getExtension().getForgeProvider();
+
 		// Add MOD_CLASSES, this is something that ForgeGradle does
-		settings.getEnvironmentVariables().computeIfAbsent("MOD_CLASSES", $ -> ConfigValue.of("{source_roots}").resolve(configValueResolver));
+		settings.getEnvironmentVariables().computeIfAbsent("MOD_CLASSES", $ -> {
+			String modClasses = ConfigValue.of("{source_roots}").resolve(configValueResolver);
+			if (File.pathSeparatorChar == ':' && forgeProvider.usesBootstrapDev()) {
+				// bs-dev has a bug where ';' is used instead of File.pathSeparatorChar
+				modClasses = modClasses.replaceAll(":", ";");
+			}
+			return modClasses;
+		});
 
 		final ForgeProvider forgeProvider = settings.getExtension().getForgeProvider();
 
-		if (settings.getExtension().isForge() && forgeProvider.getVersion().getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION) {
+		if (settings.getExtension().isForge() && forgeProvider.usesUnionRelauncher()) {
 			settings.defaultMainClass(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS);
 			settings.property(Constants.Forge.UNION_RELAUNCHER_MAIN_CLASS_PROPERTY, main);
 		}
