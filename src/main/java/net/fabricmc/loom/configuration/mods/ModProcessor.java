@@ -44,7 +44,6 @@ import java.util.regex.Pattern;
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.neoforge.NeoForgeModDependencies;
-import dev.architectury.loom.util.ForgeSrgToMojangUtil;
 import dev.architectury.loom.util.MappingOption;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -208,10 +207,6 @@ public class ModProcessor {
 		final TinyRemapper remapper = builder.build();
 
 		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.intermediaryNamespace(project)).toArray(Path[]::new));
-
-		if (extension.isForge() && extension.getForgeProvider().usesMojangAtRuntime()) {
-			ForgeSrgToMojangUtil.replaceSrgWithMojangMappings(remapper, mappings);
-		}
 
 		final Map<ModDependency, InputTag> tagMap = new HashMap<>();
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();

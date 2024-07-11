@@ -1,5 +1,6 @@
 package dev.architectury.loom.util;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 
 public enum MappingOption {
@@ -9,7 +10,7 @@ public enum MappingOption {
 
 	public static MappingOption forPlatform(LoomGradleExtensionAPI extension) {
 		return switch (extension.getPlatform().get()) {
-		case FORGE -> WITH_SRG;
+		case FORGE -> ((LoomGradleExtension) extension).getForgeProvider().usesMojangAtRuntime() ? WITH_MOJANG : WITH_SRG;
 		case NEOFORGE -> WITH_MOJANG;
 		default -> DEFAULT;
 		};

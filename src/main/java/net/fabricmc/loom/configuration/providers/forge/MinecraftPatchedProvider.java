@@ -58,6 +58,7 @@ import dev.architectury.loom.util.TempFiles;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -111,6 +112,8 @@ public class MinecraftPatchedProvider {
 	private Path minecraftPatchedIntermediateJar;
 	// Step 3: Access Transform
 	private Path minecraftPatchedIntermediateAtJar;
+	// Forge 1.20.6: Step 3.5: Remap Patched AT and Forge to mojmaps
+	private Path minecraftPatchedMojangAtJar;
 	// Step 4: Remap Patched AT & Forge to official
 	private Path minecraftPatchedJar;
 	private Path minecraftClientExtra;
@@ -151,6 +154,7 @@ public class MinecraftPatchedProvider {
 		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
 		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
 		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
+		minecraftPatchedMojangAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + "mojang" + "-at-patched.jar");
 		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
 		minecraftClientExtra = forgeWorkingDir.resolve("client-extra.jar");
 	}
@@ -166,6 +170,7 @@ public class MinecraftPatchedProvider {
 				minecraftIntermediateJar,
 				minecraftPatchedIntermediateJar,
 				minecraftPatchedIntermediateAtJar,
+				minecraftPatchedMojangAtJar,
 				minecraftPatchedJar,
 				minecraftClientExtra,
 		};
@@ -201,7 +206,7 @@ public class MinecraftPatchedProvider {
 			patchJars();
 		}
 
-		if (dirty || Files.notExists(minecraftPatchedIntermediateAtJar)) {
+		if (dirty || Files.notExists(minecraftPatchedIntermediateAtJar) || (getExtension().isForge() && getExtension().getForgeProvider().usesMojangAtRuntime() && Files.notExists(minecraftPatchedMojangAtJar))) {
 			this.dirty = true;
 			accessTransformForge();
 		}
@@ -227,14 +232,16 @@ public class MinecraftPatchedProvider {
 	}
 
 	private TinyRemapper buildRemapper(SharedServiceManager serviceManager, Path input) throws IOException {
-		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
+		return buildRemapper(MappingOption.forPlatform(getExtension()), IntermediaryNamespaces.intermediary(project), "official", serviceManager, input);
+	}
+
+	private TinyRemapper buildRemapper(final MappingOption mappingOption, final String sourceNamespace, final String to, SharedServiceManager serviceManager, Path input) throws IOException {
 		TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(serviceManager, mappingOption);
-		final String sourceNamespace = IntermediaryNamespaces.intermediary(project);
 		MemoryMappingTree mappings = mappingsService.getMappingTree();
 
 		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
-				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, "official", true))
-				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, "official"))
+				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, to, true))
+				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, to))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true);
 
@@ -409,24 +416,39 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
-		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
 		Path mcInput = minecraftPatchedIntermediateAtJar;
+		Path mcPatchedAt = minecraftPatchedMojangAtJar;
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
 		Path forgeUserdevJar = getForgeUserdevJar().toPath();
+		Files.deleteIfExists(mcPatchedAt);
 		Files.deleteIfExists(mcOutput);
 
-		TinyRemapper remapper = buildRemapper(serviceManager, mcInput);
+		if (getExtension().isForge() && getExtension().getForgeProvider().usesMojangAtRuntime()) {
+			logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> mojang)");
+			TinyRemapper remapper = buildRemapper(MappingOption.WITH_SRG, "srg", "mojang", serviceManager, mcInput);
+			remapJar(remapper, serviceManager, mcInput, mcPatchedAt, forgeJar, forgeUserdevJar, false);
+			logger.lifecycle(":remapping minecraft (TinyRemapper, mojang -> official)");
+			TinyRemapper remapper2 = buildRemapper(MappingOption.WITH_MOJANG, "mojang", "official", serviceManager, mcInput);
+			remapJar(remapper2, serviceManager, mcPatchedAt, mcOutput, null, null, true);
+		} else {
+			logger.lifecycle(":remapping minecraft (TinyRemapper, %s -> official)".formatted(getExtension().isForge() ? "srg" : "mojang"));
+			TinyRemapper remapper = buildRemapper(serviceManager, mcInput);
+			remapJar(remapper, serviceManager, mcInput, mcOutput, forgeJar, forgeUserdevJar, true);
+		}
+	}
+
+	private void remapJar(TinyRemapper remapper, SharedServiceManager serviceManager, Path mcInput, Path mcOutput, @Nullable Path forgeJar, @Nullable Path forgeUserdevJar, boolean remapCoreMods) throws Exception {
 
 		try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(mcOutput).build()) {
 			outputConsumer.addNonClassFiles(mcInput);
-			outputConsumer.addNonClassFiles(forgeJar, NonClassCopyMode.FIX_META_INF, remapper);
+			if (forgeJar != null) outputConsumer.addNonClassFiles(forgeJar, NonClassCopyMode.FIX_META_INF, remapper);
 
 			InputTag mcTag = remapper.createInputTag();
 			InputTag forgeTag = remapper.createInputTag();
 			List<CompletableFuture<?>> futures = new ArrayList<>();
 			futures.add(remapper.readInputsAsync(mcTag, mcInput));
-			futures.add(remapper.readInputsAsync(forgeTag, forgeJar, forgeUserdevJar));
+			if (forgeJar != null) futures.add(remapper.readInputsAsync(forgeTag, forgeJar, forgeUserdevJar));
 			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 			remapper.apply(outputConsumer, mcTag);
 			remapper.apply(outputConsumer, forgeTag);
@@ -434,8 +456,8 @@ public class MinecraftPatchedProvider {
 			remapper.finish();
 		}
 
-		copyUserdevFiles(forgeUserdevJar, mcOutput);
-		remapCoreMods(mcOutput, serviceManager);
+		if (forgeUserdevJar != null) copyUserdevFiles(forgeUserdevJar, mcOutput);
+		if (remapCoreMods) remapCoreMods(mcOutput, serviceManager);
 		applyLoomPatchVersion(mcOutput);
 	}
 

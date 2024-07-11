@@ -199,11 +199,11 @@ public class SourceRemapper {
 			mercury.getClassPath().add(intermediaryJar);
 		}
 
-		if (extension.isForge()) {
+		if (extension.isForge() && !extension.getForgeProvider().usesMojangAtRuntime()) {
 			for (Path srgJar : extension.getMinecraftJars(MappingsNamespace.SRG)) {
 				mercury.getClassPath().add(srgJar);
 			}
-		} else if (extension.isNeoForge()) {
+		} else if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
 			for (Path mojangJar : extension.getMinecraftJars(MappingsNamespace.MOJANG)) {
 				mercury.getClassPath().add(mojangJar);
 			}

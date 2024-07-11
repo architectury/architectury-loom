@@ -61,7 +61,7 @@ public class ForgeProvider extends DependencyProvider {
 	}
 
 	public boolean usesMojangAtRuntime() {
-		return platform == ModPlatform.NEOFORGE || version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION;
+		return platform == ModPlatform.NEOFORGE || version.getMajorVersion() >= Constants.Forge.MIN_USE_MOJANG_NS_VERSION;
 	}
 
 	public boolean usesUnionRelauncher() {

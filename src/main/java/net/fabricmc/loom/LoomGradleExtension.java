@@ -114,7 +114,7 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 			yield getSrgMinecraftProvider().getMinecraftJarPaths();
 		}
 		case MOJANG -> {
-			ModPlatform.assertPlatform(this, ModPlatform.NEOFORGE, () -> "Mojang-mapped jars are only available on NeoForge.");
+			assert this.isForgeLike() && this.getForgeProvider().usesMojangAtRuntime() : "Mojang-mapped jars are only available on Forge 50+ or NeoForge.";
 			yield getMojangMappedMinecraftProvider().getMinecraftJarPaths();
 		}
 		};

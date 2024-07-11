@@ -50,16 +50,16 @@ public final class IntermediaryNamespaces {
 	 * Returns the intermediary namespace of the project.
 	 */
 	public static MappingsNamespace intermediaryNamespace(Project project) {
-		return intermediaryNamespace(LoomGradleExtension.get(project).getPlatform().get());
+		return intermediaryNamespace(LoomGradleExtension.get(project).getPlatform().get(), LoomGradleExtension.get(project));
 	}
 
 	/**
 	 * Returns the intermediary namespace of the platform.
 	 */
-	public static MappingsNamespace intermediaryNamespace(ModPlatform platform) {
+	public static MappingsNamespace intermediaryNamespace(ModPlatform platform, LoomGradleExtension extension) {
 		return switch (platform) {
 		case FABRIC, QUILT -> MappingsNamespace.INTERMEDIARY;
-		case FORGE -> MappingsNamespace.SRG;
+		case FORGE -> extension.getForgeProvider().usesMojangAtRuntime() ? MappingsNamespace.MOJANG : MappingsNamespace.SRG;
 		case NEOFORGE -> MappingsNamespace.MOJANG;
 		};
 	}

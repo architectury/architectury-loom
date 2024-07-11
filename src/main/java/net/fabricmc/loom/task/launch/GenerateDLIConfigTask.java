@@ -234,7 +234,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 					.map(File::getAbsolutePath)
 					.collect(Collectors.joining(File.pathSeparator));
 
-			final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform).toString();
+			final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform, getExtension()).toString();
 			final String mappingsPath = getPlatformMappingFile().get().getAsFile().getAbsolutePath();
 
 			launchConfig

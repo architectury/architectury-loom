@@ -18,6 +18,7 @@ public final class ForgeSrgToMojangUtil {
 
 	@SuppressWarnings("unchecked")
 	public static void replaceSrgWithMojangMappings(TinyRemapper remapper, MemoryMappingTree mappings) {
+		if (true) return;
 		Map<String, ClassInstance> readClasses;
 
 		try {
