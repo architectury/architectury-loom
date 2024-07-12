@@ -116,10 +116,12 @@ public record ForgeRunTemplate(
 		// Add MOD_CLASSES, this is something that ForgeGradle does
 		settings.getEnvironmentVariables().computeIfAbsent("MOD_CLASSES", $ -> {
 			String modClasses = ConfigValue.of("{source_roots}").resolve(configValueResolver);
+
 			if (File.pathSeparatorChar == ':' && forgeProvider.usesBootstrapDev()) {
 				// bs-dev has a bug where ';' is used instead of File.pathSeparatorChar
 				modClasses = modClasses.replaceAll(":", ";");
 			}
+
 			return modClasses;
 		});
 

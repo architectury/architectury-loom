@@ -439,7 +439,6 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void remapJar(TinyRemapper remapper, SharedServiceManager serviceManager, Path mcInput, Path mcOutput, @Nullable Path forgeJar, @Nullable Path forgeUserdevJar, boolean remapCoreMods) throws Exception {
-
 		try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(mcOutput).build()) {
 			outputConsumer.addNonClassFiles(mcInput);
 			if (forgeJar != null) outputConsumer.addNonClassFiles(forgeJar, NonClassCopyMode.FIX_META_INF, remapper);

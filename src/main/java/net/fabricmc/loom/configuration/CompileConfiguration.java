@@ -269,6 +269,7 @@ public abstract class CompileConfiguration implements Runnable {
 			extension.setSrgMinecraftProvider(srgMinecraftProvider);
 			srgMinecraftProvider.provide(provideContext);
 		}
+
 		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
 			final MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider = jarConfiguration.createMojangMappedMinecraftProvider(project);
 			extension.setMojangMappedMinecraftProvider(mojangMappedMinecraftProvider);

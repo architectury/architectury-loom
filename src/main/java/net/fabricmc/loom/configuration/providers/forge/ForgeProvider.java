@@ -67,6 +67,7 @@ public class ForgeProvider extends DependencyProvider {
 	public boolean usesUnionRelauncher() {
 		return platform == ModPlatform.FORGE && version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION && !usesBootstrapDev();
 	}
+
 	public boolean usesBootstrapDev() {
 		boolean forge50OrOver = version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION;
 		boolean point0dot38 = version.getMajorVersion() >= 50 || version.getMinorVersion() >= 1 || version.getPatchVersion() >= 38;
