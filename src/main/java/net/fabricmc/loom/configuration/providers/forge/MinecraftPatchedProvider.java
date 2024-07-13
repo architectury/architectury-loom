@@ -154,7 +154,11 @@ public class MinecraftPatchedProvider {
 		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
 		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
 		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
-		minecraftPatchedMojangAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + "mojang" + "-at-patched.jar");
+
+		if (getExtension().isForge() && getExtension().getForgeProvider().usesMojangAtRuntime()) {
+			minecraftPatchedMojangAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-mojang-at-patched.jar");
+		}
+
 		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
 		minecraftClientExtra = forgeWorkingDir.resolve("client-extra.jar");
 	}
@@ -166,14 +170,14 @@ public class MinecraftPatchedProvider {
 	}
 
 	private Path[] getGlobalCaches() {
-		Path[] files = {
+		Path[] files = Stream.of(
 				minecraftIntermediateJar,
 				minecraftPatchedIntermediateJar,
 				minecraftPatchedIntermediateAtJar,
 				minecraftPatchedMojangAtJar,
 				minecraftPatchedJar,
-				minecraftClientExtra,
-		};
+				minecraftClientExtra
+		).filter(Objects::nonNull).toArray(Path[]::new);
 
 		return files;
 	}

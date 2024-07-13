@@ -70,7 +70,7 @@ public class ForgeProvider extends DependencyProvider {
 
 	public boolean usesBootstrapDev() {
 		boolean forge50OrOver = version.getMajorVersion() >= Constants.Forge.MIN_UNION_RELAUNCHER_VERSION;
-		boolean point0dot38 = version.getMajorVersion() >= 50 || version.getMinorVersion() >= 1 || version.getPatchVersion() >= 38;
+		boolean point0dot38 = version.getMajorVersion() >= 50 || (version.getMajorVersion() == 49 && version.getMinorVersion() >= 1 || version.getMinorVersion() == 0 && version.getPatchVersion() >= 38);
 		return platform == ModPlatform.FORGE && forge50OrOver && point0dot38;
 	}
 
