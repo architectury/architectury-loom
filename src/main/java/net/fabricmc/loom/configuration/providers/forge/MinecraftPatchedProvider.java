@@ -425,7 +425,11 @@ public class MinecraftPatchedProvider {
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
 		Path forgeUserdevJar = getForgeUserdevJar().toPath();
-		Files.deleteIfExists(mcPatchedAt);
+
+		if (mcPatchedAt != null) {
+			Files.deleteIfExists(mcPatchedAt);
+		}
+
 		Files.deleteIfExists(mcOutput);
 
 		if (getExtension().isForge() && getExtension().getForgeProvider().usesMojangAtRuntime()) {
