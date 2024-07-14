@@ -203,6 +203,11 @@ public class Constants {
 		 */
 		public static final int MIN_USE_MOJANG_NS_VERSION = 50;
 
+		/**
+		 * The earliest timestamp of a Minecraft version that Forge uses runtime Mojang mappings for.
+		 */
+		public static final String MOJANG_MAPPED_FORGE_TIMESTAMP = "2024-04-23T00:00:00+00:00";
+
 		private Forge() {
 		}
 	}
