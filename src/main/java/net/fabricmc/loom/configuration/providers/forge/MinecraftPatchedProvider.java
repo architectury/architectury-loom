@@ -55,6 +55,12 @@ import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
 import dev.architectury.loom.forge.UserdevConfig;
 import dev.architectury.loom.util.MappingOption;
 import dev.architectury.loom.util.TempFiles;
+
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
+import net.fabricmc.loom.util.srg.RemapForgeGameTestHooksVisitor;
+
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
@@ -100,6 +106,7 @@ public class MinecraftPatchedProvider {
 	private static final String LOOM_PATCH_VERSION_KEY = "Loom-Patch-Version";
 	private static final String CURRENT_LOOM_PATCH_VERSION = "9";
 	private static final String NAME_MAPPING_SERVICE_PATH = "/inject/META-INF/services/cpw.mods.modlauncher.api.INameMappingService";
+	private static final String FORGE_GAME_TEST_HOOKS_FILE = "net/minecraftforge/gametest/ForgeGameTestHooks.class";
 
 	private final Project project;
 	private final Logger logger;
@@ -465,7 +472,23 @@ public class MinecraftPatchedProvider {
 
 		if (forgeUserdevJar != null) copyUserdevFiles(forgeUserdevJar, mcOutput);
 		if (remapCoreMods) remapCoreMods(mcOutput, serviceManager);
+		if (getExtension().isForge() && getExtension().getForgeProvider().usesMojangAtRuntime()) remapGameTestHooks(mcOutput, serviceManager);
 		applyLoomPatchVersion(mcOutput);
+	}
+
+	private void remapGameTestHooks(Path outputJar, SharedServiceManager serviceManager) throws IOException {
+		try {
+			final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
+			final TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(serviceManager, mappingOption);
+			final MappingTree mappings = mappingsService.getMappingTree();
+			// Remap the game test hooks.
+			RemapForgeGameTestHooksVisitor.remapForgeGameTestHooks(
+					outputJar, "net.minecraftforge.gametest.ForgeGameTestHooks", mappings,
+					MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()
+			);
+		} catch (IOException e) {
+			throw new IOException("Could not remap gametest hooks in " + outputJar, e);
+		}
 	}
 
 	private void remapCoreMods(Path patchedJar, SharedServiceManager serviceManager) throws Exception {
