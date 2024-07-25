@@ -35,9 +35,6 @@ import com.google.common.hash.Hashing;
 import dev.architectury.loom.forge.ModDirTransformerDiscovererPatch;
 import dev.architectury.loom.neoforge.LaunchHandlerPatcher;
 import dev.architectury.loom.util.ClassVisitorUtil;
-
-import net.fabricmc.loom.util.srg.RemapForgeGameTestHooksVisitor;
-
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -66,6 +63,7 @@ public class ForgeLibrariesProvider {
 	private static final String FANCYML_LOADER_GROUP = "net.neoforged.fancymodloader";
 	private static final String FANCYML_LOADER_NAME = "loader";
 
+	private static final String FORGE_GAME_TEST_HOOLS_FILE = "net/minecraftforge/gametest/ForgeGameTestHooks.class";
 	private static final String FORGE_OBJECT_HOLDER_FILE = "net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class";
 	private static final String FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE = "net/minecraftforge/fml/loading/ModDirTransformerDiscoverer.class";
 	private static final String NEOFORGE_OBJECT_HOLDER_FILE = "net/neoforged/fml/common/asm/ObjectHolderDefinalize.class";
@@ -188,6 +186,10 @@ public class ForgeLibrariesProvider {
 					remapObjectHolder(project, outputJar, mappingConfiguration);
 				}
 
+				if (Files.exists(fs.get().getPath(FORGE_GAME_TEST_HOOLS_FILE))) {
+					remapObjectHolder(project, outputJar, mappingConfiguration);
+				}
+
 				if (Files.exists(fs.getPath(FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE))) {
 					ClassVisitorUtil.rewriteClassFile(fs.getPath(FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE), ModDirTransformerDiscovererPatch::new);
 				}
@@ -225,6 +227,24 @@ public class ForgeLibrariesProvider {
 			// Remap the object holders.
 			RemapObjectHolderVisitor.remapObjectHolder(
 					outputJar, "net.minecraftforge.fml.common.asm.ObjectHolderDefinalize", mappings,
+					MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()
+			);
+		} catch (IOException e) {
+			throw new IOException("Could not remap object holders in " + outputJar, e);
+		}
+	}
+
+	private static void remapGameTestHooks(Project project, Path outputJar, MappingConfiguration mappingConfiguration) throws IOException {
+		try {
+			// Merge SRG mappings. The real SRG mapping file hasn't been created yet since the usual SRG merging
+			// process occurs after all Forge libraries have been provided.
+			// Forge libs are needed for MC, which is needed for the mappings.
+			final ForgeMappingsMerger.ExtraMappings extraMappings = ForgeMappingsMerger.ExtraMappings.ofMojmapTsrg(MappingConfiguration.getMojmapSrgFileIfPossible(project));
+			final MemoryMappingTree mappings = ForgeMappingsMerger.mergeSrg(MappingConfiguration.getRawSrgFile(project), mappingConfiguration.tinyMappings, extraMappings, true);
+
+			// Remap the game test hooks.
+			RemapObjectHolderVisitor.remapObjectHolder(
+					outputJar, "net.minecraftforge.gametest.ForgeGameTestHooks", mappings,
 					MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()
 			);
 		} catch (IOException e) {
