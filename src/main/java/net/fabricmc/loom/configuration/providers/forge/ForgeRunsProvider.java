@@ -42,6 +42,7 @@ import dev.architectury.loom.forge.UserdevConfig;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Dependency;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -49,6 +50,7 @@ import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
+import net.fabricmc.loom.util.Version;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.gradle.SourceSetReference;
 
@@ -128,8 +130,7 @@ public class ForgeRunsProvider {
 			// Use a set-valued multimap for deduplicating paths.
 			Multimap<String, String> modClasses = MultimapBuilder.hashKeys().linkedHashSetValues().build();
 			NamedDomainObjectContainer<ModSettings> mods = extension.getMods();
-			// Forge 49+ bootstrap-dev uses ; as a separator, instead of File.pathSeparator
-			String separator = extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION ? ";" : File.pathSeparator;
+			String separator = getSourceRootsSeparator();
 
 			if (runConfig != null && !runConfig.getMods().isEmpty()) {
 				mods = runConfig.getMods();
@@ -185,5 +186,22 @@ public class ForgeRunsProvider {
 
 	private Set<File> minecraftClasspath() {
 		return DependencyDownloader.resolveFiles(project, project.getConfigurations().getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY), true);
+	}
+
+	private String getSourceRootsSeparator() {
+		// Some versions of Forge 49+ requires a different separator
+		if (!extension.isForge() || extension.getForgeProvider().getVersion().getMajorVersion() < Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
+			return File.pathSeparator;
+		}
+
+		for (Dependency dependency : project.getConfigurations().getByName(Constants.Configurations.FORGE_DEPENDENCIES).getDependencies()) {
+			if (dependency.getGroup().equals("net.minecraftforge") && dependency.getName().equals("bootstrap-dev")) {
+				Version version = Version.parse(dependency.getVersion());
+				return version.compareTo(Version.parse("2.1.4")) >= 0 ? File.pathSeparator : ";";
+			}
+		}
+
+		project.getLogger().warn("Failed to find bootstrap-dev in forge dependencies, using File.pathSeparator as separator");
+		return File.pathSeparator;
 	}
 }
