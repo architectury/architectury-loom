@@ -78,9 +78,10 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 			return this.minor - other.minor;
 		} else if (this.micro != other.micro) {
 			return this.micro - other.micro;
+		} else if (this.patch != other.patch) {
+			return this.patch - other.patch;
 		} else {
-			return this.patch != other.patch ? this.patch - other.patch
-					: Ordering.natural().nullsLast()
+			return Ordering.natural().nullsLast()
 					.compare(this.qualifier, other.qualifier);
 		}
 	}
