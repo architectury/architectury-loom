@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.test.unit
 
-
 import spock.lang.Specification
 
 import net.fabricmc.loom.util.Version
