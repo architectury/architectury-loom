@@ -24,7 +24,7 @@
 
 package net.fabricmc.loom.util;
 
-import java.util.Objects;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -63,7 +63,7 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		int patch = !Strings.isNullOrEmpty(matcher.group(4)) ? Integer.parseInt(matcher.group(4)) : 0;
 		String qualifier = matcher.group(5);
 
-		return new Version(major, minor, micro, patch, toLowerCase(qualifier));
+		return new Version(major, minor, micro, patch, qualifier == null ? null : qualifier.toLowerCase(Locale.ROOT));
 	}
 
 	public Version asBaseVersion() {
@@ -83,33 +83,5 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 					: Ordering.natural().nullsLast()
 					.compare(this.qualifier, other.qualifier);
 		}
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		} else if (obj == null || this.getClass() != obj.getClass()) {
-			return false;
-		} else {
-			Version other = (Version) obj;
-			return this.major == other.major && this.minor == other.minor && this.micro == other.micro && this.patch == other.patch
-					&& Objects.equals(this.qualifier, other.qualifier);
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		int result = this.major;
-		result = 31 * result + this.minor;
-		result = 31 * result + this.micro;
-		result = 31 * result + this.patch;
-		result = 31 * result + Objects.hashCode(this.qualifier);
-		return result;
-	}
-
-	@Nullable
-	private static String toLowerCase(@Nullable String string) {
-		return string == null ? null : string.toLowerCase();
 	}
 }
