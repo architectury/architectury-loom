@@ -30,7 +30,6 @@ import java.util.regex.Pattern;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
-import org.gradle.util.internal.VersionNumber;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -64,11 +63,11 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		int patch = !Strings.isNullOrEmpty(matcher.group(4)) ? Integer.parseInt(matcher.group(4)) : 0;
 		String qualifier = matcher.group(5);
 
-		return new Version(major, minor, micro, patch, qualifier);
+		return new Version(major, minor, micro, patch, toLowerCase(qualifier));
 	}
 
-	public VersionNumber asBaseVersion() {
-		return new VersionNumber(this.major, this.minor, this.micro, this.patch, null);
+	public Version asBaseVersion() {
+		return new Version(this.major, this.minor, this.micro, this.patch, null);
 	}
 
 	@Override
@@ -82,7 +81,7 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		} else {
 			return this.patch != other.patch ? this.patch - other.patch
 					: Ordering.natural().nullsLast()
-					.compare(this.toLowerCase(this.qualifier), this.toLowerCase(other.qualifier));
+					.compare(this.qualifier, other.qualifier);
 		}
 	}
 
@@ -95,7 +94,7 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		} else {
 			Version other = (Version) obj;
 			return this.major == other.major && this.minor == other.minor && this.micro == other.micro && this.patch == other.patch
-					&& Objects.equals(this.toLowerCase(this.qualifier), this.toLowerCase(other.qualifier));
+					&& Objects.equals(this.qualifier, other.qualifier);
 		}
 	}
 
@@ -105,12 +104,12 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		result = 31 * result + this.minor;
 		result = 31 * result + this.micro;
 		result = 31 * result + this.patch;
-		result = 31 * result + this.toLowerCase(this.qualifier).hashCode();
+		result = 31 * result + Objects.hashCode(this.qualifier);
 		return result;
 	}
 
 	@Nullable
-	private String toLowerCase(@Nullable String string) {
+	private static String toLowerCase(@Nullable String string) {
 		return string == null ? null : string.toLowerCase();
 	}
 }
