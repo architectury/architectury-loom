@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.util;
 
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,7 +95,7 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		} else {
 			Version other = (Version) obj;
 			return this.major == other.major && this.minor == other.minor && this.micro == other.micro && this.patch == other.patch
-					&& this.toLowerCase(this.qualifier).equals(this.toLowerCase(other.qualifier));
+					&& Objects.equals(this.toLowerCase(this.qualifier), this.toLowerCase(other.qualifier));
 		}
 	}
 
