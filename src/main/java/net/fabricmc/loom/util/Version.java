@@ -38,8 +38,8 @@ import org.jetbrains.annotations.Nullable;
  * A simple version class that can be used to compare versions.
  * This class allows for versions that are not strictly following the semver specification,
  * but are still allowed in the context of gradle versioning.
- * <p>
- * This class is intentionally very flexible and does not enforce any specific versioning scheme,
+ *
+ * <p>This class is intentionally very flexible and does not enforce any specific versioning scheme,
  * and should be very similar to the versioning used by gradle itself.
  */
 public record Version(int major, int minor, int micro, int patch, @Nullable String qualifier) implements Comparable<Version> {
