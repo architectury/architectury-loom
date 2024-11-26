@@ -56,6 +56,7 @@ import dev.architectury.loom.forge.UserdevConfig;
 import dev.architectury.loom.util.MappingOption;
 import dev.architectury.loom.util.TempFiles;
 import org.gradle.api.Project;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.Logger;
 import org.objectweb.asm.ClassReader;
@@ -464,8 +465,9 @@ public class MinecraftPatchedProvider {
 	private void patchJars(Path clean, Path output, Path patches) {
 		ForgeToolExecutor.exec(project, spec -> {
 			UserdevConfig.BinaryPatcherConfig config = getExtension().getForgeUserdevProvider().getConfig().binpatcher();
-			spec.classpath(DependencyDownloader.download(project, config.dependency()));
-			spec.getMainClass().set("net.minecraftforge.binarypatcher.ConsoleTool");
+			final FileCollection download = DependencyDownloader.download(project, config.dependency());
+			spec.classpath(download);
+			spec.getMainClass().set(getMainClass(download));
 
 			for (String arg : config.args()) {
 				String actual = switch (arg) {
@@ -477,6 +479,45 @@ public class MinecraftPatchedProvider {
 				spec.args(actual);
 			}
 		});
+	}
+
+	private static String getMainClass(final Iterable<File> files) {
+		String mainClass = null;
+		IOException ex = null;
+
+		for (File file : files) {
+			if (file.getName().endsWith(".jar")) {
+				try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(file.toPath())) {
+					final Path mfPath = fs.getPath("META-INF/MANIFEST.MF");
+
+					if (Files.exists(mfPath)) {
+						try (InputStream in = Files.newInputStream(mfPath)) {
+							mainClass = new Manifest(in).getMainAttributes().getValue("Main-Class");
+						}
+					}
+				} catch (final IOException e) {
+					if (ex == null) {
+						ex = e;
+					} else {
+						ex.addSuppressed(e);
+					}
+				}
+
+				if (mainClass != null) {
+					break;
+				}
+			}
+		}
+
+		if (mainClass == null) {
+			if (ex != null) {
+				throw new UncheckedIOException(ex);
+			} else {
+				throw new RuntimeException("Failed to find main class");
+			}
+		}
+
+		return mainClass;
 	}
 
 	private void walkFileSystems(Path source, Path target, Predicate<Path> filter, Function<FileSystem, Iterable<Path>> toWalk, FsPathConsumer action)
