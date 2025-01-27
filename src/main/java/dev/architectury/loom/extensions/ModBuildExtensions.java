@@ -60,7 +60,7 @@ public final class ModBuildExtensions {
 			Path atPath = fs.getPath(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 
 			if (Files.exists(atPath)) {
-				throw new FileAlreadyExistsException("Jar " + outputFile + " already contains an access transformer - cannot convert AWs!");
+				Files.delete(atPath);
 			}
 
 			for (String aw : atAccessWideners) {
