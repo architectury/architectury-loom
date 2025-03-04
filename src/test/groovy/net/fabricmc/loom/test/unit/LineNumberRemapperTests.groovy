@@ -65,6 +65,31 @@ class LineNumberRemapperTests extends Specification {
 		readLineNumbers(unpacked) == [37, 39, 40]
 	}
 
+	def "remapLinenumbersExclude"() {
+		given:
+		def className = LineNumberSource.class.name.replace('.', '/')
+		def input = ZipTestUtils.createZipFromBytes([(className + ".class"): getClassBytes(LineNumberSource.class)])
+
+		// + 10 to each line number
+		def entry = new ClassLineNumbers.Entry(className, 30, 40, [
+			27: 37,
+			30: 40
+		])
+		def lineNumbers = new ClassLineNumbers([(className): entry])
+
+		def outputJar = Files.createTempDirectory("loom").resolve("output.jar")
+
+		when:
+		def remapper = new LineNumberRemapper(lineNumbers)
+		remapper.process(input, outputJar)
+
+		def unpacked = ZipUtils.unpack(outputJar, className + ".class")
+
+		then:
+		readLineNumbers(getClassBytes(LineNumberSource.class)) == [27, 29, 30]
+		readLineNumbers(unpacked) == [37, 40]
+	}
+
 	static byte[] getClassBytes(Class<?> clazz) {
 		return clazz.classLoader.getResourceAsStream(clazz.name.replace('.', '/') + ".class").withCloseable {
 			it.bytes

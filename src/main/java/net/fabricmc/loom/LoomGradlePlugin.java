@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2023 FabricMC
+ * Copyright (c) 2016-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,15 +33,16 @@ import java.util.Set;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.PluginAware;
 
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
-import net.fabricmc.loom.bootstrap.BootstrappedPlugin;
+import net.fabricmc.loom.api.fabricapi.FabricApiExtension;
 import net.fabricmc.loom.configuration.CompileConfiguration;
-import net.fabricmc.loom.configuration.FabricApiExtension;
 import net.fabricmc.loom.configuration.LoomConfigurations;
 import net.fabricmc.loom.configuration.MavenPublication;
+import net.fabricmc.loom.configuration.fabricapi.FabricApiExtensionImpl;
 import net.fabricmc.loom.configuration.ide.idea.IdeaConfiguration;
 import net.fabricmc.loom.configuration.sandbox.SandboxConfiguration;
 import net.fabricmc.loom.decompilers.DecompilerConfiguration;
@@ -52,7 +53,7 @@ import net.fabricmc.loom.task.RemapTaskConfiguration;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.LibraryLocationLogger;
 
-public class LoomGradlePlugin implements BootstrappedPlugin {
+public class LoomGradlePlugin implements Plugin<PluginAware> {
 	public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	public static final String LOOM_VERSION = Objects.requireNonNullElse(LoomGradlePlugin.class.getPackage().getImplementationVersion(), "0.0.0+unknown");
 
@@ -79,7 +80,7 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 		}
 	}
 
-	public void apply(Project project) {
+	private void apply(Project project) {
 		Set<String> loggedVersions = new HashSet<>(Arrays.asList(System.getProperty("loom.printed.logged", "").split(",")));
 
 		if (!loggedVersions.contains(LOOM_VERSION)) {
@@ -93,7 +94,6 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 				project.getLogger().lifecycle("You are using an outdated version of Architectury Loom! This version will not receive any support, please consider updating!");
 			}
 		}
-
 		LibraryLocationLogger.logLibraryVersions();
 
 		// Apply default plugins
@@ -102,7 +102,7 @@ public class LoomGradlePlugin implements BootstrappedPlugin {
 
 		// Setup extensions
 		project.getExtensions().create(LoomGradleExtensionAPI.class, "loom", LoomGradleExtensionImpl.class, project, LoomFiles.create(project));
-		project.getExtensions().create("fabricApi", FabricApiExtension.class);
+		project.getExtensions().create(FabricApiExtension.class, "fabricApi", FabricApiExtensionImpl.class);
 
 		for (Class<? extends Runnable> jobClass : SETUP_JOBS) {
 			project.getObjects().newInstance(jobClass).run();

@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2018-2023 FabricMC
+ * Copyright (c) 2018-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,24 +24,32 @@
 
 package net.fabricmc.loom.test.integration
 
+import java.util.concurrent.TimeUnit
+
+import spock.lang.IgnoreIf
 import spock.lang.Specification
+import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.environment.RestoreSystemProperties
 
+import net.fabricmc.loom.test.LoomTestConstants
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
+import net.fabricmc.loom.util.download.Download
 
 import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 // This test runs a mod that exits on mod init
 class RunConfigTest extends Specification implements GradleProjectTestTrait {
-	private static List<String> tasks = [
+	private static final List<String> tasks = [
 		"runClient",
 		"runServer",
 		"runTestmodClient",
 		"runTestmodServer",
 		"runAutoTestServer"
 	]
+	private static final String TRACY_CAPTURE_LINUX = "https://github.com/modmuss50/tracy-utils/releases/download/0.0.2/linux-x86_64-tracy-capture"
+
 	@Unroll
 	def "Run config #task (gradle #version)"() {
 		setup:
@@ -126,6 +134,76 @@ class RunConfigTest extends Specification implements GradleProjectTestTrait {
 
 		then:
 		result.task(":downloadAssets").outcome == SUCCESS
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
+
+	@Unroll
+	def "prod server (gradle #version)"() {
+		setup:
+		def gradle = gradleProject(project: "minimalBase", version: version)
+		gradle.buildGradle << '''
+                dependencies {
+                    minecraft "com.mojang:minecraft:1.21.4"
+                    mappings "net.fabricmc:yarn:1.21.4+build.4:v2"
+                    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+                }
+
+                tasks.register("prodServer", net.fabricmc.loom.task.prod.ServerProductionRunTask) {
+                    installerVersion = "1.0.1"
+                }
+            '''
+		when:
+		def result = gradle.run(task: "prodServer")
+
+		then:
+		result.task(":prodServer").outcome == SUCCESS
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
+
+	@Timeout(value = 10, unit = TimeUnit.MINUTES)
+	@Unroll
+	@IgnoreIf({ !os.linux }) // XVFB is installed on the CI for this test
+	def "prod client (gradle #version)"() {
+		setup:
+		def tracyCapture = new File(LoomTestConstants.TEST_DIR, "tracy-capture")
+		Download.create(TRACY_CAPTURE_LINUX).defaultCache().downloadPath(tracyCapture.toPath())
+
+		def gradle = gradleProject(project: "minimalBase", version: version)
+		gradle.buildGradle << '''
+                dependencies {
+                    minecraft "com.mojang:minecraft:1.21.4"
+                    mappings "net.fabricmc:yarn:1.21.4+build.4:v2"
+                    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+                    modImplementation "net.fabricmc.fabric-api:fabric-api:0.114.0+1.21.4"
+
+                    productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:0.114.0+1.21.4"
+                }
+
+                tasks.register("prodClient", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+                	jvmArgs.add("-Dfabric.client.gametest")
+
+                	tracy {
+                		tracyCapture = file("tracy-capture")
+                		output = file("profile.tracy")
+                	}
+                }
+            '''
+
+		// Copy tracy into the project
+		def projectTracyCapture = new File(gradle.projectDir, "tracy-capture")
+		projectTracyCapture.bytes = tracyCapture.bytes
+		projectTracyCapture.setExecutable(true)
+
+		when:
+		def result = gradle.run(task: "prodClient")
+
+		then:
+		result.task(":prodClient").outcome == SUCCESS
+		new File(gradle.projectDir, "profile.tracy").exists()
 
 		where:
 		version << STANDARD_TEST_VERSIONS

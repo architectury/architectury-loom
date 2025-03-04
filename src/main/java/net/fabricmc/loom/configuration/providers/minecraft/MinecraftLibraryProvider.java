@@ -109,12 +109,7 @@ public class MinecraftLibraryProvider {
 
 	private void provideServerLibraries() {
 		final BundleMetadata serverBundleMetadata = minecraftProvider.getServerBundleMetadata();
-
-		if (serverBundleMetadata == null) {
-			return;
-		}
-
-		final List<Library> libraries = MinecraftLibraryHelper.getServerLibraries(serverBundleMetadata);
+		final List<Library> libraries = serverBundleMetadata != null ? MinecraftLibraryHelper.getServerLibraries(serverBundleMetadata) : Collections.emptyList();
 		final List<Library> processLibraries = processLibraries(libraries);
 		processLibraries.forEach(this::applyServerLibrary);
 	}

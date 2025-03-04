@@ -79,7 +79,7 @@ public final class TinyRemapperHelper {
 
 		int intermediaryNsId = mappingTree.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString());
 
-		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
 				.ignoreConflicts(extension.isForgeLike())
 				.threads(Runtime.getRuntime().availableProcessors())
 				.withMappings(create(mappingTree, fromM, toM, true))

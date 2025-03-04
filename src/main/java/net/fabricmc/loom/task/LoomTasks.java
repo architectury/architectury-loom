@@ -54,7 +54,6 @@ public abstract class LoomTasks implements Runnable {
 	public void run() {
 		getTasks().register("migrateMappings", MigrateMappingsTask.class, t -> {
 			t.setDescription("Migrates mappings to a new version.");
-			t.getOutputs().upToDateWhen(o -> false);
 		});
 
 		var generateLog4jConfig = getTasks().register("generateLog4jConfig", GenerateLog4jConfigTask.class, t -> {
@@ -126,7 +125,7 @@ public abstract class LoomTasks implements Runnable {
 		});
 	}
 
-	private static String getRunConfigTaskName(RunConfigSettings config) {
+	public static String getRunConfigTaskName(RunConfigSettings config) {
 		String configName = config.getName();
 		return "run" + configName.substring(0, 1).toUpperCase() + configName.substring(1);
 	}

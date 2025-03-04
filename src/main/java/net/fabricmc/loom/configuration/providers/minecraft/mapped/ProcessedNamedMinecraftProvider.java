@@ -65,7 +65,7 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 
 		parentMinecraftProvider.provide(context.withApplyDependencies(false));
 
-		boolean requiresProcessing = context.refreshOutputs() || !hasBackupJars(minecraftJars) || parentMinecraftJars.stream()
+		boolean requiresProcessing = shouldRefreshOutputs(context) || parentMinecraftJars.stream()
 				.map(this::getProcessedPath)
 				.anyMatch(jarProcessorManager::requiresProcessingJar);
 
@@ -79,6 +79,14 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 		}
 
 		return List.copyOf(minecraftJarOutputMap.values());
+	}
+
+	@Override
+	public List<? extends OutputJar> getOutputJars() {
+		return parentMinecraftProvider.getMinecraftJars().stream()
+				.map(this::getProcessedJar)
+				.map(SimpleOutputJar::new)
+				.toList();
 	}
 
 	@Override

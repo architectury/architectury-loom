@@ -61,6 +61,7 @@ import net.fabricmc.loom.util.LoggerFilter;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.TinyRemapperHelper;
+import net.fabricmc.loom.util.TinyRemapperLoggerAdapter;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.kotlin.KotlinClasspathService;
 import net.fabricmc.loom.util.kotlin.KotlinRemapperClassloader;
@@ -177,7 +178,7 @@ public class ModProcessor {
 		MemoryMappingTree mappings = mappingConfiguration.getMappingsService(project, serviceFactory, mappingOption).getMappingTree();
 		LoggerFilter.replaceSystemOut();
 
-		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
 				.withKnownIndyBsm(knownIndyBsms)
 				.withMappings(TinyRemapperHelper.create(mappings, fromM, toM, false))
 				.renameInvalidLocals(false)

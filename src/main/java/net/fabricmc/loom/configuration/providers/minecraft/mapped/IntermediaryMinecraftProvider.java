@@ -78,24 +78,43 @@ public abstract sealed class IntermediaryMinecraftProvider<M extends MinecraftPr
 
 		@Override
 		public List<MinecraftJar> provide(ProvideContext context) throws Exception {
+			final List<MinecraftJar> minecraftJars = List.of(getMergedJar());
+
+			// this check must be done before the client and server impls are provided
+			// because the merging only needs to happen if the remapping step is run
+			final boolean refreshOutputs = client.shouldRefreshOutputs(context)
+					|| server.shouldRefreshOutputs(context)
+					|| this.shouldRefreshOutputs(context);
+
 			// Map the client and server jars separately
 			server.provide(context);
 			client.provide(context);
 
-			// then merge them
-			MergedMinecraftProvider.mergeJars(
-						client.getEnvOnlyJar().toFile(),
-						server.getEnvOnlyJar().toFile(),
-						getMergedJar().toFile()
-			);
+			if (refreshOutputs) {
+				// then merge them
+				MergedMinecraftProvider.mergeJars(
+							client.getEnvOnlyJar().toFile(),
+							server.getEnvOnlyJar().toFile(),
+							getMergedJar().toFile()
+				);
 
-			return List.of(getMergedJar());
+				createBackupJars(minecraftJars);
+			}
+
+			return minecraftJars;
 		}
 
 		@Override
 		public List<RemappedJars> getRemappedJars() {
 			// The delegate providers will handle the remapping
 			throw new UnsupportedOperationException("LegacyMergedImpl does not support getRemappedJars");
+		}
+
+		@Override
+		public List<? extends OutputJar> getOutputJars() {
+			return List.of(
+				new SimpleOutputJar(getMergedJar())
+			);
 		}
 
 		@Override

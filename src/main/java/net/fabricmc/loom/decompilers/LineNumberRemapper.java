@@ -106,20 +106,16 @@ public record LineNumberRemapper(ClassLineNumbers lineNumbers) {
 			return new MethodVisitor(api, super.visitMethod(access, name, descriptor, signature, exceptions)) {
 				@Override
 				public void visitLineNumber(int line, Label start) {
-					int tLine = line;
-
-					if (tLine <= 0) {
+					if (line <= 0) {
 						super.visitLineNumber(line, start);
-					} else if (tLine >= lineNumbers.maxLine()) {
+					} else if (line >= lineNumbers.maxLine()) {
 						super.visitLineNumber(lineNumbers.maxLineDest(), start);
 					} else {
-						Integer matchedLine = null;
+						Integer matchedLine = lineNumbers.lineMap().get(line);
 
-						while (tLine <= lineNumbers.maxLine() && ((matchedLine = lineNumbers.lineMap().get(tLine)) == null)) {
-							tLine++;
+						if (matchedLine != null) {
+							super.visitLineNumber(matchedLine, start);
 						}
-
-						super.visitLineNumber(matchedLine != null ? matchedLine : lineNumbers.maxLineDest(), start);
 					}
 				}
 			};

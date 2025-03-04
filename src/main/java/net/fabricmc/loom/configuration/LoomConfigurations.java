@@ -155,6 +155,13 @@ public abstract class LoomConfigurations implements Runnable {
 		getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
 		getDependencies().add(JavaPlugin.TEST_COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
 
+		register(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Role.RESOLVABLE);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.MINECRAFT_NATIVES);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.MINECRAFT_CLIENT_RUNTIME_LIBRARIES);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.LOADER_DEPENDENCIES);
+
+		register(Constants.Configurations.PRODUCTION_RUNTIME_MODS, Role.RESOLVABLE);
+
 		GradleUtils.afterSuccessfulEvaluation(getProject(), () -> {
 			if (extension.shouldGenerateSrgTiny()) {
 				registerNonTransitive(Constants.Configurations.SRG, Role.RESOLVABLE);

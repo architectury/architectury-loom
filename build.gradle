@@ -23,7 +23,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 }
 
 group = "dev.architectury"
-def baseVersion = '1.9'
+def baseVersion = '1.10'
 
 def ENV = System.getenv()
 def runNumber = ENV.GITHUB_RUN_NUMBER ?: "9999"
@@ -58,15 +58,6 @@ repositories {
 			excludeGroupByRegex "org\\.eclipse\\.?.*"
 		}
 	}
-}
-
-configurations {
-	bootstrap {
-		transitive false
-	}
-	compileClasspath.extendsFrom bootstrap
-	runtimeClasspath.extendsFrom bootstrap
-	testRuntimeClasspath.extendsFrom bootstrap
 }
 
 configurations.configureEach {
@@ -107,8 +98,6 @@ sourceSets {
 
 dependencies {
 	implementation gradleApi()
-
-	bootstrap project(":bootstrap")
 
 	// libraries
 	implementation libs.commons.io
@@ -201,7 +190,6 @@ jar {
 		attributes 'Implementation-Version': project.version
 	}
 
-	from configurations.bootstrap.collect { it.isDirectory() ? it : zipTree(it) }
 	from sourceSets.commonDecompiler.output.classesDirs
 	from sourceSets.cfr.output.classesDirs
 	from sourceSets.fernflower.output.classesDirs
@@ -277,7 +265,7 @@ gradlePlugin {
 	plugins {
 		fabricLoom {
 			id = 'dev.architectury.loom'
-			implementationClass = 'net.fabricmc.loom.bootstrap.LoomGradlePluginBootstrap'
+			implementationClass = 'net.fabricmc.loom.LoomGradlePlugin'
 		}
 	}
 }
@@ -298,6 +286,11 @@ test {
 			maxRetries = 3
 		}
 	}
+
+	testLogging {
+		// Log everything to the console
+		setEvents(TestLogEvent.values().toList())
+	}
 }
 
 // Workaround https://github.com/gradle/gradle/issues/25898
@@ -311,7 +304,7 @@ tasks.withType(Test).configureEach {
 }
 
 
-import org.gradle.api.internal.artifacts.configurations.ConfigurationRoles
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.util.GradleVersion
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -322,18 +315,18 @@ publishing {
 		if (!isSnapshot && !ENV.EXPERIMENTAL) {
 			// Also publish a snapshot so people can use the latest version if they wish
 			snapshot(MavenPublication) { publication ->
-				groupId project.group
-				artifactId project.base.archivesName.get()
-				version baseVersion + '-SNAPSHOT'
+				groupId = project.group
+				artifactId = project.base.archivesName.get()
+				version = baseVersion + '-SNAPSHOT'
 
 				from components.java
 			}
 
 			// Manually crate the plugin marker for snapshot versions
 			snapshotPlugin(MavenPublication) {
-				groupId 'dev.architectury.loom'
-				artifactId 'dev.architectury.loom.gradle.plugin'
-				version baseVersion + '-SNAPSHOT'
+				groupId = 'dev.architectury.loom'
+				artifactId = 'dev.architectury.loom.gradle.plugin'
+				version = baseVersion + '-SNAPSHOT'
 
 				pom.withXml({
 					// Based off org.gradle.plugin.devel.plugins.MavenPluginPublishPlugin
@@ -362,21 +355,6 @@ publishing {
 				}
 			}
 		}
-	}
-}
-
-// Need to tweak this file to pretend we are compatible with j8 so the bootstrap will run.
-tasks.withType(GenerateModuleMetadata).configureEach {
-	doLast {
-		def file = outputFile.get().asFile
-
-		def metadata = new groovy.json.JsonSlurper().parseText(file.text)
-
-		metadata.variants.each {
-			it.attributes["org.gradle.jvm.version"] = 8
-		}
-
-		file.text = groovy.json.JsonOutput.toJson(metadata)
 	}
 }
 

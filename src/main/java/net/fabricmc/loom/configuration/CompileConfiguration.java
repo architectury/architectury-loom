@@ -215,6 +215,9 @@ public abstract class CompileConfiguration implements Runnable {
 		extension.setMinecraftProvider(minecraftProvider);
 		minecraftProvider.provide();
 
+		// Realise the dependencies without actually resolving them, this forces any lazy providers to be created, populating the layered mapping factories.
+		project.getConfigurations().getByName(Configurations.MAPPINGS).getDependencies().toArray();
+
 		// Created any layered mapping files.
 		LayeredMappingsFactory.afterEvaluate(configContext);
 
@@ -222,6 +225,7 @@ public abstract class CompileConfiguration implements Runnable {
 		// but before MinecraftPatchedProvider.provide.
 		setupDependencyProviders(project, extension);
 
+		// Resolve the mapping files from the configuration
 		final DependencyInfo mappingsDep = DependencyInfo.create(getProject(), Configurations.MAPPINGS);
 		final MappingConfiguration mappingConfiguration = MappingConfiguration.create(getProject(), configContext.serviceFactory(), mappingsDep, minecraftProvider);
 		extension.setMappingConfiguration(mappingConfiguration);
