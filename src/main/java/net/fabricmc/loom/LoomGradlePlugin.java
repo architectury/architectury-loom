@@ -24,10 +24,10 @@
 
 package net.fabricmc.loom;
 
-import java.util.List;
-import java.util.Objects;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
@@ -94,6 +94,7 @@ public class LoomGradlePlugin implements Plugin<PluginAware> {
 				project.getLogger().lifecycle("You are using an outdated version of Architectury Loom! This version will not receive any support, please consider updating!");
 			}
 		}
+
 		LibraryLocationLogger.logLibraryVersions();
 
 		// Apply default plugins
