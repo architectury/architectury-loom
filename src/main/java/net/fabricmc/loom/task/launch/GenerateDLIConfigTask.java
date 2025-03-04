@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -272,12 +273,16 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 			}
 
 			for (ForgeRunTemplate.Resolved template : getRunTemplates().get()) {
+				// Note: lowercase to match RunConfig which lowercases all user input for
+				// RunConfigSettings.environment
+				var env = template.name().toLowerCase(Locale.ROOT);
+
 				for (String argument : template.args()) {
-					launchConfig.argument(template.name(), argument);
+					launchConfig.argument(env, argument);
 				}
 
 				for (Map.Entry<String, String> property : template.props().entrySet()) {
-					launchConfig.property(template.name(), property.getKey(), property.getValue());
+					launchConfig.property(env, property.getKey(), property.getValue());
 				}
 			}
 		}

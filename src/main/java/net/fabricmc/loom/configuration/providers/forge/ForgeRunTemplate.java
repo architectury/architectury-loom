@@ -116,13 +116,6 @@ public record ForgeRunTemplate(
 			settings.getEnvironmentVariables().putIfAbsent(key, resolved);
 		});
 
-		// TODO: Also remove this hack once DLI supports clientData as the env
-		if (this.name.equals("dataClient") || this.name.equals("dataServer")) {
-			for (ConfigValue arg : args) {
-				settings.programArg(arg.resolve(configValueResolver));
-			}
-		}
-
 		// Add MOD_CLASSES, this is something that ForgeGradle does
 		settings.getEnvironmentVariables().computeIfAbsent("MOD_CLASSES", $ -> ConfigValue.of("{source_roots}").resolve(configValueResolver));
 	}
