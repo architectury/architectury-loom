@@ -25,15 +25,12 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,18 +42,17 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
-import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingLayer;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipUtils;
-import net.fabricmc.loom.util.srg.Tsrg2Utils;
-import net.fabricmc.loom.util.srg.Tsrg2Writer;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
+import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
@@ -65,7 +61,6 @@ public class SrgProvider extends DependencyProvider {
 	private Boolean isTsrgV2;
 	private Path mergedMojangRaw;
 	private Path mergedMojangTrimmed;
-	private static Map<String, Path> mojmapTsrgMap = new HashMap<>();
 	private static Map<String, Path> mojmapTsrg2Map = new HashMap<>();
 
 	public SrgProvider(Project project) {
@@ -113,7 +108,10 @@ public class SrgProvider extends DependencyProvider {
 				MemoryMappingTree tree = new MemoryMappingTree();
 				MappingVisitor visitor = new ArgDroppingVisitor(new FieldDescWrappingVisitor(tree));
 				MappingReader.read(mergedMojangRaw, visitor);
-				Files.writeString(mergedMojangTrimmed, Tsrg2Writer.serialize(tree), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+				try (MappingWriter writer = MappingWriter.create(mergedMojangTrimmed, MappingFormat.TSRG_2_FILE)) {
+					tree.accept(writer);
+				}
 
 				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
 					System.setOut(out);
@@ -205,24 +203,6 @@ public class SrgProvider extends DependencyProvider {
 		return isTsrgV2;
 	}
 
-	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {
-		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
-		if (mojmapTsrgMap.containsKey(minecraftVersion)) return mojmapTsrgMap.get(minecraftVersion);
-
-		Path mojmapTsrg = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
-
-		if (Files.notExists(mojmapTsrg) || extension.refreshDeps()) {
-			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-				GradleMappingContext context = new GradleMappingContext(project, "tmp-mojmap");
-				Tsrg2Utils.writeTsrg(visitor -> visitMojangMappings(visitor, context),
-						MappingsNamespace.NAMED.toString(), false, writer);
-			}
-		}
-
-		mojmapTsrgMap.put(minecraftVersion, mojmapTsrg);
-		return mojmapTsrg;
-	}
-
 	public static Path getMojmapTsrg2(Project project, LoomGradleExtension extension) throws IOException {
 		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
 		if (mojmapTsrg2Map.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
@@ -230,11 +210,11 @@ public class SrgProvider extends DependencyProvider {
 		Path mojmapTsrg2 = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
 
 		if (Files.notExists(mojmapTsrg2) || extension.refreshDeps()) {
-			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg2, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+			try (MappingWriter writer = MappingWriter.create(mojmapTsrg2, MappingFormat.TSRG_2_FILE)) {
 				GradleMappingContext context = new GradleMappingContext(project, "tmp-mojmap");
 				MemoryMappingTree tree = new MemoryMappingTree();
 				visitMojangMappings(tree, context);
-				writer.write(Tsrg2Writer.serialize(tree));
+				tree.accept(writer);
 			}
 		}
 
