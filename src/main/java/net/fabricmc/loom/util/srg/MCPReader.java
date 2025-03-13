@@ -26,7 +26,6 @@ package net.fabricmc.loom.util.srg;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,19 +38,12 @@ import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
-import org.apache.commons.io.IOUtils;
-import org.cadixdev.lorenz.MappingSet;
-import org.cadixdev.lorenz.io.srg.tsrg.TSrgReader;
-import org.cadixdev.lorenz.model.ClassMapping;
-import org.cadixdev.lorenz.model.FieldMapping;
-import org.cadixdev.lorenz.model.InnerClassMapping;
-import org.cadixdev.lorenz.model.MethodMapping;
-import org.cadixdev.lorenz.model.TopLevelClassMapping;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.MappingFormat;
+import net.fabricmc.mappingio.format.srg.TsrgFileReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
@@ -160,27 +152,12 @@ public class MCPReader {
 
 	private Map<MemberToken, String> readSrg() throws IOException {
 		Map<MemberToken, String> tokens = new HashMap<>();
+		MemoryMappingTree tree = new MemoryMappingTree();
 
 		try (BufferedReader reader = Files.newBufferedReader(srgTsrgPath, StandardCharsets.UTF_8)) {
-			String content = IOUtils.toString(reader);
-
-			if (content.startsWith("tsrg2")) {
-				readTsrg2(tokens, content);
-			} else {
-				MappingSet mappingSet = new TSrgReader(new StringReader(content)).read();
-
-				for (TopLevelClassMapping classMapping : mappingSet.getTopLevelClassMappings()) {
-					appendClass(tokens, classMapping);
-				}
-			}
+			TsrgFileReader.read(reader, "obf", "srg", tree);
 		}
 
-		return tokens;
-	}
-
-	private void readTsrg2(Map<MemberToken, String> tokens, String content) throws IOException {
-		MemoryMappingTree tree = new MemoryMappingTree();
-		MappingReader.read(new StringReader(content), tree);
 		int obfIndex = tree.getNamespaceId("obf");
 		int srgIndex = tree.getNamespaceId("srg");
 
@@ -197,6 +174,8 @@ public class MCPReader {
 						methodDef.getName(srgIndex));
 			}
 		}
+
+		return tokens;
 	}
 
 	private void injectMcp(Path mcpJar, Map<String, String> intermediaryToSrgMap, Map<String, String> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap)
@@ -293,23 +272,6 @@ public class MCPReader {
 		}
 
 		return map;
-	}
-
-	private void appendClass(Map<MemberToken, String> tokens, ClassMapping<?, ?> classMapping) {
-		MemberToken ofClass = MemberToken.ofClass(classMapping.getFullObfuscatedName());
-		tokens.put(ofClass, classMapping.getFullDeobfuscatedName());
-
-		for (FieldMapping fieldMapping : classMapping.getFieldMappings()) {
-			tokens.put(MemberToken.ofField(ofClass, fieldMapping.getObfuscatedName()), fieldMapping.getDeobfuscatedName());
-		}
-
-		for (MethodMapping methodMapping : classMapping.getMethodMappings()) {
-			tokens.put(MemberToken.ofMethod(ofClass, methodMapping.getObfuscatedName(), methodMapping.getObfuscatedDescriptor()), methodMapping.getDeobfuscatedName());
-		}
-
-		for (InnerClassMapping mapping : classMapping.getInnerClassMappings()) {
-			appendClass(tokens, mapping);
-		}
 	}
 
 	private record MemberToken(
