@@ -80,10 +80,9 @@ import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter;
+import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.stitch.Command;
 import net.fabricmc.stitch.commands.CommandProposeFieldNames;
-import net.fabricmc.stitch.commands.tinyv2.TinyFile;
-import net.fabricmc.stitch.commands.tinyv2.TinyV2Writer;
 
 public class MappingConfiguration {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MappingConfiguration.class);
@@ -404,8 +403,11 @@ public class MappingConfiguration {
 		}
 
 		Path srgPath = getRawSrgFile(project);
-		TinyFile file = new MCPReader(intermediaryTinyPath, srgPath).read(mcpJar);
-		TinyV2Writer.write(file, tinyMappings);
+		MappingTree tree = new MCPReader(intermediaryTinyPath, srgPath).read(mcpJar);
+
+		try (MappingWriter writer = MappingWriter.create(tinyMappings, MappingFormat.TINY_2_FILE)) {
+			tree.accept(writer);
+		}
 	}
 
 	private boolean isMCP(Path path) throws IOException {

@@ -31,7 +31,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,14 +51,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
-import net.fabricmc.stitch.commands.tinyv2.TinyClass;
-import net.fabricmc.stitch.commands.tinyv2.TinyField;
-import net.fabricmc.stitch.commands.tinyv2.TinyFile;
-import net.fabricmc.stitch.commands.tinyv2.TinyMethod;
-import net.fabricmc.stitch.commands.tinyv2.TinyMethodParameter;
-import net.fabricmc.stitch.commands.tinyv2.TinyV2Reader;
 
 public class MCPReader {
 	private final Path intermediaryTinyPath;
@@ -70,11 +64,12 @@ public class MCPReader {
 		this.srgTsrgPath = srgTsrgPath;
 	}
 
-	public TinyFile read(Path mcpJar) throws IOException {
+	public MappingTree read(Path mcpJar) throws IOException {
 		Map<MemberToken, String> srgTokens = readSrg();
-		TinyFile intermediaryTiny = TinyV2Reader.read(intermediaryTinyPath);
+		MemoryMappingTree intermediaryTiny = new MemoryMappingTree();
+		MappingReader.read(intermediaryTinyPath, MappingFormat.TINY_2_FILE, intermediaryTiny);
 		Map<String, String> intermediaryToMCPMap = createIntermediaryToMCPMap(intermediaryTiny, srgTokens);
-		Map<String, String[]> intermediaryToDocsMap = new HashMap<>();
+		Map<String, String> intermediaryToDocsMap = new HashMap<>();
 		Map<String, Map<Integer, String>> intermediaryToParamsMap = new HashMap<>();
 
 		try {
@@ -87,21 +82,21 @@ public class MCPReader {
 		return intermediaryTiny;
 	}
 
-	private Map<String, String> createIntermediaryToMCPMap(TinyFile tiny, Map<MemberToken, String> officialToMCP) {
+	private Map<String, String> createIntermediaryToMCPMap(MappingTree tiny, Map<MemberToken, String> officialToMCP) {
 		Map<String, String> map = new HashMap<>();
 
-		for (TinyClass tinyClass : tiny.getClassEntries()) {
-			String classObf = tinyClass.getMapping().get(0);
-			String classIntermediary = tinyClass.getMapping().get(1);
+		for (MappingTree.ClassMapping tinyClass : tiny.getClasses()) {
+			String classObf = tinyClass.getSrcName();
+			String classIntermediary = tinyClass.getDstName(0);
 			MemberToken classTokenObf = MemberToken.ofClass(classObf);
 
 			if (officialToMCP.containsKey(classTokenObf)) {
 				map.put(classIntermediary, officialToMCP.get(classTokenObf));
 			}
 
-			for (TinyField tinyField : tinyClass.getFields()) {
-				String fieldObf = tinyField.getMapping().get(0);
-				String fieldIntermediary = tinyField.getMapping().get(1);
+			for (MappingTree.FieldMapping tinyField : tinyClass.getFields()) {
+				String fieldObf = tinyField.getSrcName();
+				String fieldIntermediary = tinyField.getDstName(0);
 				MemberToken fieldTokenObf = MemberToken.ofField(classTokenObf, fieldObf);
 
 				if (officialToMCP.containsKey(fieldTokenObf)) {
@@ -109,10 +104,10 @@ public class MCPReader {
 				}
 			}
 
-			for (TinyMethod tinyMethod : tinyClass.getMethods()) {
-				String methodObf = tinyMethod.getMapping().get(0);
-				String methodIntermediary = tinyMethod.getMapping().get(1);
-				MemberToken methodTokenObf = MemberToken.ofMethod(classTokenObf, methodObf, tinyMethod.getMethodDescriptorInFirstNamespace());
+			for (MappingTree.MethodMapping tinyMethod : tinyClass.getMethods()) {
+				String methodObf = tinyMethod.getSrcName();
+				String methodIntermediary = tinyMethod.getDstName(0);
+				MemberToken methodTokenObf = MemberToken.ofMethod(classTokenObf, methodObf, tinyMethod.getSrcDesc());
 
 				if (officialToMCP.containsKey(methodTokenObf)) {
 					map.put(methodIntermediary, officialToMCP.get(methodTokenObf));
@@ -123,35 +118,31 @@ public class MCPReader {
 		return map;
 	}
 
-	private void mergeTokensIntoIntermediary(TinyFile tiny, Map<String, String> intermediaryToMCPMap, Map<String, String[]> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap) {
-		stripTinyWithParametersAndLocal(tiny);
-
+	private void mergeTokensIntoIntermediary(MappingTree tiny, Map<String, String> intermediaryToMCPMap, Map<String, String> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap) {
 		// We will be adding the "named" namespace with MCP
-		tiny.getHeader().getNamespaces().add("named");
+		tiny.setDstNamespaces(List.of("intermediary", "named"));
 
-		for (TinyClass tinyClass : tiny.getClassEntries()) {
-			String classIntermediary = tinyClass.getMapping().get(1);
-			tinyClass.getMapping().add(intermediaryToMCPMap.getOrDefault(classIntermediary, classIntermediary));
+		for (MappingTree.ClassMapping tinyClass : tiny.getClasses()) {
+			String classIntermediary = tinyClass.getDstName(0);
+			tinyClass.setDstName(intermediaryToMCPMap.getOrDefault(classIntermediary, classIntermediary), 1);
 
-			for (TinyField tinyField : tinyClass.getFields()) {
-				String fieldIntermediary = tinyField.getMapping().get(1);
-				String[] docs = intermediaryToDocsMap.get(fieldIntermediary);
-				tinyField.getMapping().add(intermediaryToMCPMap.getOrDefault(fieldIntermediary, fieldIntermediary));
+			for (MappingTree.FieldMapping tinyField : tinyClass.getFields()) {
+				String fieldIntermediary = tinyField.getDstName(0);
+				String docs = intermediaryToDocsMap.get(fieldIntermediary);
+				tinyField.setDstName(intermediaryToMCPMap.getOrDefault(fieldIntermediary, fieldIntermediary), 1);
 
 				if (docs != null) {
-					tinyField.getComments().clear();
-					tinyField.getComments().addAll(Arrays.asList(docs));
+					tinyField.setComment(docs);
 				}
 			}
 
-			for (TinyMethod tinyMethod : tinyClass.getMethods()) {
-				String methodIntermediary = tinyMethod.getMapping().get(1);
-				String[] docs = intermediaryToDocsMap.get(methodIntermediary);
-				tinyMethod.getMapping().add(intermediaryToMCPMap.getOrDefault(methodIntermediary, methodIntermediary));
+			for (MappingTree.MethodMapping tinyMethod : tinyClass.getMethods()) {
+				String methodIntermediary = tinyMethod.getDstName(0);
+				String docs = intermediaryToDocsMap.get(methodIntermediary);
+				tinyMethod.setDstName(intermediaryToMCPMap.getOrDefault(methodIntermediary, methodIntermediary), 1);
 
 				if (docs != null) {
-					tinyMethod.getComments().clear();
-					tinyMethod.getComments().addAll(Arrays.asList(docs));
+					tinyMethod.setComment(docs);
 				}
 
 				Map<Integer, String> params = intermediaryToParamsMap.get(methodIntermediary);
@@ -160,23 +151,9 @@ public class MCPReader {
 					for (Map.Entry<Integer, String> entry : params.entrySet()) {
 						int lvIndex = entry.getKey();
 						String paramName = entry.getValue();
-
-						ArrayList<String> mappings = new ArrayList<>();
-						mappings.add("");
-						mappings.add("");
-						mappings.add(paramName);
-						tinyMethod.getParameters().add(new TinyMethodParameter(lvIndex, mappings, new ArrayList<>()));
+						tinyMethod.addArg(new BasicMethodArg(tinyMethod, lvIndex, paramName));
 					}
 				}
-			}
-		}
-	}
-
-	private void stripTinyWithParametersAndLocal(TinyFile tiny) {
-		for (TinyClass tinyClass : tiny.getClassEntries()) {
-			for (TinyMethod tinyMethod : tinyClass.getMethods()) {
-				tinyMethod.getParameters().clear();
-				tinyMethod.getLocalVariables().clear();
 			}
 		}
 	}
@@ -222,7 +199,7 @@ public class MCPReader {
 		}
 	}
 
-	private void injectMcp(Path mcpJar, Map<String, String> intermediaryToSrgMap, Map<String, String[]> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap)
+	private void injectMcp(Path mcpJar, Map<String, String> intermediaryToSrgMap, Map<String, String> intermediaryToDocsMap, Map<String, Map<Integer, String>> intermediaryToParamsMap)
 			throws IOException, CsvValidationException {
 		Map<String, List<String>> srgToIntermediary = inverseMap(intermediaryToSrgMap);
 		Map<String, List<String>> simpleSrgToIntermediary = new HashMap<>();
@@ -248,13 +225,13 @@ public class MCPReader {
 
 				while ((line = reader.readNext()) != null) {
 					List<String> intermediaryField = srgToIntermediary.get(line[0]);
-					String[] docs = line[3].split("\n");
+					String docs = line[3];
 
 					if (intermediaryField != null) {
 						for (String s : intermediaryField) {
 							intermediaryToSrgMap.put(s, line[1]);
 
-							if (!line[3].trim().isEmpty() && docs.length > 0) {
+							if (!line[3].isBlank()) {
 								intermediaryToDocsMap.put(s, docs);
 							}
 						}
@@ -268,13 +245,13 @@ public class MCPReader {
 
 				while ((line = reader.readNext()) != null) {
 					List<String> intermediaryMethod = srgToIntermediary.get(line[0]);
-					String[] docs = line[3].split("\n");
+					String docs = line[3];
 
 					if (intermediaryMethod != null) {
 						for (String s : intermediaryMethod) {
 							intermediaryToSrgMap.put(s, line[1]);
 
-							if (!line[3].trim().isEmpty() && docs.length > 0) {
+							if (!line[3].isBlank()) {
 								intermediaryToDocsMap.put(s, docs);
 							}
 						}
@@ -358,5 +335,63 @@ public class MCPReader {
 		CLASS,
 		METHOD,
 		FIELD
+	}
+
+	// Used for MethodMapping.addArg
+	private record BasicMethodArg(MappingTree.MethodMapping parent, int lvIndex, String name) implements MappingTree.MethodArgMapping {
+		@Override
+		public MappingTree.MethodMapping getMethod() {
+			return parent;
+		}
+
+		@Override
+		public MappingTree getTree() {
+			return parent.getTree();
+		}
+
+		@Override
+		public int getArgPosition() {
+			return -1;
+		}
+
+		@Override
+		public int getLvIndex() {
+			return lvIndex;
+		}
+
+		@Override
+		public String getSrcName() {
+			return null;
+		}
+
+		@Override
+		public @Nullable String getDstName(int namespace) {
+			return namespace == 1 ? name : null;
+		}
+
+		@Override
+		public @Nullable String getComment() {
+			return null;
+		}
+
+		@Override
+		public void setArgPosition(int position) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setLvIndex(int index) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setDstName(String name, int namespace) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setComment(String comment) {
+			throw new UnsupportedOperationException();
+		}
 	}
 }
