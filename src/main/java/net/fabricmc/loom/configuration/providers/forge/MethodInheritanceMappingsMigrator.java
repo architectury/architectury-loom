@@ -103,10 +103,14 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 			}
 
 			for (MappingTree.ClassMapping classMapping : mappings.getClasses()) {
-				if (classMapping.getMethods().isEmpty()) continue;
-				classMapping.getMethods().removeIf(method -> {
-					return methodsToRemove.contains(new Pair<>(method.getName(MappingsNamespace.INTERMEDIARY.toString()), method.getDesc(MappingsNamespace.INTERMEDIARY.toString())));
-				});
+				// TODO: Change if/when MIO supports removals again
+				for (MappingTree.MethodMapping method : List.copyOf(classMapping.getMethods())) {
+					var key = new Pair<>(method.getName(MappingsNamespace.INTERMEDIARY.toString()), method.getDesc(MappingsNamespace.INTERMEDIARY.toString()));
+
+					if (methodsToRemove.contains(key)) {
+						classMapping.removeMethod(method.getSrcName(), method.getSrcDesc());
+					}
+				}
 			}
 
 			try (Writer writer = Files.newBufferedWriter(entry.path(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
