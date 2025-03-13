@@ -73,8 +73,11 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
 import net.fabricmc.loom.util.srg.MCPReader;
-import net.fabricmc.loom.util.srg.SrgNamedWriter;
 import net.fabricmc.mappingio.MappingReader;
+import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.MappingWriter;
+import net.fabricmc.mappingio.adapter.MappingDstNsReorder;
+import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter;
 import net.fabricmc.stitch.Command;
@@ -269,7 +272,11 @@ public class MappingConfiguration {
 			if (Files.notExists(srgToNamedSrg) || extension.refreshDeps()) {
 				try (var serviceFactory = new ScopedServiceFactory()) {
 					TinyMappingsService mappingsService = getMappingsService(project, serviceFactory, MappingOption.WITH_SRG);
-					SrgNamedWriter.writeTo(project.getLogger(), srgToNamedSrg, mappingsService.getMappingTree(), "srg", "named");
+
+					try (MappingWriter writer = MappingWriter.create(srgToNamedSrg, MappingFormat.SRG_FILE)) {
+						MappingVisitor visitor = new MappingSourceNsSwitch(new MappingDstNsReorder(writer, "named"), "srg");
+						mappingsService.getMappingTree().accept(visitor);
+					}
 				}
 			}
 		}
