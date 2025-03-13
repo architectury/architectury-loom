@@ -29,7 +29,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -39,10 +38,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Stopwatch;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
@@ -65,7 +64,6 @@ public class SrgProvider extends DependencyProvider {
 	private Path srg;
 	private Boolean isTsrgV2;
 	private Path mergedMojangRaw;
-	private Path mergedMojang;
 	private Path mergedMojangTrimmed;
 	private static Map<String, Path> mojmapTsrgMap = new HashMap<>();
 	private static Map<String, Path> mojmapTsrg2Map = new HashMap<>();
@@ -88,7 +86,7 @@ public class SrgProvider extends DependencyProvider {
 		}
 
 		if (isTsrgV2) {
-			if (!Files.exists(mergedMojangRaw) || !Files.exists(mergedMojang) || !Files.exists(mergedMojangTrimmed) || refreshDeps()) {
+			if (!Files.exists(mergedMojangRaw) || !Files.exists(mergedMojangTrimmed) || refreshDeps()) {
 				Stopwatch stopwatch = Stopwatch.createStarted();
 				getProject().getLogger().lifecycle(":merging mappings (InstallerTools, srg + mojmap)");
 				PrintStream out = System.out;
@@ -100,7 +98,6 @@ public class SrgProvider extends DependencyProvider {
 				}
 
 				Files.deleteIfExists(mergedMojangRaw);
-				Files.deleteIfExists(mergedMojang);
 				net.minecraftforge.installertools.ConsoleTool.main(new String[] {
 						"--task",
 						"MERGE_MAPPING",
@@ -114,15 +111,8 @@ public class SrgProvider extends DependencyProvider {
 				});
 
 				MemoryMappingTree tree = new MemoryMappingTree();
-				MappingReader.read(new StringReader(FileUtils.readFileToString(mergedMojangRaw.toFile(), StandardCharsets.UTF_8)), new FieldDescWrappingVisitor(tree));
-				Files.writeString(mergedMojang, Tsrg2Writer.serialize(tree), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-
-				for (MappingTree.ClassMapping classDef : tree.getClasses()) {
-					for (MappingTree.MethodMapping methodDef : classDef.getMethods()) {
-						methodDef.getArgs().clear();
-					}
-				}
-
+				MappingVisitor visitor = new ArgDroppingVisitor(new FieldDescWrappingVisitor(tree));
+				MappingReader.read(mergedMojangRaw, visitor);
 				Files.writeString(mergedMojangTrimmed, Tsrg2Writer.serialize(tree), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
 				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
@@ -132,6 +122,19 @@ public class SrgProvider extends DependencyProvider {
 
 				getProject().getLogger().lifecycle(":merged mappings (InstallerTools, srg + mojmap) in " + stopwatch.stop());
 			}
+		}
+	}
+
+	// A visitor that drop all method args from srg
+	private static final class ArgDroppingVisitor extends ForwardingMappingVisitor {
+		ArgDroppingVisitor(MappingVisitor next) {
+			super(next);
+		}
+
+		@Override
+		public boolean visitMethodArg(int argPosition, int lvIndex, @Nullable String srcName) throws IOException {
+			// skip
+			return false;
 		}
 	}
 
@@ -179,7 +182,6 @@ public class SrgProvider extends DependencyProvider {
 		File dir = getMinecraftProvider().dir("srg/" + version);
 		srg = new File(dir, "srg.tsrg").toPath();
 		mergedMojangRaw = new File(dir, "srg-mojmap-merged-raw.tsrg").toPath();
-		mergedMojang = new File(dir, "srg-mojmap-merged.tsrg").toPath();
 		mergedMojangTrimmed = new File(dir, "srg-mojmap-merged-trimmed.tsrg").toPath();
 	}
 
@@ -191,12 +193,6 @@ public class SrgProvider extends DependencyProvider {
 		if (!isTsrgV2()) throw new IllegalStateException("May not access merged mojmap srg if not on modern Minecraft!");
 
 		return mergedMojangRaw;
-	}
-
-	public Path getMergedMojang() {
-		if (!isTsrgV2()) throw new IllegalStateException("May not access merged mojmap srg if not on modern Minecraft!");
-
-		return mergedMojang;
 	}
 
 	public Path getMergedMojangTrimmed() {
