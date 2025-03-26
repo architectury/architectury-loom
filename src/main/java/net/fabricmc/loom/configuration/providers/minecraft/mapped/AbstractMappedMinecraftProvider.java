@@ -220,7 +220,7 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 
 		// Architectury: regenerate jars if patches have changed.
 		if (minecraftProvider instanceof ForgeMinecraftProvider withForge && withForge.getPatchedProvider().isDirty()) {
-			return false;
+			return true;
 		}
 
 		for (OutputJar outputJar : outputJars) {
