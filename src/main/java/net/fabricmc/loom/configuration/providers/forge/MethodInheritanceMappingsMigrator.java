@@ -131,7 +131,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 		Multimap<String, String> classInheritanceMap = collected.left();
 		Set<MethodKey> methods = collected.right();
 
-		Multimap<MethodKey, Pair<String, String>> overriddenIntermediaries = Multimaps.newSetMultimap(new HashMap<>(), LinkedHashSet::new);
+		Multimap<MethodKey, MethodKey> overriddenIntermediaries = Multimaps.newSetMultimap(new HashMap<>(), LinkedHashSet::new);
 
 		for (MethodKey method : methods) {
 			// First check if the method is in the mappings, and as a different intermediary name
@@ -139,33 +139,42 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 			if (aClass == null) continue;
 			MappingTree.MethodMapping aMethod = aClass.getMethod(method.name(), method.descriptor());
 			if (aMethod == null) continue;
+			String intermediaryClassName = aClass.getName(MappingsNamespace.INTERMEDIARY.toString());
 			String intermediaryName = aMethod.getName(MappingsNamespace.INTERMEDIARY.toString());
 			if (intermediaryName == null || Objects.equals(intermediaryName, method.name())) continue;
 
 			for (String superClass : classInheritanceMap.get(method.className())) {
-				if (methods.contains(new MethodKey(superClass, method.name(), method.descriptor()))) {
-					if (mappings.getClass(superClass) == null) {
-						// We will collect these methods here, and remove them later
-						// if there are more than intermediary name for the same method
-						String intermediaryDesc = aMethod.getDesc(MappingsNamespace.INTERMEDIARY.toString());
-						overriddenIntermediaries.put(new MethodKey(superClass, method.name(), method.descriptor()), new Pair<>(intermediaryName, intermediaryDesc));
+				MethodKey superMethodKey = new MethodKey(superClass, method.name(), method.descriptor());
+
+				if (methods.contains(superMethodKey)) {
+					MappingTree.ClassMapping sClass = mappings.getClass(superClass);
+
+					if (sClass == null) {
+						logger.info("Method {}.{}{} is inherited from a class {} that is not in the mappings, removing it if there are more than one", method.className(), method.name(), method.descriptor(), superClass);
+					} else if (sClass.getMethod(method.name(), method.descriptor()) == null) {
+						logger.info("Method {}.{}{} is inheriting a method in {} that is not in the mappings, removing it if there are more than one", method.className(), method.name(), method.descriptor(), superClass);
+					} else {
+						continue;
 					}
+
+					// We will collect these methods here, and remove them later
+					// if there are more than intermediary name for the same method
+					String intermediaryDesc = aMethod.getDesc(MappingsNamespace.INTERMEDIARY.toString());
+					overriddenIntermediaries.put(superMethodKey, new MethodKey(intermediaryClassName, intermediaryName, intermediaryDesc));
 				}
 			}
 		}
 
 		Set<Pair<String, String>> methodsToRemove = new HashSet<>();
 
-		for (Map.Entry<MethodKey, Collection<Pair<String, String>>> entry : overriddenIntermediaries.asMap().entrySet()) {
+		for (Map.Entry<MethodKey, Collection<MethodKey>> entry : overriddenIntermediaries.asMap().entrySet()) {
 			if (entry.getValue().size() >= 2) {
 				// We should remove these names from the mappings
 				// as the particular method is inherited by multiple different intermediary names
-				for (Pair<String, String> pair : entry.getValue()) {
-					methodsToRemove.add(pair);
-					logger.info("Removing method {}{} from the mappings", pair.left(), pair.right());
+				for (MethodKey methodKey : entry.getValue()) {
+					methodsToRemove.add(new Pair<>(methodKey.name(), methodKey.descriptor()));
+					logger.info("Removing method {}{} from the mappings", methodKey.name(), methodKey.descriptor());
 				}
-
-				break;
 			}
 		}
 
