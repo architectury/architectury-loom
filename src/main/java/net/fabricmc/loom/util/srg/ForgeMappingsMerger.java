@@ -175,6 +175,7 @@ public final class ForgeMappingsMerger {
 			}
 		}
 
+		flatOutput.visitEnd();
 		resolveConflicts();
 
 		return output;
@@ -317,8 +318,14 @@ public final class ForgeMappingsMerger {
 			// Remove non-preferred methods
 			for (MethodData method : methods) {
 				if (method != preferred) {
-					MappingTree.ClassMapping clazz = output.getClass(method.obfOwner());
-					clazz.getMethods().removeIf(m -> m.getSrcName().equals(method.obfName()) && m.getSrcDesc().equals(method.obfDesc()));
+					MappingTree.ClassMapping classMapping = output.getClass(method.obfOwner());
+
+					// TODO: Change if/when MIO supports removals again
+					for (MappingTree.MethodMapping methodMapping : List.copyOf(classMapping.getMethods())) {
+						if (methodMapping.getSrcName().equals(method.obfName()) && methodMapping.getSrcDesc().equals(method.obfDesc())) {
+							classMapping.removeMethod(methodMapping.getSrcName(), methodMapping.getSrcDesc());
+						}
+					}
 				}
 			}
 		}
