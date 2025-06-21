@@ -30,7 +30,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - uses: actions/checkout@v4
-      - uses: gradle/wrapper-validation-action@v2
+      - uses: gradle/actions/wrapper-validation@v4
       - name: Upload to Maven
         run: ./gradlew publish --stacktrace
         env:
