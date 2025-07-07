@@ -44,6 +44,10 @@ public final class MergedForgeMinecraftProvider extends MergedMinecraftProvider 
 	@Override
 	protected void mergeJars() throws IOException {
 		// Don't merge jars in the superclass
+
+		if (getServerBundleMetadata() != null) {
+			extractBundledServerJar();
+		}
 	}
 
 	@Override

@@ -78,7 +78,7 @@ public class MinecraftJarSplitter implements AutoCloseable {
 		this.forcedClientEntries.add(path);
 	}
 
-	private Set<String> getJarEntries(Path input) throws IOException {
+	public static Set<String> getJarEntries(Path input) throws IOException {
 		Set<String> entries = Sets.newHashSet();
 
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(input);
