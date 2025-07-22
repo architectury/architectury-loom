@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -125,8 +126,9 @@ public record ForgeRunTemplate(
 		final Collector<Map.Entry<String, ConfigValue>, ?, Map<String, String>> resolveMap =
 				Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().resolve(configValueResolver));
 
-		final List<String> args = this.args.stream().map(resolve).toList();
-		final List<String> jvmArgs = this.jvmArgs.stream().map(resolve).toList();
+		// Do not use Stream.toList() as that is not serializable by gradle
+		final List<String> args = this.args.stream().map(resolve).collect(Collectors.toCollection(ArrayList::new));
+		final List<String> jvmArgs = this.jvmArgs.stream().map(resolve).collect(Collectors.toCollection(ArrayList::new));
 		final Map<String, String> env = this.env.entrySet().stream().collect(resolveMap);
 		final Map<String, String> props = this.props.entrySet().stream().collect(resolveMap);
 
