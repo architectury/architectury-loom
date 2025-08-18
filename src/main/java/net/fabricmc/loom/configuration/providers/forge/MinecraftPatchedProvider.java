@@ -407,13 +407,14 @@ public class MinecraftPatchedProvider {
 		Path input = minecraftPatchedIntermediateJar;
 		Path target = minecraftPatchedIntermediateAtJar;
 		Stopwatch stopwatch = Stopwatch.createStarted();
-
 		logger.lifecycle(":access transforming minecraft");
+
 		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			AccessTransformerService service = serviceFactory.get(AccessTransformerService.createOptionsForLoaderAts(project, tempFiles));
 			Files.deleteIfExists(target);
 			service.execute(input, target);
 		}
+
 		logger.lifecycle(":access transformed minecraft in " + stopwatch.stop());
 	}
 

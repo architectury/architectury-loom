@@ -58,7 +58,7 @@ public final class StripLogic extends StepLogic<StripLogic.Options> {
 	public StripLogic(StripLogic.Options options, ServiceFactory serviceFactory) {
 		super(options, serviceFactory);
 	}
-	
+
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
 		Set<String> filter = Files.readAllLines(context.mappings(), StandardCharsets.UTF_8).stream()
