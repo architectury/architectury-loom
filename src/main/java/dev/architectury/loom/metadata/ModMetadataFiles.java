@@ -53,11 +53,13 @@ public final class ModMetadataFiles {
 			var text = new String(bytes, StandardCharsets.UTF_8);
 			Jankson jankson = Jankson.builder().build();
 			String json;
+
 			try {
 				json = jankson.fromJson(text, JsonElement.class).toJson(JsonGrammar.STRICT);
 			} catch (SyntaxError e) {
 				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not read JSON5 file", e);
 			}
+
 			return next.apply(json.getBytes(StandardCharsets.UTF_8));
 		};
 	}
