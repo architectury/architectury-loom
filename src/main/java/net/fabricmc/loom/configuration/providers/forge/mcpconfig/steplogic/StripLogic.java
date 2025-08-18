@@ -45,11 +45,8 @@ import net.fabricmc.loom.util.service.ServiceType;
 /**
  * Strips certain classes from the jar.
  */
-public final class StripLogic extends StepLogic<StripLogic.Options> {
+public final class StripLogic extends StepLogic<Service.Options> {
 	public static final ServiceType<Options, StripLogic> TYPE = new ServiceType<>(StripLogic.Options.class, StripLogic.class);
-
-	public interface Options extends Service.Options {
-	}
 
 	public static Provider<Options> createOptions(SetupContext context) {
 		return TYPE.create(context.project(), options -> { });

@@ -39,11 +39,8 @@ import net.fabricmc.loom.util.service.Service;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.service.ServiceType;
 
-public final class PatchLogic extends StepLogic<PatchLogic.Options> {
-	public static final ServiceType<Options, PatchLogic> TYPE = new ServiceType<>(PatchLogic.Options.class, PatchLogic.class);
-
-	public interface Options extends Service.Options {
-	}
+public final class PatchLogic extends StepLogic<Service.Options> {
+	public static final ServiceType<Options, PatchLogic> TYPE = new ServiceType<>(Options.class, PatchLogic.class);
 
 	public static Provider<Options> createOptions(SetupContext context) {
 		return TYPE.create(context.project(), options -> { });

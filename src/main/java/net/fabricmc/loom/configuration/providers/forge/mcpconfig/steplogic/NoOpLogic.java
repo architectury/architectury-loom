@@ -35,11 +35,8 @@ import net.fabricmc.loom.util.service.ServiceType;
 /**
  * A no-op step logic that is used for steps automatically executed by Loom earlier.
  */
-public final class NoOpLogic extends StepLogic<NoOpLogic.Options> {
+public final class NoOpLogic extends StepLogic<Service.Options> {
 	public static final ServiceType<Options, NoOpLogic> TYPE = new ServiceType<>(Options.class, NoOpLogic.class);
-
-	public interface Options extends Service.Options {
-	}
 
 	public static Provider<Options> createOptions(SetupContext context) {
 		return TYPE.create(context.project(), options -> { });

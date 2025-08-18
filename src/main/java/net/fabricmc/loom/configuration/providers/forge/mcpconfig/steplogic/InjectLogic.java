@@ -40,11 +40,8 @@ import net.fabricmc.loom.util.service.Service;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.service.ServiceType;
 
-public final class InjectLogic extends StepLogic<InjectLogic.Options> {
+public final class InjectLogic extends StepLogic<Service.Options> {
 	public static final ServiceType<Options, InjectLogic> TYPE = new ServiceType<>(Options.class, InjectLogic.class);
-
-	public interface Options extends Service.Options {
-	}
 
 	public static Provider<Options> createOptions(SetupContext context) {
 		return TYPE.create(context.project(), options -> { });
