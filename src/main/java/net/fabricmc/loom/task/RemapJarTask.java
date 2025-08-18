@@ -25,7 +25,6 @@
 package net.fabricmc.loom.task;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,9 +42,6 @@ import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.extensions.ModBuildExtensions;
 import dev.architectury.loom.metadata.QuiltModJson;
-import dev.architectury.tinyremapper.OutputConsumerPath;
-import dev.architectury.tinyremapper.TinyRemapper;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
