@@ -19,6 +19,7 @@ on:
       - 'dev/1.7'
       - 'dev/1.9'
       - 'dev/1.10'
+      - 'dev/1.11'
 
 jobs:
   build:
