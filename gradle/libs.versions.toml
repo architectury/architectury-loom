@@ -20,7 +20,7 @@ test-retry = "1.5.6"
 checkstyle = "10.17.0"
 codenarc = "3.4.0"
 
-# Forge libraries
+# Architectury libraries
 forge-installer-tools = "1.2.0"
 lorenz = "0.5.3"
 mcinjector = "3.8.0"
@@ -29,6 +29,7 @@ forge-diffpatch = "2.0.7"
 night-config = "3.6.6"
 datafixerupper = "6.0.8"
 at = "1.0.1"
+jankson = "1.2.3"
 
 [libraries]
 # Loom compile libraries
@@ -56,7 +57,7 @@ fabric-unpick-utils = { module = "net.fabricmc.unpick:unpick-format-utils", vers
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-metadata = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
 
-# Forge support
+# Architectury
 forge-installer-tools = { module = "net.minecraftforge:installertools", version.ref = "forge-installer-tools" }
 lorenz = { module = "org.cadixdev:lorenz", version.ref = "lorenz" }
 mcinjector = { module = "de.oceanlabs.mcp:mcinjector", version.ref = "mcinjector" }
@@ -65,6 +66,7 @@ forge-diffpatch = { module = "net.minecraftforge:DiffPatch", version.ref = "forg
 night-config-toml = { module = "com.electronwill.night-config:toml", version.ref = "night-config" }
 datafixerupper = { module = "com.mojang:datafixerupper", version.ref = "datafixerupper" }
 at = { module = "dev.architectury:at", version.ref = "at" }
+jankson = { module = "blue.endless:jankson", version.ref = "jankson" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

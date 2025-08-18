@@ -167,6 +167,9 @@ dependencies {
 	// Forge mods.toml parsing
 	implementation libs.night.config.toml
 
+	// quilt.mod.json5 parsing
+	implementation libs.jankson
+
 	// Testing
 	testImplementation(gradleTestKit())
 	testImplementation(testLibs.spock) {
