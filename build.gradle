@@ -168,7 +168,7 @@ dependencies {
 	implementation libs.night.config.toml
 
 	// quilt.mod.json5 parsing
-	implementation ('blue.endless:jankson:1.2.2')
+	implementation libs.jankson
 
 	// Testing
 	testImplementation(gradleTestKit())
