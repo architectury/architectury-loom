@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2021 FabricMC
+ * Copyright (c) 2016-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,8 @@ public interface MappingContext {
 
 	Supplier<MemoryMappingTree> intermediaryTree();
 
+	boolean isUsingIntermediateMappings();
+
 	MinecraftProvider minecraftProvider();
 
 	default String minecraftVersion() {
@@ -62,4 +64,6 @@ public interface MappingContext {
 	DownloadBuilder download(String url);
 
 	boolean refreshDeps();
+
+	boolean hasProperty(String property);
 }

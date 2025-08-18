@@ -155,6 +155,11 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 
 	boolean isProjectIsolationActive();
 
+	/**
+	 * @return true when '--write-verification-metadata` is set
+	 */
+	boolean isCollectingDependencyVerificationMetadata();
+
 	// ===================
 	//  Architectury Loom
 	// ===================

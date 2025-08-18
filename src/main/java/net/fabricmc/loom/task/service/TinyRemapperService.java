@@ -41,6 +41,7 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
@@ -51,6 +52,7 @@ import org.gradle.api.tasks.Optional;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.extension.RemapperExtensionHolder;
 import net.fabricmc.loom.task.AbstractRemapJarTask;
@@ -66,7 +68,7 @@ import net.fabricmc.tinyremapper.InputTag;
 import net.fabricmc.tinyremapper.TinyRemapper;
 import net.fabricmc.tinyremapper.extension.mixin.MixinExtension;
 
-public class TinyRemapperService extends Service<TinyRemapperService.Options> implements Closeable {
+public class TinyRemapperService extends Service<TinyRemapperService.Options> implements TinyRemapperServiceInterface, Closeable {
 	public static final ServiceType<Options, TinyRemapperService> TYPE = new ServiceType<>(Options.class, TinyRemapperService.class);
 
 	public interface Options extends Service.Options {
@@ -103,7 +105,7 @@ public class TinyRemapperService extends Service<TinyRemapperService.Options> im
 
 			options.getFrom().set(remapJarTask.getSourceNamespace());
 			options.getTo().set(remapJarTask.getTargetNamespace());
-			options.getMappings().add(MappingsService.createOptionsWithProjectMappings(project, options.getFrom(), options.getTo()));
+			options.getMappings().add(MappingsService.createForRemapTask(remapJarTask));
 
 			if (legacyMixin) {
 				options.getMixinApMappings().set(MixinAPMappingService.createOptions(project, options.getFrom(), options.getTo().map(to -> IntermediaryNamespaces.replaceMixinIntermediaryNamespace(project, to))));
@@ -115,6 +117,56 @@ public class TinyRemapperService extends Service<TinyRemapperService.Options> im
 			options.getKnownIndyBsms().set(extension.getKnownIndyBsms().get().stream().sorted().toList());
 			options.getRemapperExtensions().set(extension.getRemapperExtensions());
 		});
+	}
+
+	public static Provider<Options> createSimple(Project project, Provider<String> from, Provider<String> to, ClasspathLibraries classpathLibraries) {
+		return TYPE.create(project, options -> {
+			final LoomGradleExtension extension = LoomGradleExtension.get(project);
+			final FileCollection classpath = getRemapClasspath(project, from, classpathLibraries);
+
+			options.getFrom().set(from);
+			options.getTo().set(to);
+			options.getMappings().add(MappingsService.createOptionsWithProjectMappings(project, options.getFrom(), options.getTo()));
+			options.getUselegacyMixinAP().set(true);
+			options.getClasspath().from(classpath);
+			options.getKnownIndyBsms().set(extension.getKnownIndyBsms().get().stream().sorted().toList());
+			options.getRemapperExtensions().set(extension.getRemapperExtensions());
+		});
+	}
+
+	private static FileCollection getRemapClasspath(Project project, Provider<String> from, ClasspathLibraries classpathLibraries) {
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		final ConfigurationContainer configurations = project.getConfigurations();
+
+		if (from.get().equals(MappingsNamespace.INTERMEDIARY.toString())) {
+			ConfigurableFileCollection files = project.files(extension.getMinecraftJars(MappingsNamespace.INTERMEDIARY));
+
+			if (classpathLibraries == ClasspathLibraries.INCLUDE) {
+				files = files.from(configurations.getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
+			}
+
+			return files;
+		}
+
+		if (classpathLibraries == ClasspathLibraries.INCLUDE) {
+			return configurations.getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+		}
+
+		return configurations.getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME)
+				.minus(configurations.getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES))
+				.minus(configurations.getByName(Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES));
+	}
+
+	public enum ClasspathLibraries {
+		/**
+		 * Default, in most cases the Minecraft libraries are not required as they are not obfuscated and do not need to be queried.
+		 */
+		EXCLUDE,
+
+		/**
+		 * Uses more memory, but provides a complete index of all the classes within the libraries.
+		 */
+		INCLUDE
 	}
 
 	private TinyRemapper tinyRemapper;
@@ -179,11 +231,13 @@ public class TinyRemapperService extends Service<TinyRemapperService.Options> im
 		return tag;
 	}
 
+	@Override
 	public TinyRemapper getTinyRemapperForRemapping() {
 		isRemapping = true;
 		return Objects.requireNonNull(tinyRemapper, "Tiny remapper has not been setup");
 	}
 
+	@Override
 	public TinyRemapper getTinyRemapperForInputs() {
 		if (isRemapping) {
 			throw new IllegalStateException("Cannot read inputs as remapping has already started");

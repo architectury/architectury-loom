@@ -24,8 +24,6 @@
 
 package net.fabricmc.loom.util.download;
 
-import static com.google.common.io.Files.createParentDirs;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -145,13 +143,13 @@ public final class Download {
 		}
 	}
 
-	void downloadPath(Path output) throws DownloadException {
+	DownloadResult downloadPath(Path output) throws DownloadException {
 		boolean downloadRequired = requiresDownload(output);
 
 		if (!downloadRequired) {
 			// Does not require download, we are done here.
 			progressListener.onEnd();
-			return;
+			return new DownloadResultImpl(false);
 		}
 
 		try {
@@ -162,6 +160,8 @@ public final class Download {
 		} finally {
 			progressListener.onEnd();
 		}
+
+		return new DownloadResultImpl(true);
 	}
 
 	private void doDownload(Path output) throws DownloadException {
@@ -172,7 +172,7 @@ public final class Download {
 		}
 
 		try {
-			createParentDirs(output.toFile());
+			Files.createDirectories(output.getParent());
 		} catch (IOException e) {
 			throw error(e, "Failed to create parent directories");
 		}
@@ -222,7 +222,7 @@ public final class Download {
 				String downloadedHash;
 
 				try {
-					downloadedHash = Checksum.sha1Hex(output);
+					downloadedHash = Checksum.of(output).sha1().hex();
 					Files.deleteIfExists(output);
 				} catch (IOException e) {
 					downloadedHash = "unknown hash";
@@ -357,12 +357,12 @@ public final class Download {
 		String hash = expectedHash.substring(i + 1);
 
 		try {
-			String computedHash = switch (algorithm) {
-			case "sha1" -> Checksum.sha1Hex(path);
+			Checksum.Result computedHash = switch (algorithm) {
+			case "sha1" -> Checksum.of(path).sha1();
 			default -> throw error("Unsupported hash algorithm (%s)", algorithm);
 			};
 
-			return computedHash.equalsIgnoreCase(hash);
+			return computedHash.matchesStr(hash);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -483,4 +483,6 @@ public final class Download {
 	private DownloadException error(Throwable throwable, String message, Object... args) {
 		return new DownloadException(message.formatted(args), throwable);
 	}
+
+	private record DownloadResultImpl(boolean didDownload) implements DownloadResult { }
 }

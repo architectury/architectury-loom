@@ -105,13 +105,13 @@ public record ClassEntry(String name, List<String> innerClasses, List<String> su
 	public String hash(Path root) throws IOException {
 		StringJoiner joiner = new StringJoiner(",");
 
-		joiner.add(Checksum.sha256Hex(Files.readAllBytes(root.resolve(name))));
+		joiner.add(Checksum.of(root.resolve(name)).sha256().hex());
 
 		for (String innerClass : innerClasses) {
-			joiner.add(Checksum.sha256Hex(Files.readAllBytes(root.resolve(innerClass))));
+			joiner.add(Checksum.of(root.resolve(innerClass)).sha256().hex());
 		}
 
-		return Checksum.sha256Hex(joiner.toString().getBytes());
+		return Checksum.of(joiner.toString()).sha256().hex();
 	}
 
 	/**
@@ -138,7 +138,7 @@ public record ClassEntry(String name, List<String> innerClasses, List<String> su
 			}
 		}
 
-		return Checksum.sha256Hex(joiner.toString().getBytes());
+		return Checksum.of(joiner.toString()).sha256().hex();
 	}
 
 	public String sourcesFileName() {

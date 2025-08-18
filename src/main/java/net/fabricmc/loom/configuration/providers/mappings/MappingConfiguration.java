@@ -45,14 +45,12 @@ import java.util.Objects;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
-import com.google.gson.JsonObject;
 import dev.architectury.loom.util.MappingOption;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.provider.Provider;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +62,7 @@ import net.fabricmc.loom.configuration.providers.forge.ForgeMigratedMappingConfi
 import net.fabricmc.loom.configuration.providers.forge.SrgProvider;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.MappingsMerger;
 import net.fabricmc.loom.configuration.providers.mappings.tiny.TinyJarInfo;
+import net.fabricmc.loom.configuration.providers.mappings.unpick.UnpickMetadata;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DeletingFileVisitor;
@@ -102,7 +101,7 @@ public class MappingConfiguration {
 	private final Map<MappingOption, Supplier<Path>> mappingOptions;
 	private final Path unpickDefinitions;
 
-	private boolean hasUnpickDefinitions;
+	@Nullable
 	private UnpickMetadata unpickMetadata;
 	private Map<String, String> signatureFixes;
 
@@ -250,15 +249,19 @@ public class MappingConfiguration {
 	}
 
 	public void applyToProject(Project project, DependencyInfo dependency) throws IOException {
-		if (hasUnpickDefinitions()) {
-			String notation = String.format("%s:%s:%s:constants",
-					dependency.getDependency().getGroup(),
-					dependency.getDependency().getName(),
-					dependency.getDependency().getVersion()
-			);
+		if (unpickMetadata != null) {
+			if (unpickMetadata.hasConstants()) {
+				String notation = switch (unpickMetadata) {
+				case UnpickMetadata.V1 v1 -> String.format("%s:%s:%s:constants",
+						dependency.getDependency().getGroup(),
+						dependency.getDependency().getName(),
+						dependency.getDependency().getVersion()
+				);
+				case UnpickMetadata.V2 v2 -> Objects.requireNonNull(v2.constants());
+				};
 
-			project.getDependencies().add(Constants.Configurations.MAPPING_CONSTANTS, notation);
-			populateUnpickClasspath(project);
+				project.getDependencies().add(Constants.Configurations.MAPPING_CONSTANTS, notation);
+			}
 		}
 
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
@@ -441,8 +444,8 @@ public class MappingConfiguration {
 	}
 
 	private void extractUnpickDefinitions(FileSystem jar) throws IOException {
-		Path unpickPath = jar.getPath("extras/definitions.unpick");
-		Path unpickMetadataPath = jar.getPath("extras/unpick.json");
+		Path unpickPath = jar.getPath(UnpickMetadata.UNPICK_DEFINITIONS_PATH);
+		Path unpickMetadataPath = jar.getPath(UnpickMetadata.UNPICK_METADATA_PATH);
 
 		if (!Files.exists(unpickPath) || !Files.exists(unpickMetadataPath)) {
 			return;
@@ -450,8 +453,7 @@ public class MappingConfiguration {
 
 		Files.copy(unpickPath, unpickDefinitions, StandardCopyOption.REPLACE_EXISTING);
 
-		unpickMetadata = parseUnpickMetadata(unpickMetadataPath);
-		hasUnpickDefinitions = true;
+		unpickMetadata = UnpickMetadata.parse(unpickMetadataPath);
 	}
 
 	private void extractSignatureFixes(FileSystem jar) throws IOException {
@@ -464,40 +466,6 @@ public class MappingConfiguration {
 		try (Reader reader = Files.newBufferedReader(recordSignaturesJsonPath, StandardCharsets.UTF_8)) {
 			//noinspection unchecked
 			signatureFixes = LoomGradlePlugin.GSON.fromJson(reader, Map.class);
-		}
-	}
-
-	private UnpickMetadata parseUnpickMetadata(Path input) throws IOException {
-		JsonObject jsonObject = LoomGradlePlugin.GSON.fromJson(Files.readString(input, StandardCharsets.UTF_8), JsonObject.class);
-
-		if (!jsonObject.has("version") || jsonObject.get("version").getAsInt() != 1) {
-			throw new UnsupportedOperationException("Unsupported unpick version");
-		}
-
-		return new UnpickMetadata(
-				jsonObject.get("unpickGroup").getAsString(),
-				jsonObject.get("unpickVersion").getAsString()
-		);
-	}
-
-	private void populateUnpickClasspath(Project project) {
-		String unpickCliName = "unpick-cli";
-		project.getDependencies().add(Constants.Configurations.UNPICK_CLASSPATH,
-				String.format("%s:%s:%s", unpickMetadata.unpickGroup, unpickCliName, unpickMetadata.unpickVersion)
-		);
-
-		// Unpick ships with a slightly older version of asm, ensure it runs with at least the same version as loom.
-		String[] asmDeps = new String[] {
-				"org.ow2.asm:asm:%s",
-				"org.ow2.asm:asm-tree:%s",
-				"org.ow2.asm:asm-commons:%s",
-				"org.ow2.asm:asm-util:%s"
-		};
-
-		for (String asm : asmDeps) {
-			project.getDependencies().add(Constants.Configurations.UNPICK_CLASSPATH,
-					asm.formatted(Opcodes.class.getPackage().getImplementationVersion())
-			);
 		}
 	}
 
@@ -554,16 +522,16 @@ public class MappingConfiguration {
 	}
 
 	public boolean hasUnpickDefinitions() {
-		return hasUnpickDefinitions;
+		return unpickMetadata != null;
+	}
+
+	public UnpickMetadata getUnpickMetadata() {
+		return Objects.requireNonNull(unpickMetadata, "Unpick metadata is not available");
 	}
 
 	@Nullable
 	public Map<String, String> getSignatureFixes() {
 		return signatureFixes;
-	}
-
-	public String getBuildServiceName(String name, String from, String to) {
-		return "%s:%s:%s>%S".formatted(name, mappingsIdentifier(), from, to);
 	}
 
 	public Path getReplacedTarget(LoomGradleExtension loom, String namespace) {
@@ -601,8 +569,5 @@ public class MappingConfiguration {
 		} else {
 			return tinyMappings;
 		}
-	}
-
-	public record UnpickMetadata(String unpickGroup, String unpickVersion) {
 	}
 }

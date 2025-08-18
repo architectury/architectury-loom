@@ -48,6 +48,7 @@ import net.fabricmc.loom.configuration.providers.mappings.utils.AddConstructorMa
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider
 import net.fabricmc.loom.test.LoomTestConstants
 import net.fabricmc.loom.test.unit.LoomMocks
+import net.fabricmc.loom.util.Constants
 import net.fabricmc.loom.util.download.Download
 import net.fabricmc.loom.util.download.DownloadBuilder
 import net.fabricmc.mappingio.MappingReader
@@ -60,7 +61,6 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
 	Logger mockLogger = Mock(Logger)
 	MinecraftProvider mockMinecraftProvider = Mock(MinecraftProvider)
 	String intermediaryUrl
-	MappingContext mappingContext = new TestMappingContext()
 
 	File tempDir = new File(LoomTestConstants.TEST_DIR, "layered/${getClass().name}")
 
@@ -92,18 +92,25 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
 
 	MemoryMappingTree getSingleMapping(MappingsSpec<? extends MappingLayer> spec) {
 		MemoryMappingTree mappingTree = new MemoryMappingTree()
-		spec.createLayer(mappingContext).visit(mappingTree)
+		spec.createLayer(new TestMappingContext([spec])).visit(mappingTree)
 		return mappingTree
 	}
 
 	MemoryMappingTree getLayeredMappings(MappingsSpec<? extends MappingLayer>... specs) {
 		LayeredMappingsProcessor processor = createLayeredMappingsProcessor(specs)
-		return processor.getMappings(processor.resolveLayers(mappingContext))
+		return processor.getMappings(processor.resolveLayers(new TestMappingContext(specs.toList())))
+	}
+
+	MemoryMappingTree getLayeredMappingsDropNoneIntermediaryRoots(MappingsSpec<? extends MappingLayer>... specs) {
+		LayeredMappingsProcessor processor = createLayeredMappingsProcessor(specs)
+		return processor.getMappings(processor.resolveLayers(new TestMappingContext(specs.toList(), [
+			Constants.Properties.DROP_NON_INTERMEDIATE_ROOT_METHODS
+		])))
 	}
 
 	UnpickLayer.UnpickData getUnpickData(MappingsSpec<? extends MappingLayer>... specs) {
 		LayeredMappingsProcessor processor = createLayeredMappingsProcessor(specs)
-		return processor.getUnpickData(processor.resolveLayers(mappingContext))
+		return processor.getUnpickData(processor.resolveLayers(new TestMappingContext(specs.toList())))
 	}
 
 	private static LayeredMappingsProcessor createLayeredMappingsProcessor(MappingsSpec<? extends MappingLayer>... specs) {
@@ -134,6 +141,14 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
 	}
 
 	class TestMappingContext implements MappingContext {
+		private final List<MappingsSpec<? extends MappingLayer>> specs
+		private final List<String> enabledProperties
+
+		TestMappingContext(List<MappingsSpec<? extends MappingLayer>> specs, List<String> enabledProperties = []) {
+			this.specs = specs
+			this.enabledProperties = enabledProperties
+		}
+
 		@Override
 		Path resolveDependency(Dependency dependency) {
 			throw new UnsupportedOperationException("TODO")
@@ -166,6 +181,11 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
 		}
 
 		@Override
+		boolean isUsingIntermediateMappings() {
+			return !specs.any { it instanceof NoIntermediateMappingsSpec }
+		}
+
+		@Override
 		MinecraftProvider minecraftProvider() {
 			return mockMinecraftProvider
 		}
@@ -188,6 +208,11 @@ abstract class LayeredMappingsSpecification extends Specification implements Lay
 		@Override
 		boolean refreshDeps() {
 			return false
+		}
+
+		@Override
+		boolean hasProperty(String property) {
+			return enabledProperties.contains(property)
 		}
 	}
 

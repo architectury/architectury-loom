@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -48,15 +49,19 @@ import dev.architectury.loom.util.MappingOption;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
+import net.fabricmc.loom.configuration.mods.extension.ModProcessorExtension;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.extension.RemapperExtensionHolder;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.IdentityBiMap;
 import net.fabricmc.loom.util.LoggerFilter;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
@@ -73,10 +78,11 @@ import net.fabricmc.tinyremapper.InputTag;
 import net.fabricmc.tinyremapper.NonClassCopyMode;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
-import net.fabricmc.tinyremapper.extension.mixin.MixinExtension;
 
 public class ModProcessor {
 	private static final String toM = MappingsNamespace.NAMED.toString();
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ModProcessor.class);
 
 	private static final Pattern COPY_CONFIGURATION_PATTERN = Pattern.compile("^(.+)Copy[0-9]*$");
 
@@ -92,7 +98,7 @@ public class ModProcessor {
 
 	public void processMods(List<ModDependency> remapList) throws IOException {
 		try {
-			project.getLogger().lifecycle(":remapping {} mods from {}", remapList.size(), describeConfiguration(sourceConfiguration));
+			LOGGER.info(":remapping {} mods from {}", remapList.size(), describeConfiguration(sourceConfiguration));
 			remapJars(remapList);
 		} catch (Exception e) {
 			throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to remap %d mods", remapList.size()), e);
@@ -192,13 +198,21 @@ public class ModProcessor {
 			builder.extension(kotlinRemapperClassloader.getTinyRemapperExtension());
 		}
 
-		final Set<InputTag> remapMixins = new HashSet<>();
-		final boolean requiresStaticMixinRemap = remapList.stream()
-				.anyMatch(modDependency -> modDependency.getMetadata().mixinRemapType() == ArtifactMetadata.MixinRemapType.STATIC);
+		final IdentityBiMap<InputTag, ModDependency> inputTags = new IdentityBiMap<>();
+		final List<ModProcessorExtension> activeExtensions = ModProcessorExtension.EXTENSIONS.stream()
+				.filter(e -> remapList.stream().anyMatch(e::appliesTo))
+				.toList();
+		final ModProcessorExtension.Context context = new ModProcessorExtension.Context(fromM, toM, remapList);
 
-		if (requiresStaticMixinRemap) {
-			// Configure the mixin extension to remap mixins from mod jars that were remapped with the mixin extension.
-			builder.extension(new MixinExtension(remapMixins::contains));
+		for (ModProcessorExtension modProcessorExtension : activeExtensions) {
+			LOGGER.info("Applying mod processor extension: {}", modProcessorExtension.getClass().getSimpleName());
+
+			final Predicate<InputTag> applyPredicate = inputTag -> {
+				ModDependency mod = inputTags.getByKey(inputTag);
+				return mod != null && modProcessorExtension.appliesTo(mod);
+			};
+
+			builder.extension(modProcessorExtension.createExtension(context, applyPredicate));
 		}
 
 		for (RemapperExtensionHolder holder : extension.getRemapperExtensions().get()) {
@@ -209,14 +223,13 @@ public class ModProcessor {
 
 		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project)).toArray(Path[]::new));
 
-		final Map<ModDependency, InputTag> tagMap = new HashMap<>();
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();
 		final Map<ModDependency, Pair<byte[], String>> accessWidenerMap = new HashMap<>();
 
 		for (RemapConfigurationSettings entry : extension.getRemapConfigurations()) {
 			for (File inputFile : entry.getSourceConfiguration().get().getFiles()) {
 				if (remapList.stream().noneMatch(info -> info.getInputFile().toFile().equals(inputFile))) {
-					project.getLogger().debug("Adding " + inputFile + " onto the remap classpath");
+					LOGGER.debug("Adding " + inputFile + " onto the remap classpath");
 					remapper.readClassPathAsync(inputFile.toPath());
 				}
 			}
@@ -225,23 +238,10 @@ public class ModProcessor {
 		for (ModDependency info : remapList) {
 			InputTag tag = remapper.createInputTag();
 
-			project.getLogger().debug("Adding " + info.getInputFile() + " as a remap input");
-
-			// Note: this is done at a jar level, not at the level of an individual mixin config.
-			// If a mod has multiple mixin configs, it's assumed that either all or none of them have refmaps.
-			if (info.getMetadata().mixinRemapType() == ArtifactMetadata.MixinRemapType.STATIC) {
-				if (!requiresStaticMixinRemap) {
-					// Should be impossible but stranger things have happened.
-					throw new IllegalStateException("Was not configured for static remap, but a mod required it?!");
-				}
-
-				project.getLogger().info("Remapping mixins in {} statically", info.getInputFile());
-				remapMixins.add(tag);
-			}
+			LOGGER.debug("Adding " + info.getInputFile() + " as a remap input");
+			inputTags.put(tag, info);
 
 			remapper.readInputsAsync(tag, info.getInputFile());
-			tagMap.put(info, tag);
-
 			Files.deleteIfExists(getRemappedOutput(info));
 		}
 
@@ -258,12 +258,12 @@ public class ModProcessor {
 					final AccessWidenerUtils.AccessWidenerData accessWidenerData = AccessWidenerUtils.readAccessWidenerData(dependency.getInputFile(), platform);
 
 					if (accessWidenerData != null) {
-						project.getLogger().debug("Remapping access widener in {}", dependency.getInputFile());
+						LOGGER.debug("Remapping access widener in {}", dependency.getInputFile());
 						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper());
 						accessWidenerMap.put(dependency, new Pair<>(remappedAw, accessWidenerData.path()));
 					}
 
-					remapper.apply(outputConsumer, tagMap.get(dependency));
+					remapper.apply(outputConsumer, inputTags.getByValue(dependency));
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to remap: " + dependency, e);
 				}
@@ -288,6 +288,12 @@ public class ModProcessor {
 				ZipUtils.replace(output, accessWidener.right(), accessWidener.left());
 			}
 
+			for (ModProcessorExtension modProcessorExtension : activeExtensions) {
+				if (modProcessorExtension.appliesTo(dependency)) {
+					modProcessorExtension.finalise(dependency, output);
+				}
+			}
+
 			stripNestedJars(output);
 			remapJarManifestEntries(output);
 
@@ -307,8 +313,8 @@ public class ModProcessor {
 		}
 	}
 
-	private static Path getRemappedOutput(ModDependency dependency) {
-		return dependency.getWorkingFile(null);
+	private Path getRemappedOutput(ModDependency dependency) {
+		return dependency.getWorkingFile(project, null);
 	}
 
 	private void remapJarManifestEntries(Path jar) throws IOException {

@@ -44,7 +44,7 @@ class FabricAPITest extends Specification implements GradleProjectTestTrait {
 		setup:
 		def gradle = gradleProject(
 				repo: "https://github.com/FabricMC/fabric.git",
-				commit: "d70d2c06bb8fafdb72c6778b29fb050618015ab3",
+				commit: "f84dc5662589fd56ac4b36a4b94920a15b1da29d",
 				version: version,
 				patch: "fabric_api"
 				)
@@ -63,7 +63,7 @@ class FabricAPITest extends Specification implements GradleProjectTestTrait {
 				.replace('id "fabric-loom" version "1.6.11"', 'id "dev.architectury.loom"')
 				.replace('"fabric-loom"', '"dev.architectury.loom"') + mixinApPatch
 
-		def minecraftVersion = "1.21.4"
+		def minecraftVersion = "1.21.6-pre3"
 		def server = ServerRunner.create(gradle.projectDir, minecraftVersion)
 				.withMod(gradle.getOutputFile("fabric-api-999.0.0.jar"))
 

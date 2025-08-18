@@ -100,10 +100,14 @@ public abstract class InterfaceInjectionProcessor implements MinecraftJarProcess
 			return null;
 		}
 
-		return new Spec(injectedInterfaces);
+		Set<String> clientOnlyModIds = context.modDependenciesCompileRuntimeClient().stream()
+				.map(FabricModJson::getId)
+				.collect(Collectors.toSet());
+
+		return new Spec(injectedInterfaces, clientOnlyModIds);
 	}
 
-	public record Spec(List<InjectedInterface> injectedInterfaces) implements MinecraftJarProcessor.Spec {
+	public record Spec(List<InjectedInterface> injectedInterfaces, Set<String> clientOnlyModIds) implements MinecraftJarProcessor.Spec {
 	}
 
 	@Override
@@ -115,6 +119,10 @@ public abstract class InterfaceInjectionProcessor implements MinecraftJarProcess
 
 		try (LazyCloseable<TinyRemapper> tinyRemapper = context.createRemapper(MappingsNamespace.INTERMEDIARY, MappingsNamespace.NAMED)) {
 			final List<InjectedInterface> remappedInjectedInterfaces = spec.injectedInterfaces().stream()
+					.filter(injectedInterface -> {
+						return context.includesClient() // The client jar depends on the server, so always apply all to it
+								|| !spec.clientOnlyModIds.contains(injectedInterface.modId()); // Or the mod is NOT only found on the client classpath, so we can apply it to the server jar
+					})
 					.map(injectedInterface -> remap(
 							injectedInterface,
 							s -> mappings.mapClassName(s, intermediaryIndex, namedIndex),

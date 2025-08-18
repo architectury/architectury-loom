@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.component.ComponentIdentifier;
+import org.gradle.api.internal.artifacts.repositories.resolver.MavenUniqueSnapshotComponentIdentifier;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -37,23 +39,21 @@ import net.fabricmc.loom.configuration.mods.ArtifactRef;
 public abstract sealed class ModDependency permits SplitModDependency, SimpleModDependency {
 	private final ArtifactRef artifact;
 	private final ArtifactMetadata metadata;
-	protected final String group;
-	protected final String name;
-	protected final String version;
+	private final String group;
+	private final String name;
+	private final String version;
 	@Nullable
-	protected final String classifier;
-	protected final String mappingsSuffix;
-	protected final Project project;
+	private final String classifier;
+	private final ModDependencyOptions options;
 
-	public ModDependency(ArtifactRef artifact, ArtifactMetadata metadata, String mappingsSuffix, Project project) {
+	public ModDependency(ArtifactRef artifact, ArtifactMetadata metadata, ModDependencyOptions options) {
 		this.artifact = artifact;
 		this.metadata = metadata;
 		this.group = artifact.group();
 		this.name = artifact.name();
 		this.version = artifact.version();
 		this.classifier = artifact.classifier();
-		this.mappingsSuffix = mappingsSuffix;
-		this.project = project;
+		this.options = options;
 	}
 
 	/**
@@ -71,10 +71,27 @@ public abstract sealed class ModDependency permits SplitModDependency, SimpleMod
 	 */
 	public abstract void applyToProject(Project project);
 
-	protected LocalMavenHelper createMaven(String name) {
+	/**
+	 * Create a maven helper for the local cache.
+	 * @param type The jar type, e.g "common" or "client" for split dependencies.
+	 */
+	protected LocalMavenHelper createMavenHelper(Project project, @Nullable String type) {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final Path root = extension.getFiles().getRemappedModCache().toPath();
-		return new LocalMavenHelper(getRemappedGroup(), name, this.version, this.classifier, root);
+		final String fullName = getName() + (type != null ? "-" + type : "");
+		return new LocalMavenHelper(getGroup(), fullName, this.version, this.classifier, root, getSnapshotVersion());
+	}
+
+	private @Nullable String getSnapshotVersion() {
+		if (artifact instanceof ArtifactRef.ResolvedArtifactRef resolvedArtifactRef) {
+			ComponentIdentifier componentIdentifier = resolvedArtifactRef.artifact().getId().getComponentIdentifier();
+
+			if (componentIdentifier instanceof MavenUniqueSnapshotComponentIdentifier mavenUniqueId) {
+				return mavenUniqueId.getSnapshotVersion();
+			}
+		}
+
+		return null;
 	}
 
 	public ArtifactRef getInputArtifact() {
@@ -85,24 +102,32 @@ public abstract sealed class ModDependency permits SplitModDependency, SimpleMod
 		return metadata;
 	}
 
-	protected String getRemappedGroup() {
-		return getMappingsPrefix() + "." + group;
+	protected String getName() {
+		return "%s-%s".formatted(name, options.getCacheKey());
 	}
 
-	private String getMappingsPrefix() {
-		return mappingsSuffix.replace(".", "_").replace("-", "_").replace("+", "_");
+	protected String getGroup() {
+		return "remapped.%s".formatted(group);
+	}
+
+	protected String getVersion() {
+		return version;
 	}
 
 	public Path getInputFile() {
 		return artifact.path();
 	}
 
-	public Path getWorkingFile(@Nullable String classifier) {
+	public Path getWorkingFile(Project project, @Nullable String classifier) {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
-		final String fileName = classifier == null ? String.format("%s-%s-%s.jar", getRemappedGroup(), name, version)
-													: String.format("%s-%s-%s-%s.jar", getRemappedGroup(), name, version, classifier);
+		final String fileName = classifier == null ? String.format("%s-%s-%s.jar", getGroup(), getName(), version)
+													: String.format("%s-%s-%s-%s.jar", getGroup(), getName(), version, classifier);
 
 		return extension.getFiles().getProjectBuildCache().toPath().resolve("remapped_working").resolve(fileName);
+	}
+
+	public ModDependencyOptions getOptions() {
+		return options;
 	}
 
 	@Override

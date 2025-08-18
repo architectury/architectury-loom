@@ -26,12 +26,16 @@ package net.fabricmc.loom.test.integration
 
 import java.util.concurrent.TimeUnit
 
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.util.Textifier
+import org.objectweb.asm.util.TraceClassVisitor
 import spock.lang.Specification
 import spock.lang.Timeout
 import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import net.fabricmc.loom.test.util.ServerRunner
+import net.fabricmc.loom.util.ZipUtils
 
 import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
 import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
@@ -126,5 +130,75 @@ class SimpleProjectTest extends Specification implements GradleProjectTestTrait 
 
 		where:
 		version << STANDARD_TEST_VERSIONS
+	}
+
+	@Unroll
+	def "custom remap mappings (gradle #version)"() {
+		// Initial conditions: a project with a resource file to delete.
+		setup:
+		def gradle = gradleProject(project: "simple", version: version)
+		gradle.buildGradle << """
+				configurations {
+					mojangMappings
+				}
+
+				dependencies {
+					mojangMappings loom.officialMojangMappings()
+				}
+
+				def remapMojmap = tasks.register("remapMojmap", net.fabricmc.loom.task.RemapJarTask) {
+					sourceNamespace = "intermediary"
+					targetNamespace = "named"
+					inputFile = tasks.remapJar.archiveFile
+					customMappings.from(configurations.mojangMappings)
+					archiveClassifier = "mojmap"
+
+					addNestedDependencies = false // Jars have already been included in the remapJar task
+				}
+
+				def remapMojmapSources = tasks.register("remapMojmapSources", net.fabricmc.loom.task.RemapSourcesJarTask) {
+					sourceNamespace = "intermediary"
+					targetNamespace = "named"
+					inputFile = tasks.remapSourcesJar.archiveFile
+					customMappings.from(configurations.mojangMappings)
+					archiveClassifier = "mojmap-sources"
+				}
+
+				// Ensure that the remap classpath has intermediary jars
+				for (task in [remapMojmap, remapMojmapSources]) {
+					task.configure {
+						classpath.setFrom(loom.getMinecraftJars(net.fabricmc.loom.api.mappings.layered.MappingsNamespace.INTERMEDIARY))
+						classpath.from(tasks.remapJar.archiveFile)
+					}
+				}
+				"""
+
+		when:
+		def result = gradle.run(tasks: [
+			"remapMojmap",
+			"remapMojmapSources"
+		])
+		def sourcesJar = gradle.getOutputFile("fabric-example-mod-1.0.0-mojmap-sources.jar").toPath()
+		def classesJar = gradle.getOutputFile("fabric-example-mod-1.0.0-mojmap.jar").toPath()
+
+		then:
+		result.task(":remapMojmap").outcome == SUCCESS
+		result.task(":remapMojmapSources").outcome == SUCCESS
+
+		new String(ZipUtils.unpack(sourcesJar, "/net/fabricmc/example/ExampleMod.java")).contains("ResourceLocation")
+		textify(ZipUtils.unpack(classesJar, "/net/fabricmc/example/ExampleMod.class")).contains("ResourceLocation")
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
+
+	private static String textify(byte[] classData) {
+		def stringWriter = new StringWriter()
+		def printWriter = new PrintWriter(stringWriter)
+		def textifier = new Textifier()
+		def traceClassVisitor = new TraceClassVisitor(null, textifier, printWriter)
+		def classReader = new ClassReader(classData)
+		classReader.accept(traceClassVisitor, 0)
+		return stringWriter.toString()
 	}
 }

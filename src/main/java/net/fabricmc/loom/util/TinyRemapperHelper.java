@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.ImmutableMap;
 import dev.architectury.loom.util.MappingOption;
 import org.gradle.api.Project;
 
@@ -50,11 +49,11 @@ import net.fabricmc.tinyremapper.TinyRemapper;
  * Contains shortcuts to create tiny remappers using the mappings accessibly to the project.
  */
 public final class TinyRemapperHelper {
-	public static final Map<String, String> JSR_TO_JETBRAINS = new ImmutableMap.Builder<String, String>()
-			.put("javax/annotation/Nullable", "org/jetbrains/annotations/Nullable")
-			.put("javax/annotation/Nonnull", "org/jetbrains/annotations/NotNull")
-			.put("javax/annotation/concurrent/Immutable", "org/jetbrains/annotations/Unmodifiable")
-			.build();
+	public static final Map<String, String> JSR_TO_JETBRAINS = Map.of(
+				"javax/annotation/Nullable", "org/jetbrains/annotations/Nullable",
+				"javax/annotation/Nonnull", "org/jetbrains/annotations/NotNull",
+				"javax/annotation/concurrent/Immutable", "org/jetbrains/annotations/Unmodifiable"
+			);
 
 	/**
 	 * Matches the new local variable naming format introduced in 21w37a.

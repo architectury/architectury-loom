@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2018-2021 FabricMC
+ * Copyright (c) 2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,29 +22,14 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.test.integration
+package net.fabricmc.loom.configuration.providers.minecraft.verify;
 
-import spock.lang.Specification
-import spock.lang.Unroll
+public final class SignatureVerificationFailure extends Exception {
+	public SignatureVerificationFailure(String message) {
+		super(message);
+	}
 
-import net.fabricmc.loom.test.util.GradleProjectTestTrait
-
-import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-
-class ParchmentTest extends Specification implements GradleProjectTestTrait {
-	@Unroll
-	def "parchment #version"() {
-		setup:
-		def gradle = gradleProject(project: "parchment", version: version)
-
-		when:
-		def result = gradle.run(task: "build")
-
-		then:
-		result.task(":build").outcome == SUCCESS
-
-		where:
-		version << STANDARD_TEST_VERSIONS
+	public SignatureVerificationFailure(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

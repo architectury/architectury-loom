@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.configuration.decompile;
 
-import java.io.File;
 import java.util.List;
 
 import org.gradle.api.Project;
@@ -66,11 +65,6 @@ public class SingleJarDecompileConfiguration extends DecompileConfiguration<Mapp
 				task.dependsOn(project.getTasks().named("validateAccessWidener"));
 				task.setDescription("Decompile minecraft using %s.".formatted(decompilerName));
 				task.setGroup(Constants.TaskGroup.FABRIC);
-
-				if (mappingConfiguration.hasUnpickDefinitions()) {
-					final File outputJar = new File(extension.getMappingConfiguration().mappingsWorkingDir().toFile(), "minecraft-unpicked.jar");
-					configureUnpick(task, outputJar);
-				}
 			});
 		});
 

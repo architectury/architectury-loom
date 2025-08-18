@@ -37,8 +37,12 @@ class LoomTestConstants {
 	// Randomly sorted to ensure that all versions can run with a clean gradle home.
 	public final static List<String> STANDARD_TEST_VERSIONS = (NIGHTLY_EXISTS ? [
 		DEFAULT_GRADLE,
+		LoomTestVersions.GRADLE_LATEST.version(),
 		PRE_RELEASE_GRADLE
-	] : [DEFAULT_GRADLE]).shuffled().toArray()
+	] : [
+		DEFAULT_GRADLE,
+		LoomTestVersions.GRADLE_LATEST.version()
+	]).shuffled().toArray()
 
 	public static final File TEST_DIR = new File("./.gradle/test-files")
 

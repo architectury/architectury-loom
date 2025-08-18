@@ -25,37 +25,24 @@
 package net.fabricmc.loom.configuration.providers.mappings.extras.unpick;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.configuration.providers.mappings.unpick.UnpickMetadata;
 
 @ApiStatus.Experimental
 public interface UnpickLayer {
 	@Nullable
 	UnpickData getUnpickData() throws IOException;
 
-	record UnpickData(Metadata metadata, byte[] definitions) {
+	record UnpickData(UnpickMetadata metadata, byte[] rawMetadata, byte[] definitions) {
 		public static UnpickData read(Path metadataPath, Path definitionPath) throws IOException {
 			final byte[] definitions = Files.readAllBytes(definitionPath);
-			final Metadata metadata;
-
-			try (Reader reader = Files.newBufferedReader(metadataPath, StandardCharsets.UTF_8)) {
-				metadata = LoomGradlePlugin.GSON.fromJson(reader, Metadata.class);
-			}
-
-			return new UnpickData(metadata, definitions);
-		}
-
-		public record Metadata(int version, String unpickGroup, String unpickVersion) {
-			public String asJson() {
-				return LoomGradlePlugin.GSON.toJson(this);
-			}
+			final byte[] metadata = Files.readAllBytes(metadataPath);
+			return new UnpickData(UnpickMetadata.parse(metadataPath), metadata, definitions);
 		}
 	}
 }
