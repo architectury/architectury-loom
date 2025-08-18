@@ -35,6 +35,7 @@ import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.task.service.SourceRemapperService;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.LoomVersions;
@@ -46,7 +47,7 @@ import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.service.ServiceType;
 
 public final class ForgeSourcesService extends Service<ForgeSourcesService.Options> {
-	public static ServiceType<ForgeSourcesService.Options, ForgeSourcesService> TYPE = new ServiceType<>(ForgeSourcesService.Options.class, ForgeSourcesService.class);
+	public static ServiceType<Options, ForgeSourcesService> TYPE = new ServiceType<>(Options.class, ForgeSourcesService.class);
 
 	private static final Logger LOGGER = Logging.getLogger(ForgeSourcesService.class);
 
@@ -85,6 +86,7 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 				sro.getJavaCompileRelease().set(SourceRemapperService.getJavaCompileRelease(project));
 				sro.getClasspath().from(DependencyDownloader.download(project, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation()));
 				sro.getClasspath().from(extension.getMinecraftJars(sourceNamespace));
+				sro.getClasspath().from(project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
 
 				TinyRemapperHelper.JSR_TO_JETBRAINS.forEach((from, to) -> {
 					Pair<String, String> mapping = new Pair<>(from, to);
