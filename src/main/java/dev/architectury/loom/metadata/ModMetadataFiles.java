@@ -14,6 +14,7 @@ import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonGrammar;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.common.collect.ImmutableMap;
+import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.SourceSet;
@@ -33,6 +34,7 @@ public final class ModMetadataFiles {
 			.put(QuiltModJson.JSON5_FILE_NAME, convertJson5ToJson(QuiltModJson::of))
 			.put(ArchitecturyCommonJson.FILE_NAME, ArchitecturyCommonJson::of)
 			.put(ModsToml.FILE_PATH, onError(ModsToml::of, "Could not load mods.toml", () -> new ErroringModMetadataFile("mods.toml")))
+			.put(ModsToml.NEOFORGE_FILE_PATH, onError(ModsToml::of, "Could not load neoforge.mods.toml", () -> new ErroringModMetadataFile("neoforge.mods.toml")))
 			.build();
 
 	private static <A, B> Function<A, B> onError(Function<A, B> fn, String message, Supplier<B> onError) {
@@ -99,12 +101,13 @@ public final class ModMetadataFiles {
 	/**
 	 * Reads the first mod metadata file from source sets.
 	 *
+	 * @param project    the project owning the source sets
 	 * @param sourceSets the source sets to read from
 	 * @return the mod metadata file, or {@code null} if not found
 	 */
-	public static @Nullable ModMetadataFile fromSourceSets(SourceSet... sourceSets) throws IOException {
+	public static @Nullable ModMetadataFile fromSourceSets(Project project, SourceSet... sourceSets) throws IOException {
 		for (final String filePath : SINGLE_FILE_METADATA_TYPES.keySet()) {
-			final @Nullable File file = SourceSetHelper.findFirstFileInResource(filePath, sourceSets);
+			final @Nullable File file = SourceSetHelper.findFirstFileInResource(filePath, project, sourceSets);
 
 			if (file != null) {
 				return SINGLE_FILE_METADATA_TYPES.get(filePath).apply(Files.readAllBytes(file.toPath()));

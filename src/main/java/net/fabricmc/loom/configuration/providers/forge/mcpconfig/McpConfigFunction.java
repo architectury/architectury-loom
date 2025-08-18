@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,18 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.StepLogic;
 import net.fabricmc.loom.util.function.CollectionUtil;
 
 /**
@@ -38,15 +44,23 @@ import net.fabricmc.loom.util.function.CollectionUtil;
  * @param version the Gradle-style dependency string of the program
  * @param args    the command-line arguments
  * @param jvmArgs the JVM arguments
- * @param repo    the Maven repository to download the dependency from
+ * @param repo    the Maven repository to download the dependency from, or {@code null} if not specified
  */
-public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, String repo) {
+public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, @Nullable String repo) implements Serializable {
 	private static final String VERSION_KEY = "version";
 	private static final String ARGS_KEY = "args";
 	private static final String JVM_ARGS_KEY = "jvmargs";
 	private static final String REPO_KEY = "repo";
 
-	public String getDownloadUrl() {
+	public Path download(StepLogic.SetupContext executionContext) throws IOException {
+		if (repo != null) {
+			return executionContext.downloadFile(getDownloadUrl());
+		} else {
+			return executionContext.downloadDependency(version);
+		}
+	}
+
+	private String getDownloadUrl() {
 		String[] parts = version.split(":");
 		StringBuilder builder = new StringBuilder();
 		builder.append(repo);
@@ -72,7 +86,8 @@ public record McpConfigFunction(String version, List<ConfigValue> args, List<Con
 		String version = json.get(VERSION_KEY).getAsString();
 		List<ConfigValue> args = json.has(ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(ARGS_KEY)) : List.of();
 		List<ConfigValue> jvmArgs = json.has(JVM_ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY)) : List.of();
-		String repo = json.get(REPO_KEY).getAsString();
+		JsonElement repoJson = json.get(REPO_KEY);
+		@Nullable String repo = repoJson.isJsonPrimitive() ? repoJson.getAsString() : null;
 		return new McpConfigFunction(version, args, jvmArgs, repo);
 	}
 

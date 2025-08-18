@@ -1,8 +1,75 @@
 [versions]
-kotlin = "1.8.10"
+kotlin = "2.0.21"
+asm = "9.8"
+commons-io = "2.15.1"
+gson = "2.10.1"
+guava = "33.0.0-jre"
+
+stitch = "0.6.2"
+tiny-remapper = "0.11.1"
+access-widener = "2.1.0"
+mapping-io = "0.7.1"
+lorenz-tiny = "4.0.2"
+mercury = "0.1.4.17"
+loom-native = "0.2.0"
+unpick = "3.0.0-beta.9"
+
+# Plugins
+spotless = "6.25.0"
+test-retry = "1.5.6"
+checkstyle = "10.17.0"
+codenarc = "3.4.0"
+
+# Forge libraries
+forge-installer-tools = "1.2.0"
+lorenz = "0.5.3"
+mcinjector = "3.8.0"
+opencsv = "5.4"
+forge-diffpatch = "2.0.7"
+night-config = "3.6.6"
+datafixerupper = "6.0.8"
+at = "1.0.1"
 
 [libraries]
+# Loom compile libraries
+asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
+asm-analysis = { module = "org.ow2.asm:asm-analysis", version.ref = "asm" }
+asm-commons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
+asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
+asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
+
+commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+
+fabric-stitch = { module = "net.fabricmc:stitch", version.ref = "stitch" }
+fabric-tiny-remapper = { module = "net.fabricmc:tiny-remapper", version.ref = "tiny-remapper" }
+fabric-access-widener = { module = "net.fabricmc:access-widener", version.ref = "access-widener" }
+fabric-mapping-io = { module = "net.fabricmc:mapping-io", version.ref = "mapping-io" }
+fabric-lorenz-tiny = { module = "net.fabricmc:lorenz-tiny", version.ref = "lorenz-tiny" }
+fabric-mercury = { module = "dev.architectury:mercury", version.ref = "mercury" }
+fabric-loom-nativelib = { module = "net.fabricmc:fabric-loom-native", version.ref = "loom-native" }
+fabric-unpick = { module = "net.fabricmc.unpick:unpick", version.ref = "unpick" }
+fabric-unpick-utils = { module = "net.fabricmc.unpick:unpick-format-utils", version.ref = "unpick" }
+
+# Misc
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-metadata = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
+
+# Forge support
+forge-installer-tools = { module = "net.minecraftforge:installertools", version.ref = "forge-installer-tools" }
+lorenz = { module = "org.cadixdev:lorenz", version.ref = "lorenz" }
+mcinjector = { module = "de.oceanlabs.mcp:mcinjector", version.ref = "mcinjector" }
+opencsv = { module = "com.opencsv:opencsv", version.ref = "opencsv" }
+forge-diffpatch = { module = "net.minecraftforge:DiffPatch", version.ref = "forge-diffpatch" }
+night-config-toml = { module = "com.electronwill.night-config:toml", version.ref = "night-config" }
+datafixerupper = { module = "com.mojang:datafixerupper", version.ref = "datafixerupper" }
+at = { module = "dev.architectury:at", version.ref = "at" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
+
+[bundles]
+asm = ["asm", "asm-analysis", "asm-commons", "asm-tree", "asm-util"]

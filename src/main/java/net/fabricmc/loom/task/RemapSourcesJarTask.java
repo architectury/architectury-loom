@@ -26,66 +26,72 @@ package net.fabricmc.loom.task;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.List;
+import java.nio.file.StandardCopyOption;
 
 import javax.inject.Inject;
 
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.SourceRemapperService;
-import net.fabricmc.loom.util.service.BuildSharedServiceManager;
-import net.fabricmc.loom.util.service.UnsafeWorkQueueHelper;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
-	private final Provider<BuildSharedServiceManager> serviceManagerProvider;
+	@Nested
+	abstract Property<SourceRemapperService.Options> getSourcesRemapperServiceOptions();
 
 	@Inject
 	public RemapSourcesJarTask() {
 		super();
-		serviceManagerProvider = BuildSharedServiceManager.createForTask(this, getBuildEventsListenerRegistry());
-
 		getClasspath().from(getProject().getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+		getJarType().set("sources");
+
+		getSourcesRemapperServiceOptions().set(SourceRemapperService.createOptions(this));
 	}
 
 	@TaskAction
 	public void run() {
 		submitWork(RemapSourcesAction.class, params -> {
-			params.getSourcesRemapperServiceUuid().set(UnsafeWorkQueueHelper.create(SourceRemapperService.create(serviceManagerProvider.get().get(), this)));
+			if (!params.namespacesMatch()) {
+				params.getSourcesRemapperServiceOptions().set(getSourcesRemapperServiceOptions());
+			}
 		});
 	}
 
 	@Override
-	protected List<String> getClientOnlyEntries(SourceSet clientSourceSet) {
-		return clientSourceSet.getAllSource().getFiles().stream()
-				.map(relativePath(getRootPaths(clientSourceSet.getAllSource().getSrcDirs())))
-				.toList();
+	protected Provider<? extends ClientEntriesService.Options> getClientOnlyEntriesOptionsProvider(SourceSet clientSourceSet) {
+		return ClientEntriesService.Source.createOptions(getProject(), clientSourceSet);
 	}
 
 	public interface RemapSourcesParams extends AbstractRemapParams {
-		Property<String> getSourcesRemapperServiceUuid();
+		Property<SourceRemapperService.Options> getSourcesRemapperServiceOptions();
 	}
 
 	public abstract static class RemapSourcesAction extends AbstractRemapAction<RemapSourcesParams> {
 		private static final Logger LOGGER = LoggerFactory.getLogger(RemapSourcesAction.class);
 
-		private final SourceRemapperService sourceRemapperService;
-
 		public RemapSourcesAction() {
 			super();
-
-			sourceRemapperService = UnsafeWorkQueueHelper.get(getParameters().getSourcesRemapperServiceUuid(), SourceRemapperService.class);
 		}
 
 		@Override
 		public void execute() {
 			try {
-				sourceRemapperService.remapSourcesJar(inputFile, outputFile);
+				if (!getParameters().namespacesMatch()) {
+					try (var serviceFactory = new ScopedServiceFactory()) {
+						SourceRemapperService sourceRemapperService = serviceFactory.get(getParameters().getSourcesRemapperServiceOptions());
+						sourceRemapperService.remapSourcesJar(inputFile, outputFile);
+					}
+				} else {
+					Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
+				}
 
 				modifyJarManifest();
 				rewriteJar();

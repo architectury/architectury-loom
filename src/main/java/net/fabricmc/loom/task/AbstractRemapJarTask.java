@@ -26,15 +26,12 @@ package net.fabricmc.loom.task;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
 import javax.inject.Inject;
@@ -50,10 +47,10 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.build.event.BuildEventsListenerRegistry;
+import org.gradle.api.tasks.bundling.ZipEntryCompression;
 import org.gradle.jvm.tasks.Jar;
 import org.gradle.workers.WorkAction;
 import org.gradle.workers.WorkParameters;
@@ -64,19 +61,15 @@ import org.jetbrains.annotations.ApiStatus;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.JarManifestService;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public abstract class AbstractRemapJarTask extends Jar {
-	public static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
-	public static final String MANIFEST_NAMESPACE_KEY = "Fabric-Mapping-Namespace";
-	public static final String MANIFEST_SPLIT_ENV_KEY = "Fabric-Loom-Split-Environment";
-	public static final String MANIFEST_CLIENT_ENTRIES_KEY = "Fabric-Loom-Client-Only-Entries";
-	public static final Attributes.Name MANIFEST_SPLIT_ENV_NAME = new Attributes.Name(MANIFEST_SPLIT_ENV_KEY);
-	public static final Attributes.Name MANIFEST_CLIENT_ENTRIES_NAME = new Attributes.Name(MANIFEST_CLIENT_ENTRIES_KEY);
-
 	@InputFile
 	public abstract RegularFileProperty getInputFile();
 
@@ -89,17 +82,8 @@ public abstract class AbstractRemapJarTask extends Jar {
 	@Input
 	public abstract Property<String> getTargetNamespace();
 
-	/**
-	 * When enabled the TinyRemapperService will not be shared across sub projects.
-	 */
-	@Input
-	public abstract Property<Boolean> getRemapperIsolation();
-
 	@Inject
 	protected abstract WorkerExecutor getWorkerExecutor();
-
-	@Inject
-	protected abstract BuildEventsListenerRegistry getBuildEventsListenerRegistry();
 
 	@Input
 	public abstract Property<Boolean> getIncludesClientOnlyClasses();
@@ -111,17 +95,48 @@ public abstract class AbstractRemapJarTask extends Jar {
 	@Optional
 	public abstract Property<String> getClientOnlySourceSetName();
 
+	/**
+	 * Optionally supply a single mapping file or jar file containing mappings to be used for remapping.
+	 */
+	@ApiStatus.Experimental
+	@InputFiles
+	@Optional
+	public abstract ConfigurableFileCollection getCustomMappings();
+
+	@Input
+	@Optional
+	@ApiStatus.Internal
+	public abstract Property<String> getJarType();
+
+	@Nested
+	@Optional
+	protected abstract Property<ClientEntriesService.Options> getClientEntriesServiceOptions();
+
 	private final Provider<JarManifestService> jarManifestServiceProvider;
 
 	@Inject
 	public AbstractRemapJarTask() {
 		getSourceNamespace().convention(MappingsNamespace.NAMED.toString()).finalizeValueOnRead();
-		getTargetNamespace().convention(IntermediaryNamespaces.intermediary(getProject())).finalizeValueOnRead();
-		getRemapperIsolation().convention(true).finalizeValueOnRead();
+		getTargetNamespace().convention(getProject().provider(() -> IntermediaryNamespaces.runtimeIntermediary(getProject()))).finalizeValueOnRead();
 		getIncludesClientOnlyClasses().convention(false).finalizeValueOnRead();
+		getJarType().finalizeValueOnRead();
+
+		getClientEntriesServiceOptions().set(getIncludesClientOnlyClasses().flatMap(clientOnlyEntries -> {
+			if (clientOnlyEntries) {
+				return getClientOnlyEntriesOptionsProvider(getClientSourceSet());
+			}
+
+			// Empty
+			return getProject().getObjects().property(ClientEntriesService.Options.class);
+		}));
 
 		jarManifestServiceProvider = JarManifestService.get(getProject());
 		usesService(jarManifestServiceProvider);
+	}
+
+	@Override
+	protected void copy() {
+		// Skip the default copy behaviour of AbstractCopyTask.
 	}
 
 	public final <P extends AbstractRemapParams> void submitWork(Class<? extends AbstractRemapAction<P>> workAction, Action<P> action) {
@@ -138,19 +153,33 @@ public abstract class AbstractRemapJarTask extends Jar {
 			params.getArchiveReproducibleFileOrder().set(isReproducibleFileOrder());
 
 			params.getJarManifestService().set(jarManifestServiceProvider);
+			params.getEntryCompression().set(getEntryCompression());
 
 			if (getIncludesClientOnlyClasses().get()) {
-				final List<String> clientOnlyEntries = new ArrayList<>(getClientOnlyEntries(getClientSourceSet()));
+				final List<String> clientOnlyEntries;
+
+				try (var serviceFactory = new ScopedServiceFactory()) {
+					ClientEntriesService<ClientEntriesService.Options> service = serviceFactory.get(getClientEntriesServiceOptions());
+					clientOnlyEntries = new ArrayList<>(service.getClientOnlyEntries());
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+
 				clientOnlyEntries.addAll(getAdditionalClientOnlyEntries().get());
+				Collections.sort(clientOnlyEntries);
 				applyClientOnlyManifestAttributes(params, clientOnlyEntries);
 				params.getClientOnlyEntries().set(clientOnlyEntries.stream().filter(s -> s.endsWith(".class")).toList());
+			}
+
+			if (getJarType().isPresent()) {
+				params.getManifestAttributes().put(Constants.Manifest.JAR_TYPE, getJarType().get());
 			}
 
 			action.execute(params);
 		});
 	}
 
-	protected abstract List<String> getClientOnlyEntries(SourceSet sourceSet);
+	protected abstract Provider<? extends ClientEntriesService.Options> getClientOnlyEntriesOptionsProvider(SourceSet clientSourceSet);
 
 	public interface AbstractRemapParams extends WorkParameters {
 		RegularFileProperty getInputFile();
@@ -159,8 +188,21 @@ public abstract class AbstractRemapJarTask extends Jar {
 		Property<String> getSourceNamespace();
 		Property<String> getTargetNamespace();
 
+		/**
+		 * Checks whether {@link #getSourceNamespace()} and {@link #getTargetNamespace()}
+		 * have the same value. When this is {@code true}, the user does not intend for any
+		 * remapping to occur. They are using the task for its other features, such as adding
+		 * namespace to the manifest, nesting jars, reproducible builds, etc.
+		 *
+		 * @return whether the source and target namespaces match
+		 */
+		default boolean namespacesMatch() {
+			return this.getSourceNamespace().get().equals(this.getTargetNamespace().get());
+		}
+
 		Property<Boolean> getArchivePreserveFileTimestamps();
 		Property<Boolean> getArchiveReproducibleFileOrder();
+		Property<ZipEntryCompression> getEntryCompression();
 
 		Property<JarManifestService> getJarManifestService();
 		MapProperty<String, String> getManifestAttributes();
@@ -170,8 +212,8 @@ public abstract class AbstractRemapJarTask extends Jar {
 
 	protected void applyClientOnlyManifestAttributes(AbstractRemapParams params, List<String> entries) {
 		params.getManifestAttributes().set(Map.of(
-				MANIFEST_SPLIT_ENV_KEY, "true",
-				MANIFEST_CLIENT_ENTRIES_KEY, String.join(";", entries)
+				Constants.Manifest.SPLIT_ENV, "true",
+				Constants.Manifest.CLIENT_ENTRIES, String.join(";", entries)
 		));
 	}
 
@@ -186,11 +228,11 @@ public abstract class AbstractRemapJarTask extends Jar {
 		}
 
 		protected void modifyJarManifest() throws IOException {
-			int count = ZipUtils.transform(outputFile, Map.of(MANIFEST_PATH, bytes -> {
+			int count = ZipUtils.transform(outputFile, Map.of(Constants.Manifest.PATH, bytes -> {
 				var manifest = new Manifest(new ByteArrayInputStream(bytes));
 
 				getParameters().getJarManifestService().get().apply(manifest, getParameters().getManifestAttributes().get());
-				manifest.getMainAttributes().putValue(MANIFEST_NAMESPACE_KEY, getParameters().getTargetNamespace().get());
+				manifest.getMainAttributes().putValue(Constants.Manifest.MAPPING_NAMESPACE, getParameters().getTargetNamespace().get());
 
 				ByteArrayOutputStream out = new ByteArrayOutputStream();
 				manifest.write(out);
@@ -203,9 +245,10 @@ public abstract class AbstractRemapJarTask extends Jar {
 		protected void rewriteJar() throws IOException {
 			final boolean isReproducibleFileOrder = getParameters().getArchiveReproducibleFileOrder().get();
 			final boolean isPreserveFileTimestamps = getParameters().getArchivePreserveFileTimestamps().get();
+			final ZipEntryCompression compression = getParameters().getEntryCompression().get();
 
-			if (isReproducibleFileOrder || !isPreserveFileTimestamps) {
-				ZipReprocessorUtil.reprocessZip(outputFile.toFile(), isReproducibleFileOrder, isPreserveFileTimestamps);
+			if (isReproducibleFileOrder || !isPreserveFileTimestamps || compression != ZipEntryCompression.DEFLATED) {
+				ZipReprocessorUtil.reprocessZip(outputFile, isReproducibleFileOrder, isPreserveFileTimestamps, compression);
 			}
 		}
 	}
@@ -214,39 +257,6 @@ public abstract class AbstractRemapJarTask extends Jar {
 	@InputFile
 	public RegularFileProperty getInput() {
 		return getInputFile();
-	}
-
-	protected static List<String> getRootPaths(Set<File> files) {
-		return files.stream()
-				.map(root -> {
-					String rootPath = root.getAbsolutePath().replace("\\", "/");
-
-					if (rootPath.charAt(rootPath.length() - 1) != '/') {
-						rootPath += '/';
-					}
-
-					return rootPath;
-				}).toList();
-	}
-
-	protected static Function<File, String> relativePath(List<String> rootPaths) {
-		return file -> {
-			String s = file.getAbsolutePath().replace("\\", "/");
-
-			for (String rootPath : rootPaths) {
-				if (s.startsWith(rootPath)) {
-					s = s.substring(rootPath.length());
-				}
-			}
-
-			return s;
-		};
-	}
-
-	@ApiStatus.Internal
-	@Internal
-	protected LoomGradleExtension getLoomExtension() {
-		return LoomGradleExtension.get(getProject());
 	}
 
 	private SourceSet getClientSourceSet() {

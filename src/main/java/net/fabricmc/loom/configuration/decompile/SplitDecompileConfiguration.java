@@ -24,22 +24,26 @@
 
 package net.fabricmc.loom.configuration.decompile;
 
-import java.io.File;
-
 import org.gradle.api.Action;
+import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.tasks.TaskProvider;
 
 import net.fabricmc.loom.api.decompilers.DecompilerOptions;
-import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.Strings;
 
 public final class SplitDecompileConfiguration extends DecompileConfiguration<MappedMinecraftProvider.Split> {
-	public SplitDecompileConfiguration(ConfigContext configContext, MappedMinecraftProvider.Split minecraftProvider) {
-		super(configContext, minecraftProvider);
+	public SplitDecompileConfiguration(Project project, MappedMinecraftProvider.Split minecraftProvider) {
+		super(project, minecraftProvider);
+	}
+
+	@Override
+	public String getTaskName(MinecraftJar.Type type) {
+		return "gen%sSources".formatted(Strings.capitalize(type.toString()));
 	}
 
 	@Override
@@ -49,22 +53,12 @@ public final class SplitDecompileConfiguration extends DecompileConfiguration<Ma
 
 		final TaskProvider<Task> commonDecompileTask = createDecompileTasks("Common", task -> {
 			task.getInputJarName().set(commonJar.getName());
-			task.getOutputJar().fileValue(GenerateSourcesTask.getMappedJarFileWithSuffix("-sources.jar", commonJar.getPath()));
-
-			if (mappingConfiguration.hasUnpickDefinitions()) {
-				File unpickJar = new File(extension.getMappingConfiguration().mappingsWorkingDir().toFile(), "minecraft-common-unpicked.jar");
-				configureUnpick(task, unpickJar);
-			}
+			task.getSourcesOutputJar().fileValue(GenerateSourcesTask.getJarFileWithSuffix("-sources.jar", commonJar.getPath()));
 		});
 
 		final TaskProvider<Task> clientOnlyDecompileTask = createDecompileTasks("ClientOnly", task -> {
 			task.getInputJarName().set(clientOnlyJar.getName());
-			task.getOutputJar().fileValue(GenerateSourcesTask.getMappedJarFileWithSuffix("-sources.jar", clientOnlyJar.getPath()));
-
-			if (mappingConfiguration.hasUnpickDefinitions()) {
-				File unpickJar = new File(extension.getMappingConfiguration().mappingsWorkingDir().toFile(), "minecraft-clientonly-unpicked.jar");
-				configureUnpick(task, unpickJar);
-			}
+			task.getSourcesOutputJar().fileValue(GenerateSourcesTask.getJarFileWithSuffix("-sources.jar", clientOnlyJar.getPath()));
 
 			// Don't allow them to run at the same time.
 			task.mustRunAfter(commonDecompileTask);
@@ -73,12 +67,19 @@ public final class SplitDecompileConfiguration extends DecompileConfiguration<Ma
 		for (DecompilerOptions options : extension.getDecompilerOptions()) {
 			final String decompilerName = options.getFormattedName();
 
+			var commonTask = project.getTasks().named("gen%sSourcesWith%s".formatted("Common", decompilerName));
+			var clientOnlyTask = project.getTasks().named("gen%sSourcesWith%s".formatted("ClientOnly", decompilerName));
+
+			clientOnlyTask.configure(task -> {
+				task.mustRunAfter(commonTask);
+			});
+
 			project.getTasks().register("genSourcesWith" + decompilerName, task -> {
 				task.setDescription("Decompile minecraft using %s.".formatted(decompilerName));
 				task.setGroup(Constants.TaskGroup.FABRIC);
 
-				task.dependsOn(project.getTasks().named("gen%sSourcesWith%s".formatted("Common", decompilerName)));
-				task.dependsOn(project.getTasks().named("gen%sSourcesWith%s".formatted("ClientOnly", decompilerName)));
+				task.dependsOn(commonTask);
+				task.dependsOn(clientOnlyTask);
 			});
 		}
 
@@ -108,7 +109,7 @@ public final class SplitDecompileConfiguration extends DecompileConfiguration<Ma
 			task.setDescription("Decompile minecraft (%s) using the default decompiler.".formatted(name));
 			task.setGroup(Constants.TaskGroup.FABRIC);
 
-			task.dependsOn(project.getTasks().named("gen%sSourcesWithCfr".formatted(name)));
+			task.dependsOn(project.getTasks().named("gen%sSourcesWith%s".formatted(name, DecompileConfiguration.DEFAULT_DECOMPILER)));
 		});
 	}
 }

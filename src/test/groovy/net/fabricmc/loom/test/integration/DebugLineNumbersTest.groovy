@@ -41,6 +41,7 @@ import io.reactivex.functions.Function
 import spock.lang.Specification
 import spock.lang.Timeout
 
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import net.fabricmc.loom.util.ZipUtils
 
@@ -51,9 +52,9 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 class DebugLineNumbersTest extends Specification implements GradleProjectTestTrait {
 	static final String MAPPINGS = "1.20.1-net.fabricmc.yarn.1_20_1.1.20.1+build.1-v2"
 	static final Map<String, Integer> BREAKPOINTS = [
-		"net.minecraft.server.dedicated.ServerPropertiesLoader": 16,
-		"net.minecraft.server.dedicated.MinecraftDedicatedServer": 107,
-		"net.minecraft.registry.RegistryOps": 67
+		"net.minecraft.server.dedicated.ServerPropertiesLoader": 12,
+		"net.minecraft.server.dedicated.MinecraftDedicatedServer": 105,
+		"net.minecraft.registry.RegistryOps": 44
 	]
 
 	def "Debug test"() {
@@ -83,7 +84,7 @@ class DebugLineNumbersTest extends Specification implements GradleProjectTestTra
             '''
 		when:
 		// First generate sources
-		def genSources = gradle.run(task: "genSources")
+		def genSources = gradle.run(task: "genSources", args: ["--info"])
 		genSources.task(":genSources").outcome == SUCCESS
 
 		// Print out the source of the file
@@ -121,6 +122,8 @@ class DebugLineNumbersTest extends Specification implements GradleProjectTestTra
 				def result = it.get()
 				println("Breakpoint triggered: ${result.location()}")
 			}
+
+			println("All breakpoints triggered")
 		} finally {
 			// Close the debugger and target process
 			debugger.close()
@@ -138,7 +141,12 @@ class DebugLineNumbersTest extends Specification implements GradleProjectTestTra
 	}
 
 	private static String getClassSource(GradleProject gradle, String classname, String mappings = MAPPINGS) {
-		File sourcesJar = gradle.getGeneratedSources(mappings, "serveronly")
+		File sourcesJar = gradle.getGeneratedSources(mappings, MinecraftJar.Type.SERVER.toString())
+
+		if (!sourcesJar.exists()) {
+			throw new IllegalStateException("Sources jar not found: $sourcesJar")
+		}
+
 		return new String(ZipUtils.unpack(sourcesJar.toPath(), classname), StandardCharsets.UTF_8)
 	}
 

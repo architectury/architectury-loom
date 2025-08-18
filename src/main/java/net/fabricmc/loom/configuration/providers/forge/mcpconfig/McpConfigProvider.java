@@ -77,7 +77,8 @@ public class McpConfigProvider extends DependencyProvider {
 	}
 
 	private void init(String version) {
-		Path dir = getMinecraftProvider().dir("mcp/" + version).toPath();
+		String mcpName = getExtension().isNeoForge() ? "neoform" : "mcp";
+		Path dir = getMinecraftProvider().dir(mcpName + "/" + version).toPath();
 		mcp = dir.resolve("mcp.zip");
 		unpacked = dir.resolve("unpacked");
 		configJson = unpacked.resolve("config.json");

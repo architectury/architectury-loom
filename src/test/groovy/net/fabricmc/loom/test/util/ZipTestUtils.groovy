@@ -33,8 +33,17 @@ import java.util.jar.Manifest
 import net.fabricmc.loom.util.FileSystemUtil
 
 class ZipTestUtils {
-	static Path createZip(Map<String, String> entries) {
-		def file = Files.createTempFile("loom-test", ".zip")
+	static Path createZip(Map<String, String> entries, String suffix = ".zip") {
+		return createZipFromBytes(entries.collectEntries { k, v ->
+			[
+				k,
+				v.getBytes(StandardCharsets.UTF_8)
+			]
+		}, suffix)
+	}
+
+	static Path createZipFromBytes(Map<String, byte[]> entries, String suffix = ".zip") {
+		def file = Files.createTempFile("loom-test", suffix)
 		Files.delete(file)
 
 		FileSystemUtil.getJarFileSystem(file, true).withCloseable { zip ->
@@ -42,7 +51,7 @@ class ZipTestUtils {
 				def fsPath = zip.getPath(path)
 				def fsPathParent = fsPath.getParent()
 				if (fsPathParent != null) Files.createDirectories(fsPathParent)
-				Files.writeString(fsPath, value, StandardCharsets.UTF_8)
+				Files.write(fsPath, value)
 			}
 		}
 
@@ -50,9 +59,15 @@ class ZipTestUtils {
 	}
 
 	static String manifest(String key, String value) {
+		return manifest(Map.of(key, value))
+	}
+
+	static String manifest(Map<String, String> entries) {
 		def manifest = new Manifest()
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0")
-		manifest.getMainAttributes().putValue(key, value)
+		entries.forEach { key, value ->
+			manifest.getMainAttributes().putValue(key, value)
+		}
 
 		def out = new ByteArrayOutputStream()
 		manifest.write(out)

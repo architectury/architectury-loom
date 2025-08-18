@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021 FabricMC
+ * Copyright (c) 2021-2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,19 +27,24 @@ package net.fabricmc.loom.extension;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import javax.inject.Inject;
+
 import com.google.common.base.Suppliers;
 import org.gradle.api.Project;
+import org.gradle.api.configuration.BuildFeatures;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.provider.ListProperty;
-import org.gradle.api.provider.Provider;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
+import net.fabricmc.loom.api.NeoForgeExtensionAPI;
 import net.fabricmc.loom.api.mappings.intermediate.IntermediateMappingsProvider;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.InstallerData;
@@ -48,44 +53,55 @@ import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.providers.forge.DependencyProviders;
 import net.fabricmc.loom.configuration.providers.forge.ForgeRunsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
+import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsFactory;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.configuration.providers.mappings.NoOpIntermediateMappingsProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.library.LibraryProcessorManager;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMinecraftProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.mapped.MojangMappedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftProvider;
-import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.download.Download;
 import net.fabricmc.loom.util.download.DownloadBuilder;
-import net.fabricmc.loom.util.gradle.GradleUtils;
 
-public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implements LoomGradleExtension {
+public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implements LoomGradleExtension {
 	private final Project project;
 	private final MixinExtension mixinApExtension;
 	private final LoomFiles loomFiles;
 	private final ConfigurableFileCollection unmappedMods;
-	private final Supplier<ForgeExtensionAPI> forgeExtension;
 
 	private final List<AccessWidenerFile> transitiveAccessWideners = new ArrayList<>();
 
 	private LoomDependencyManager dependencyManager;
+	private MinecraftMetadataProvider metadataProvider;
 	private MinecraftProvider minecraftProvider;
 	private MappingConfiguration mappingConfiguration;
 	private NamedMinecraftProvider<?> namedMinecraftProvider;
 	private IntermediaryMinecraftProvider<?> intermediaryMinecraftProvider;
 	private SrgMinecraftProvider<?> srgMinecraftProvider;
+	private MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider;
 	private InstallerData installerData;
 	private boolean refreshDeps;
-	private Provider<Boolean> multiProjectOptimisation;
 	private final ListProperty<LibraryProcessorManager.LibraryProcessorFactory> libraryProcessorFactories;
+	private final boolean configurationCacheActive;
+	private final boolean isolatedProjectsActive;
+	private final boolean isCollectingDependencyVerificationMetadata;
 
 	// +-------------------+
 	// | Architectury Loom |
 	// +-------------------+
 	private DependencyProviders dependencyProviders;
 	private ForgeRunsProvider forgeRunsProvider;
+	private final Supplier<ForgeExtensionAPI> forgeExtension;
+	private final Supplier<NeoForgeExtensionAPI> neoForgeExtension;
 
+	@Inject
+	protected abstract BuildFeatures getBuildFeatures();
+
+	@Inject
 	public LoomGradleExtensionImpl(Project project, LoomFiles files) {
 		super(project, files);
 		this.project = project;
@@ -94,6 +110,7 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
 		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
+		this.neoForgeExtension = Suppliers.memoize(() -> isNeoForge() ? project.getObjects().newInstance(NeoForgeExtensionImpl.class, project) : null);
 
 		// Setup the default intermediate mappings provider.
 		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {
@@ -105,13 +122,20 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		});
 
 		refreshDeps = manualRefreshDeps();
-		multiProjectOptimisation = GradleUtils.getBooleanPropertyProvider(project, Constants.Properties.MULTI_PROJECT_OPTIMISATION);
 		libraryProcessorFactories = project.getObjects().listProperty(LibraryProcessorManager.LibraryProcessorFactory.class);
 		libraryProcessorFactories.addAll(LibraryProcessorManager.DEFAULT_LIBRARY_PROCESSORS);
 		libraryProcessorFactories.finalizeValueOnRead();
 
+		configurationCacheActive = getBuildFeatures().getConfigurationCache().getActive().get();
+		isolatedProjectsActive = getBuildFeatures().getIsolatedProjects().getActive().get();
+		isCollectingDependencyVerificationMetadata = !project.getGradle().getStartParameter().getWriteDependencyVerifications().isEmpty();
+
 		if (refreshDeps) {
 			project.getLogger().lifecycle("Refresh dependencies is in use, loom will be significantly slower.");
+		}
+
+		if (isolatedProjectsActive) {
+			project.getLogger().lifecycle("Isolated projects is enabled, Loom support is highly experimental, not all features will be enabled.");
 		}
 	}
 
@@ -133,6 +157,16 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	@Override
 	public LoomDependencyManager getDependencyManager() {
 		return Objects.requireNonNull(dependencyManager, "Cannot get LoomDependencyManager before it has been setup");
+	}
+
+	@Override
+	public MinecraftMetadataProvider getMetadataProvider() {
+		return Objects.requireNonNull(metadataProvider, "Cannot get MinecraftMetadataProvider before it has been setup");
+	}
+
+	@Override
+	public void setMetadataProvider(MinecraftMetadataProvider metadataProvider) {
+		this.metadataProvider = metadataProvider;
 	}
 
 	@Override
@@ -176,6 +210,11 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	}
 
 	@Override
+	public void noIntermediateMappings() {
+		setIntermediateMappingsProvider(NoOpIntermediateMappingsProvider.class, p -> { });
+	}
+
+	@Override
 	public SrgMinecraftProvider<?> getSrgMinecraftProvider() {
 		return Objects.requireNonNull(srgMinecraftProvider, "Cannot get SrgMinecraftProvider before it has been setup");
 	}
@@ -183,6 +222,16 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	@Override
 	public void setSrgMinecraftProvider(SrgMinecraftProvider<?> srgMinecraftProvider) {
 		this.srgMinecraftProvider = srgMinecraftProvider;
+	}
+
+	@Override
+	public MojangMappedMinecraftProvider<?> getMojangMappedMinecraftProvider() {
+		return Objects.requireNonNull(mojangMappedMinecraftProvider, "Cannot get MojangMappedMinecraftProvider before it has been setup");
+	}
+
+	@Override
+	public void setMojangMappedMinecraftProvider(MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider) {
+		this.mojangMappedMinecraftProvider = mojangMappedMinecraftProvider;
 	}
 
 	@Override
@@ -249,7 +298,8 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 		return builder;
 	}
 
-	private boolean manualRefreshDeps() {
+	@Override
+	public boolean manualRefreshDeps() {
 		return project.getGradle().getStartParameter().isRefreshDependencies() || Boolean.getBoolean("loom.refresh");
 	}
 
@@ -264,13 +314,19 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 	}
 
 	@Override
-	public boolean multiProjectOptimisation() {
-		return multiProjectOptimisation.getOrElse(false);
+	public ListProperty<LibraryProcessorManager.LibraryProcessorFactory> getLibraryProcessors() {
+		return libraryProcessorFactories;
 	}
 
 	@Override
-	public ListProperty<LibraryProcessorManager.LibraryProcessorFactory> getLibraryProcessors() {
-		return libraryProcessorFactories;
+	public ListProperty<RemapperExtensionHolder> getRemapperExtensions() {
+		return remapperExtensions;
+	}
+
+	@Override
+	public Collection<LayeredMappingsFactory> getLayeredMappingFactories() {
+		hasEvaluatedLayeredMappings = true;
+		return Collections.unmodifiableCollection(layeredMappingsDependencyMap.values());
 	}
 
 	@Override
@@ -280,17 +336,36 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 
 		provider.getDownloader().set(this::download);
 		provider.getDownloader().disallowChanges();
+
+		provider.getIsLegacyMinecraft().set(getProject().provider(() -> getMinecraftProvider().isLegacyVersion()));
+		provider.getIsLegacyMinecraft().disallowChanges();
 	}
 
 	@Override
-	protected String getMinecraftVersion() {
-		return getMinecraftProvider().minecraftVersion();
+	public boolean isConfigurationCacheActive() {
+		return configurationCacheActive;
+	}
+
+	@Override
+	public boolean isProjectIsolationActive() {
+		return isolatedProjectsActive;
+	}
+
+	@Override
+	public boolean isCollectingDependencyVerificationMetadata() {
+		return isCollectingDependencyVerificationMetadata;
 	}
 
 	@Override
 	public ForgeExtensionAPI getForge() {
 		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
 		return forgeExtension.get();
+	}
+
+	@Override
+	public NeoForgeExtensionAPI getNeoForge() {
+		ModPlatform.assertPlatform(this, ModPlatform.NEOFORGE);
+		return neoForgeExtension.get();
 	}
 
 	@Override
@@ -305,13 +380,13 @@ public class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl implemen
 
 	@Override
 	public ForgeRunsProvider getForgeRunsProvider() {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		ModPlatform.assertForgeLike(this);
 		return forgeRunsProvider;
 	}
 
 	@Override
 	public void setForgeRunsProvider(ForgeRunsProvider forgeRunsProvider) {
-		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
+		ModPlatform.assertForgeLike(this);
 		this.forgeRunsProvider = forgeRunsProvider;
 	}
 }

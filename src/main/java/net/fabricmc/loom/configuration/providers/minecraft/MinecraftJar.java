@@ -28,17 +28,17 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Objects;
 
-public abstract sealed class MinecraftJar permits MinecraftJar.Merged, MinecraftJar.Common, MinecraftJar.ServerOnly, MinecraftJar.ClientOnly {
+public abstract sealed class MinecraftJar permits MinecraftJar.Client, MinecraftJar.ClientOnly, MinecraftJar.Common, MinecraftJar.Merged, MinecraftJar.Server {
 	private final Path path;
 	private final boolean merged, client, server;
-	private final String name;
+	private final Type type;
 
-	protected MinecraftJar(Path path, boolean merged, boolean client, boolean server, String name) {
+	protected MinecraftJar(Path path, boolean merged, boolean client, boolean server, Type type) {
 		this.path = Objects.requireNonNull(path);
 		this.merged = merged;
 		this.client = client;
 		this.server = server;
-		this.name = name;
+		this.type = type;
 	}
 
 	public Path getPath() {
@@ -62,14 +62,18 @@ public abstract sealed class MinecraftJar permits MinecraftJar.Merged, Minecraft
 	}
 
 	public String getName() {
-		return name;
+		return type.toString();
+	}
+
+	public Type getType() {
+		return type;
 	}
 
 	public abstract MinecraftJar forPath(Path path);
 
 	public static final class Merged extends MinecraftJar {
 		public Merged(Path path) {
-			super(path, true, true, true, "merged");
+			super(path, true, true, true, Type.MERGED);
 		}
 
 		@Override
@@ -80,7 +84,7 @@ public abstract sealed class MinecraftJar permits MinecraftJar.Merged, Minecraft
 
 	public static final class Common extends MinecraftJar {
 		public Common(Path path) {
-			super(path, false, false, true, "common");
+			super(path, false, false, true, Type.COMMON);
 		}
 
 		@Override
@@ -89,25 +93,62 @@ public abstract sealed class MinecraftJar permits MinecraftJar.Merged, Minecraft
 		}
 	}
 
-	public static final class ServerOnly extends MinecraftJar {
-		public ServerOnly(Path path) {
-			super(path, false, false, true, "serverOnly");
+	public static final class Server extends MinecraftJar {
+		public Server(Path path) {
+			super(path, false, false, true, Type.SERVER);
 		}
 
 		@Override
 		public MinecraftJar forPath(Path path) {
-			return new ServerOnly(path);
+			return new Server(path);
 		}
 	}
 
+	// Un-split client jar
+	public static final class Client extends MinecraftJar {
+		public Client(Path path) {
+			super(path, false, true, false, Type.CLIENT);
+		}
+
+		@Override
+		public MinecraftJar forPath(Path path) {
+			return new Client(path);
+		}
+	}
+
+	// Split client jar
 	public static final class ClientOnly extends MinecraftJar {
 		public ClientOnly(Path path) {
-			super(path, false, true, false, "clientOnly");
+			super(path, false, true, false, Type.CLIENT_ONLY);
 		}
 
 		@Override
 		public MinecraftJar forPath(Path path) {
 			return new ClientOnly(path);
+		}
+	}
+
+	public enum Type {
+		// Merged jar
+		MERGED("merged"),
+
+		// Regular jars, not merged or split
+		SERVER("server"),
+		CLIENT("client"),
+
+		// Split jars
+		COMMON("common"),
+		CLIENT_ONLY("clientOnly");
+
+		private final String name;
+
+		Type(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public String toString() {
+			return name;
 		}
 	}
 }

@@ -79,13 +79,13 @@ public class ZipUtils {
 
 	public static void unpackAll(Path zip, Path output) throws IOException {
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(zip, false);
-				Stream<Path> walk = Files.walk(fs.get().getPath("/"))) {
+				Stream<Path> walk = Files.walk(fs.getRoot())) {
 			Iterator<Path> iterator = walk.iterator();
 
 			while (iterator.hasNext()) {
 				Path fsPath = iterator.next();
 				if (!Files.isRegularFile(fsPath)) continue;
-				Path dstPath = output.resolve(fs.get().getPath("/").relativize(fsPath).toString());
+				Path dstPath = output.resolve(fs.getRoot().relativize(fsPath).toString());
 				Path dstPathParent = dstPath.getParent();
 				if (dstPathParent != null) Files.createDirectories(dstPathParent);
 				Files.copy(fsPath, dstPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
@@ -121,9 +121,9 @@ public class ZipUtils {
 		}
 	}
 
-	public static <T> T unpackJackson(Path zip, String path, Class<T> clazz) throws IOException {
+	public static <T> T unpackJson(Path zip, String path, Class<T> clazz) throws IOException {
 		final byte[] bytes = unpack(zip, path);
-		return LoomGradlePlugin.OBJECT_MAPPER.readValue(new String(bytes, StandardCharsets.UTF_8), clazz);
+		return LoomGradlePlugin.GSON.fromJson(new String(bytes, StandardCharsets.UTF_8), clazz);
 	}
 
 	public static void pack(Path from, Path zip) throws IOException {
@@ -184,6 +184,12 @@ public class ZipUtils {
 		}
 	}
 
+	public static void deleteIfExists(Path zip, String path) throws IOException {
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(zip, false)) {
+			Files.deleteIfExists(fs.getPath(path));
+		}
+	}
+
 	public static int transformString(Path zip, Collection<Pair<String, UnsafeUnaryOperator<String>>> transforms) throws IOException {
 		return transformString(zip, transforms.stream());
 	}
@@ -205,8 +211,16 @@ public class ZipUtils {
 	}
 
 	public static <T> int transformJson(Class<T> typeOfT, Path zip, Map<String, UnsafeUnaryOperator<T>> transforms) throws IOException {
-		return transformMapped(zip, transforms, bytes -> LoomGradlePlugin.GSON.fromJson(new InputStreamReader(new ByteArrayInputStream(bytes)), typeOfT),
+		return transformMapped(zip, transforms, bytes -> LoomGradlePlugin.GSON.fromJson(new InputStreamReader(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8), typeOfT),
 				s -> LoomGradlePlugin.GSON.toJson(s, typeOfT).getBytes(StandardCharsets.UTF_8));
+	}
+
+	public static <T> void transformJson(Class<T> typeOfT, Path zip, String path, UnsafeUnaryOperator<T> transformer) throws IOException {
+		int transformed = transformJson(typeOfT, zip, Map.of(path, transformer));
+
+		if (transformed != 1) {
+			throw new IOException("Failed to transform " + path + " in " + zip);
+		}
 	}
 
 	public static int transform(Path zip, Collection<Pair<String, UnsafeUnaryOperator<byte[]>>> transforms) throws IOException {

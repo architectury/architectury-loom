@@ -37,9 +37,7 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.stream.Stream;
 
-import com.google.common.collect.Sets;
-
-import net.fabricmc.loom.configuration.mods.JarSplitter;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 
 public class MinecraftJarSplitter implements AutoCloseable {
@@ -78,8 +76,8 @@ public class MinecraftJarSplitter implements AutoCloseable {
 		this.forcedClientEntries.add(path);
 	}
 
-	private Set<String> getJarEntries(Path input) throws IOException {
-		Set<String> entries = Sets.newHashSet();
+	public static Set<String> getJarEntries(Path input) throws IOException {
+		Set<String> entries = new HashSet<>();
 
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(input);
 				Stream<Path> walk = Files.walk(fs.get().getPath("/"))) {
@@ -132,11 +130,11 @@ public class MinecraftJarSplitter implements AutoCloseable {
 	private void writeManifest(FileSystemUtil.Delegate outputFs, String env) throws IOException {
 		final Manifest manifest = new Manifest();
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-		manifest.getMainAttributes().putValue(JarSplitter.MANIFEST_SPLIT_ENV_NAME_KEY, env);
+		manifest.getMainAttributes().putValue(Constants.Manifest.SPLIT_ENV_NAME, env);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		manifest.write(out);
 		Files.createDirectories(outputFs.get().getPath("META-INF"));
-		Files.write(outputFs.get().getPath("META-INF/MANIFEST.MF"), out.toByteArray());
+		Files.write(outputFs.get().getPath(Constants.Manifest.PATH), out.toByteArray());
 	}
 
 	@Override
@@ -154,17 +152,17 @@ public class MinecraftJarSplitter implements AutoCloseable {
 			this.clientEntries = clientEntries;
 			this.serverEntries = serverEntries;
 
-			this.commonEntries = Sets.newHashSet(clientEntries);
+			this.commonEntries = new HashSet<>(clientEntries);
 			this.commonEntries.retainAll(serverEntries);
 			this.commonEntries.addAll(sharedEntries);
 			this.commonEntries.removeAll(forcedClientEntries);
 
-			this.clientOnlyEntries = Sets.newHashSet(clientEntries);
+			this.clientOnlyEntries = new HashSet<>(clientEntries);
 			this.clientOnlyEntries.removeAll(serverEntries);
 			this.clientOnlyEntries.addAll(sharedEntries);
 			this.clientOnlyEntries.addAll(forcedClientEntries);
 
-			this.serverOnlyEntries = Sets.newHashSet(serverEntries);
+			this.serverOnlyEntries = new HashSet<>(serverEntries);
 			this.serverOnlyEntries.removeAll(clientEntries);
 		}
 	}

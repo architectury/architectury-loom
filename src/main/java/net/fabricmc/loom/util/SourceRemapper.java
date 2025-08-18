@@ -32,17 +32,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.mercury.Mercury;
 import org.cadixdev.mercury.remapper.MercuryRemapper;
-import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
 import org.gradle.api.internal.project.ProjectInternal;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.internal.logging.progress.ProgressLogger;
 import org.gradle.internal.logging.progress.ProgressLoggerFactory;
 import org.slf4j.Logger;
@@ -53,24 +49,24 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.task.service.LorenzMappingService;
-import net.fabricmc.loom.util.service.SharedServiceManager;
+import net.fabricmc.loom.util.service.ServiceFactory;
 
 public class SourceRemapper {
 	private final Project project;
-	private final SharedServiceManager serviceManager;
+	private final ServiceFactory serviceFactory;
 	private String from;
 	private String to;
 	private final List<Consumer<ProgressLogger>> remapTasks = new ArrayList<>();
 
 	private Mercury mercury;
 
-	public SourceRemapper(Project project, SharedServiceManager serviceManager, boolean toNamed) {
-		this(project, serviceManager, toNamed ? IntermediaryNamespaces.intermediary(project) : "named", !toNamed ? IntermediaryNamespaces.intermediary(project) : "named");
+	public SourceRemapper(Project project, ServiceFactory serviceFactory, boolean toNamed) {
+		this(project, serviceFactory, toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named", !toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named");
 	}
 
-	public SourceRemapper(Project project, SharedServiceManager serviceManager, String from, String to) {
+	public SourceRemapper(Project project, ServiceFactory serviceFactory, String from, String to) {
 		this.project = project;
-		this.serviceManager = serviceManager;
+		this.serviceFactory = serviceFactory;
 		this.from = from;
 		this.to = to;
 	}
@@ -80,7 +76,7 @@ public class SourceRemapper {
 			try {
 				logger.progress("remapping sources - " + source.getName());
 				remapSourcesInner(source, destination);
-				ZipReprocessorUtil.reprocessZip(destination, reproducibleFileOrder, preserveFileTimestamps);
+				ZipReprocessorUtil.reprocessZip(destination.toPath(), reproducibleFileOrder, preserveFileTimestamps);
 
 				// Set the remapped sources creation date to match the sources if we're likely succeeded in making it
 				destination.setLastModified(source.lastModified());
@@ -98,7 +94,7 @@ public class SourceRemapper {
 			return;
 		}
 
-		project.getLogger().lifecycle(":remapping sources");
+		project.getLogger().lifecycle(":remapping sources (Mercury, {} -> {})", from, to);
 
 		ProgressLoggerFactory progressLoggerFactory = ((ProjectInternal) project).getServices().get(ProgressLoggerFactory.class);
 		ProgressLogger progressLogger = progressLoggerFactory.newOperation(SourceRemapper.class.getName());
@@ -124,7 +120,7 @@ public class SourceRemapper {
 			source = new File(destination.getAbsolutePath().substring(0, destination.getAbsolutePath().lastIndexOf('.')) + "-dev.jar");
 
 			try {
-				com.google.common.io.Files.move(destination, source);
+				Files.move(destination.toPath(), source.toPath());
 			} catch (IOException e) {
 				throw new RuntimeException("Could not rename " + destination.getName() + "!", e);
 			}
@@ -174,14 +170,16 @@ public class SourceRemapper {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
 
-		MappingSet mappings = LorenzMappingService.create(serviceManager,
-															mappingConfiguration,
+		LorenzMappingService lorenzMappingService = serviceFactory.get(LorenzMappingService.createOptions(
+				project,
+				mappingConfiguration,
 															Objects.requireNonNull(MappingsNamespace.of(from)),
-															Objects.requireNonNull(MappingsNamespace.of(to))
-		).mappings();
+															Objects.requireNonNull(MappingsNamespace.of(to))));
+		MappingSet mappings = lorenzMappingService.getMappings();
 
 		Mercury mercury = createMercuryWithClassPath(project, MappingsNamespace.of(to) == MappingsNamespace.NAMED);
-		mercury.setSourceCompatibilityFromRelease(getJavaCompileRelease(project));
+		// Always use the latest version
+		mercury.setSourceCompatibilityFromRelease(Integer.MAX_VALUE);
 
 		for (File file : extension.getUnmappedModCollection()) {
 			Path path = file.toPath();
@@ -199,14 +197,14 @@ public class SourceRemapper {
 			mercury.getClassPath().add(intermediaryJar);
 		}
 
-		if (extension.isForge()) {
-			for (Path srgJar : extension.getMinecraftJars(MappingsNamespace.SRG)) {
-				mercury.getClassPath().add(srgJar);
+		if (extension.isForgeLike()) {
+			for (Path jar : extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project))) {
+				mercury.getClassPath().add(jar);
 			}
 		}
 
 		Set<File> files = project.getConfigurations()
-				.detachedConfiguration(project.getDependencies().create(Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS))
+				.detachedConfiguration(project.getDependencies().create(LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation()))
 				.resolve();
 
 		for (File file : files) {
@@ -217,30 +215,6 @@ public class SourceRemapper {
 
 		this.mercury = mercury;
 		return this.mercury;
-	}
-
-	public static int getJavaCompileRelease(Project project) {
-		AtomicInteger release = new AtomicInteger(-1);
-
-		project.getTasks().withType(JavaCompile.class, javaCompile -> {
-			Property<Integer> releaseProperty = javaCompile.getOptions().getRelease();
-
-			if (!releaseProperty.isPresent()) {
-				return;
-			}
-
-			int compileRelease = releaseProperty.get();
-			release.set(Math.max(release.get(), compileRelease));
-		});
-
-		final int i = release.get();
-
-		if (i < 0) {
-			// Unable to find the release used to compile with, default to the current version
-			return Integer.parseInt(JavaVersion.current().getMajorVersion());
-		}
-
-		return i;
 	}
 
 	public static void copyNonJavaFiles(Path from, Path to, Logger logger, Path source) throws IOException {

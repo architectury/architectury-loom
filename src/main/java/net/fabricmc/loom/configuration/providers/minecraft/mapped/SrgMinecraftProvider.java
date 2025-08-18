@@ -26,18 +26,19 @@ package net.fabricmc.loom.configuration.providers.minecraft.mapped;
 
 import java.util.List;
 
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.configuration.providers.minecraft.LegacyMergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.SingleJarEnvType;
 import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.SplitMinecraftProvider;
 import net.fabricmc.loom.util.SidedClassVisitor;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
-public abstract sealed class SrgMinecraftProvider<M extends MinecraftProvider> extends AbstractMappedMinecraftProvider<M> permits SrgMinecraftProvider.MergedImpl, SrgMinecraftProvider.SingleJarImpl, SrgMinecraftProvider.SplitImpl {
+public abstract sealed class SrgMinecraftProvider<M extends MinecraftProvider> extends AbstractMappedMinecraftProvider<M> permits SrgMinecraftProvider.MergedImpl, SrgMinecraftProvider.LegacyMergedImpl, SrgMinecraftProvider.SingleJarImpl, SrgMinecraftProvider.SplitImpl {
 	public SrgMinecraftProvider(Project project, M minecraftProvider) {
 		super(project, minecraftProvider);
 	}
@@ -62,6 +63,18 @@ public abstract sealed class SrgMinecraftProvider<M extends MinecraftProvider> e
 			return List.of(
 				new RemappedJars(minecraftProvider.getMergedJar(), getMergedJar(), MappingsNamespace.OFFICIAL)
 			);
+		}
+	}
+
+	public static final class LegacyMergedImpl extends SrgMinecraftProvider<LegacyMergedMinecraftProvider> implements Merged {
+		public LegacyMergedImpl(Project project, LegacyMergedMinecraftProvider minecraftProvider) {
+			super(project, minecraftProvider);
+		}
+
+		@Override
+		public List<RemappedJars> getRemappedJars() {
+			// The delegate providers will handle the remapping
+			throw new UnsupportedOperationException("LegacyMergedImpl does not support getRemappedJars");
 		}
 	}
 

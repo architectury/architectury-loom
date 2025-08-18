@@ -24,10 +24,9 @@
 
 package net.fabricmc.loom.api.processor;
 
-import dev.architectury.tinyremapper.TinyRemapper;
-
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.LazyCloseable;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public interface MappingProcessorContext {
 	LazyCloseable<TinyRemapper> createRemapper(MappingsNamespace from, MappingsNamespace to);

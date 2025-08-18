@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,10 +26,26 @@ package net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic;
 
 import java.io.IOException;
 
+import org.gradle.api.provider.Provider;
+
+import net.fabricmc.loom.util.service.Service;
+import net.fabricmc.loom.util.service.ServiceFactory;
+import net.fabricmc.loom.util.service.ServiceType;
+
 /**
  * A no-op step logic that is used for steps automatically executed by Loom earlier.
  */
-public final class NoOpLogic implements StepLogic {
+public final class NoOpLogic extends StepLogic<Service.Options> {
+	public static final ServiceType<Options, NoOpLogic> TYPE = new ServiceType<>(Options.class, NoOpLogic.class);
+
+	public static Provider<Options> createOptions(SetupContext context) {
+		return TYPE.create(context.project(), options -> { });
+	}
+
+	public NoOpLogic(Options options, ServiceFactory serviceFactory) {
+		super(options, serviceFactory);
+	}
+
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
 	}

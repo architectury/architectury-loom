@@ -33,22 +33,28 @@ import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.api.decompilers.DecompilerOptions;
+import net.fabricmc.loom.api.manifest.VersionsManifestsAPI;
 import net.fabricmc.loom.api.mappings.intermediate.IntermediateMappingsProvider;
 import net.fabricmc.loom.api.mappings.layered.spec.LayeredMappingSpecBuilder;
 import net.fabricmc.loom.api.processor.MinecraftJarProcessor;
+import net.fabricmc.loom.api.remapping.RemapperExtension;
+import net.fabricmc.loom.api.remapping.RemapperParameters;
 import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.configuration.providers.mappings.NoOpIntermediateMappingsProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.ManifestLocations;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarConfiguration;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.DeprecationHelper;
@@ -131,7 +137,25 @@ public interface LoomGradleExtensionAPI {
 
 	InterfaceInjectionExtensionAPI getInterfaceInjection();
 
-	Property<String> getCustomMinecraftManifest();
+	@ApiStatus.Experimental
+	default void versionsManifests(Action<VersionsManifestsAPI> action) {
+		action.execute(getVersionsManifests());
+	}
+
+	@ApiStatus.Experimental
+	ManifestLocations getVersionsManifests();
+
+	/**
+	 * @deprecated use {@linkplain #getCustomMinecraftMetadata} instead
+	 */
+	@Deprecated
+	default Property<String> getCustomMinecraftManifest() {
+		return getCustomMinecraftMetadata();
+	}
+
+	Property<String> getCustomMinecraftMetadata();
+
+	SetProperty<String> getKnownIndyBsms();
 
 	/**
 	 * Disables the deprecated POM generation for a publication.
@@ -201,7 +225,8 @@ public interface LoomGradleExtensionAPI {
 	 */
 	Property<String> getIntermediaryUrl();
 
-	Property<MinecraftJarConfiguration> getMinecraftJarConfiguration();
+	@ApiStatus.Experimental
+	Property<MinecraftJarConfiguration<?, ?, ?>> getMinecraftJarConfiguration();
 
 	default void serverOnlyMinecraftJar() {
 		getMinecraftJarConfiguration().set(MinecraftJarConfiguration.SERVER_ONLY);
@@ -223,6 +248,18 @@ public interface LoomGradleExtensionAPI {
 
 	Property<Boolean> getSplitModDependencies();
 
+	<T extends RemapperParameters> void addRemapperExtension(Class<? extends RemapperExtension<T>> remapperExtensionClass, Class<T> parametersClass, Action<T> parameterAction);
+
+	/**
+	 * @return The minecraft version, as a {@link Provider}.
+	 */
+	Provider<String> getMinecraftVersion();
+
+	/**
+	 * @return A lazily evaluated {@link FileCollection} containing the named minecraft jars.
+	 */
+	FileCollection getNamedMinecraftJars();
+
 	// ===================
 	//  Architectury Loom
 	// ===================
@@ -232,8 +269,16 @@ public interface LoomGradleExtensionAPI {
 
 	Provider<ModPlatform> getPlatform();
 
+	default boolean isForgeLike() {
+		return getPlatform().get().isForgeLike();
+	}
+
 	default boolean isForge() {
 		return getPlatform().get() == ModPlatform.FORGE;
+	}
+
+	default boolean isNeoForge() {
+		return getPlatform().get() == ModPlatform.NEOFORGE;
 	}
 
 	default boolean isQuilt() {
@@ -262,4 +307,15 @@ public interface LoomGradleExtensionAPI {
 	ForgeExtensionAPI getForge();
 
 	void forge(Action<ForgeExtensionAPI> action);
+
+	/**
+	 * Gets the NeoForge extension used to configure NeoForge details.
+	 *
+	 * @return the NeoForge extension
+	 * @throws UnsupportedOperationException if running on another platform
+	 * @see #isNeoForge()
+	 */
+	NeoForgeExtensionAPI getNeoForge();
+
+	void neoForge(Action<NeoForgeExtensionAPI> action);
 }

@@ -29,18 +29,57 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.inject.Inject;
+
 import dev.architectury.loom.util.ForgeLoggerConfig;
+import org.gradle.api.file.RegularFile;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.task.AbstractLoomTask;
 
 public abstract class GenerateLog4jConfigTask extends AbstractLoomTask {
+	@OutputFile
+	public abstract RegularFileProperty getOutputFile();
+
+	@ApiStatus.Internal
+	@Input
+	protected abstract Property<Boolean> getUseForgeLoggerConfig();
+
+	@ApiStatus.Internal
+	@InputFile
+	@Optional
+	protected abstract RegularFileProperty getForgeLoggerConfigSource();
+
+	@Inject
+	public GenerateLog4jConfigTask() {
+		getOutputFile().set(getExtension().getFiles().getDefaultLog4jConfigFile());
+
+		if (getExtension().isForge()) {
+			getUseForgeLoggerConfig().set(getProject().provider(() -> getExtension().getForge().getUseForgeLoggerConfig().get()));
+			getForgeLoggerConfigSource().set(getProject().getLayout().file(
+					getProject().provider(() -> ForgeLoggerConfig.getForgeLoggerConfigSource(getProject()))
+			));
+		} else {
+			getUseForgeLoggerConfig().set(false);
+		}
+	}
+
 	@TaskAction
 	public void run() {
-		Path outputFile = getExtension().getFiles().getDefaultLog4jConfigFile().toPath();
+		Path outputFile = getOutputFile().get().getAsFile().toPath();
 
-		if (getExtension().isForge() && getExtension().getForge().getUseForgeLoggerConfig().get()) {
-			ForgeLoggerConfig.copyToPath(getProject(), outputFile);
+		if (getUseForgeLoggerConfig().get()) {
+			final @Nullable RegularFile source = getForgeLoggerConfigSource().getOrNull();
+			if (source == null) ForgeLoggerConfig.throwNotFound();
+			ForgeLoggerConfig.copyToPath(source.getAsFile().toPath(), outputFile);
 			return;
 		}
 

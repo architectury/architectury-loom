@@ -42,7 +42,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.SelfResolvingDependency;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.FileCollectionDependency;
 
 import net.fabricmc.loom.util.ZipUtils;
 
@@ -51,10 +52,13 @@ public class FileDependencyInfo extends DependencyInfo {
 	protected final Set<File> resolvedFiles;
 	protected final String group, name, version;
 
-	FileDependencyInfo(Project project, SelfResolvingDependency dependency, Configuration configuration) {
+	FileDependencyInfo(Project project, FileCollectionDependency dependency, Configuration configuration) {
+		this(project, dependency, configuration, dependency.getFiles().getFiles());
+	}
+
+	private FileDependencyInfo(Project project, Dependency dependency, Configuration configuration, Set<File> files) {
 		super(project, dependency, configuration);
 
-		Set<File> files = dependency.resolve();
 		this.resolvedFiles = files;
 		switch (files.size()) {
 		case 0 -> //Don't think Gradle would ever let you do this

@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2023 FabricMC
+ * Copyright (c) 2020-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,13 +52,14 @@ import java.util.stream.Stream;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
+import dev.architectury.loom.forge.UserdevConfig;
+import dev.architectury.loom.forge.tool.AccessTransformerService;
+import dev.architectury.loom.forge.tool.ForgeToolValueSource;
+import dev.architectury.loom.neoforge.SidedJarIndexGenerator;
+import dev.architectury.loom.util.MappingOption;
 import dev.architectury.loom.util.TempFiles;
-import dev.architectury.tinyremapper.InputTag;
-import dev.architectury.tinyremapper.NonClassCopyMode;
-import dev.architectury.tinyremapper.OutputConsumerPath;
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.gradle.api.Project;
-import org.gradle.api.logging.LogLevel;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -69,29 +70,35 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.accesstransformer.AccessTransformerJarProcessor;
+import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutorBuilder;
 import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.mappings.TinyMappingsService;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
-import net.fabricmc.loom.util.ForgeToolExecutor;
-import net.fabricmc.loom.util.MappingsProviderVerbose;
 import net.fabricmc.loom.util.ThreadingUtils;
 import net.fabricmc.loom.util.TinyRemapperHelper;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.function.FsPathConsumer;
-import net.fabricmc.loom.util.service.ScopedSharedServiceManager;
-import net.fabricmc.loom.util.service.SharedServiceManager;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
+import net.fabricmc.loom.util.service.ServiceFactory;
+import net.fabricmc.loom.util.srg.CoreModClassRemapper;
 import net.fabricmc.loom.util.srg.InnerClassRemapper;
+import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.InputTag;
+import net.fabricmc.tinyremapper.NonClassCopyMode;
+import net.fabricmc.tinyremapper.OutputConsumerPath;
+import net.fabricmc.tinyremapper.TinyRemapper;
+import net.fabricmc.tinyremapper.extension.mixin.MixinExtension;
 
 public class MinecraftPatchedProvider {
 	private static final String LOOM_PATCH_VERSION_KEY = "Loom-Patch-Version";
-	private static final String CURRENT_LOOM_PATCH_VERSION = "8";
+	private static final String CURRENT_LOOM_PATCH_VERSION = "9";
 	private static final String NAME_MAPPING_SERVICE_PATH = "/inject/META-INF/services/cpw.mods.modlauncher.api.INameMappingService";
 
 	private final Project project;
@@ -99,12 +106,12 @@ public class MinecraftPatchedProvider {
 	private final MinecraftProvider minecraftProvider;
 	private final Type type;
 
-	// Step 1: Remap Minecraft to SRG, merge if needed
-	private Path minecraftSrgJar;
+	// Step 1: Remap Minecraft to intermediate mappings, merge if needed
+	private Path minecraftIntermediateJar;
 	// Step 2: Binary Patch
-	private Path minecraftPatchedSrgJar;
+	private Path minecraftPatchedIntermediateJar;
 	// Step 3: Access Transform
-	private Path minecraftPatchedSrgAtJar;
+	private Path minecraftPatchedIntermediateAtJar;
 	// Step 4: Remap Patched AT & Forge to official
 	private Path minecraftPatchedJar;
 	private Path minecraftClientExtra;
@@ -135,15 +142,18 @@ public class MinecraftPatchedProvider {
 	private void initPatchedFiles() {
 		String forgeVersion = getExtension().getForgeProvider().getVersion().getCombined();
 		Path forgeWorkingDir = ForgeProvider.getForgeCache(project);
-		String patchId = "forge-" + forgeVersion + "-";
+		// Note: strings used instead of platform id since FML requires one of these exact strings
+		// depending on the loader to recognise Minecraft.
+		String patchId = (getExtension().isNeoForge() ? "neoforge" : "forge") + "-" + forgeVersion + "-";
 
 		minecraftProvider.setJarPrefix(patchId);
 
-		minecraftSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg.jar");
-		minecraftPatchedSrgJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-patched.jar");
-		minecraftPatchedSrgAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-srg-at-patched.jar");
+		final String intermediateId = getExtension().isNeoForge() ? "mojang" : "srg";
+		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
+		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
+		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
 		minecraftPatchedJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-patched.jar");
-		minecraftClientExtra = forgeWorkingDir.resolve("forge-client-extra.jar");
+		minecraftClientExtra = forgeWorkingDir.resolve("client-extra.jar");
 	}
 
 	private void cleanAllCache() throws IOException {
@@ -154,9 +164,9 @@ public class MinecraftPatchedProvider {
 
 	private Path[] getGlobalCaches() {
 		Path[] files = {
-				minecraftSrgJar,
-				minecraftPatchedSrgJar,
-				minecraftPatchedSrgAtJar,
+				minecraftIntermediateJar,
+				minecraftPatchedIntermediateJar,
+				minecraftPatchedIntermediateAtJar,
 				minecraftPatchedJar,
 				minecraftClientExtra,
 		};
@@ -177,68 +187,103 @@ public class MinecraftPatchedProvider {
 
 		this.dirty = false;
 
-		if (Files.notExists(minecraftSrgJar)) {
+		if (Files.notExists(minecraftIntermediateJar)) {
 			this.dirty = true;
 
-			try (var tempFiles = new TempFiles()) {
-				McpExecutor executor = createMcpExecutor(tempFiles.directory("loom-mcp"));
-				Path output = executor.enqueue("rename").execute();
-				Files.copy(output, minecraftSrgJar);
+			try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
+				McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
+				builder.enqueue("rename");
+				McpExecutor executor = serviceFactory.get(builder.build());
+				Path output = executor.execute();
+				Files.copy(output, minecraftIntermediateJar);
 			}
 		}
 
-		if (dirty || Files.notExists(minecraftPatchedSrgJar)) {
+		if (dirty || Files.notExists(minecraftPatchedIntermediateJar)) {
 			this.dirty = true;
 			patchJars();
 		}
 
-		if (dirty || Files.notExists(minecraftPatchedSrgAtJar)) {
+		if (dirty || Files.notExists(minecraftPatchedIntermediateAtJar)) {
 			this.dirty = true;
 			accessTransformForge();
 		}
 	}
 
-	public void remapJar() throws Exception {
+	public void remapJar(ServiceFactory serviceFactory) throws Exception {
 		if (dirty) {
-			try (var serviceManager = new ScopedSharedServiceManager()) {
-				remapPatchedJar(serviceManager);
-			}
-
-			fillClientExtraJar();
+			remapPatchedJar(serviceFactory);
+			fillClientExtraJar(serviceFactory);
 		}
 
-		this.dirty = false;
 		DependencyProvider.addDependency(project, minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
 	}
 
-	private void fillClientExtraJar() throws IOException {
+	private void fillClientExtraJar(ServiceFactory serviceFactory) throws IOException {
 		Files.deleteIfExists(minecraftClientExtra);
-		FileSystemUtil.getJarFileSystem(minecraftClientExtra, true).close();
+
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(minecraftClientExtra, true)) {
+			if (getExtension().isNeoForge()) {
+				Path manifestPath = fs.getPath("META-INF", "MANIFEST.MF");
+				generateNeoForgeDistManifest(serviceFactory, manifestPath);
+			}
+		}
 
 		copyNonClassFiles(minecraftProvider.getMinecraftClientJar().toPath(), minecraftClientExtra);
 	}
 
-	private TinyRemapper buildRemapper(SharedServiceManager serviceManager, Path input) throws IOException {
-		Path[] libraries = TinyRemapperHelper.getMinecraftCompileLibraries(project);
-		TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(serviceManager, true);
-		MemoryMappingTree mappingsWithSrg = mappingsService.getMappingTree();
+	// Generates the jar manifest for NeoForge client-extra jars.
+	// The manifest includes a Minecraft-Dists attribute that specifies the dists in the current dev env,
+	// as well as Minecraft-Dist attributes on every dist-only file.
+	private void generateNeoForgeDistManifest(ServiceFactory serviceFactory, Path manifestPath) throws IOException {
+		MemoryMappingTree mappings = getMappingTree(serviceFactory);
 
-		TinyRemapper remapper = TinyRemapper.newRemapper()
-				.logger(logger::lifecycle)
-				.logUnknownInvokeDynamic(false)
-				.withMappings(TinyRemapperHelper.create(mappingsWithSrg, "srg", "official", true))
-				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappingsWithSrg, "srg", "official"))
-				.renameInvalidLocals(true)
-				.rebuildSourceFilenames(true)
-				.build();
+		Manifest manifest = new Manifest();
+		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+		manifest.getMainAttributes().putValue("Minecraft-Dists", type.getNeoForgeDistsAttribute());
 
-		if (project.getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) < 0) {
-			MappingsProviderVerbose.saveFile(remapper);
+		if (type == Type.MERGED) {
+			Path clientJar = minecraftProvider.getMinecraftClientJar().toPath();
+			Path serverJar = Objects.requireNonNullElse(
+					minecraftProvider.getMinecraftExtractedServerJar(),
+					minecraftProvider.getMinecraftServerJar()
+			).toPath();
+			SidedJarIndexGenerator generator = new SidedJarIndexGenerator(clientJar, serverJar, mappings);
+			generator.split((filePath, dist) -> {
+				var fileAttributes = new Attributes();
+				fileAttributes.putValue("Minecraft-Dist", dist);
+				manifest.getEntries().put(filePath, fileAttributes);
+			});
 		}
 
-		remapper.readClassPath(libraries);
-		remapper.prepareClasses();
-		return remapper;
+		Files.createDirectories(manifestPath.getParent());
+
+		try (OutputStream out = Files.newOutputStream(manifestPath)) {
+			manifest.write(out);
+		}
+	}
+
+	private MemoryMappingTree getMappingTree(ServiceFactory serviceFactory) {
+		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
+		TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption);
+		return mappingsService.getMappingTree();
+	}
+
+	private TinyRemapper buildRemapper(ServiceFactory serviceFactory, Path input) throws IOException {
+		final String sourceNamespace = IntermediaryNamespaces.intermediary(project);
+		MemoryMappingTree mappings = getMappingTree(serviceFactory);
+
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
+				.withMappings(TinyRemapperHelper.create(mappings, sourceNamespace, "official", true))
+				.withMappings(InnerClassRemapper.of(InnerClassRemapper.readClassNames(input), mappings, sourceNamespace, "official"))
+				.renameInvalidLocals(true)
+				.rebuildSourceFilenames(true);
+
+		if (getExtension().isNeoForge()) {
+			builder.extension(new MixinExtension(inputTag -> true));
+		}
+
+		return builder.build();
 	}
 
 	private void fixParameterAnnotation(Path jarFile) throws Exception {
@@ -297,7 +342,7 @@ public class MinecraftPatchedProvider {
 							return new MethodVisitor(Opcodes.ASM9, super.visitMethod(access, name, descriptor, signature, exceptions)) {
 								@Override
 								public void visitParameter(String name, int access) {
-									if (vignetteParameters.matcher(name).matches()) {
+									if (name != null && vignetteParameters.matcher(name).matches()) {
 										super.visitParameter(null, access);
 									} else {
 										super.visitParameter(name, access);
@@ -359,54 +404,29 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void accessTransformForge() throws IOException {
-		Path input = minecraftPatchedSrgJar;
-		Path target = minecraftPatchedSrgAtJar;
-		accessTransform(project, input, target);
-	}
-
-	public static void accessTransform(Project project, Path input, Path target) throws IOException {
+		Path input = minecraftPatchedIntermediateJar;
+		Path target = minecraftPatchedIntermediateAtJar;
 		Stopwatch stopwatch = Stopwatch.createStarted();
+		logger.lifecycle(":access transforming minecraft");
 
-		project.getLogger().lifecycle(":access transforming minecraft");
-
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		List<Path> atSources = List.of(
-				extension.getForgeUniversalProvider().getForge().toPath(),
-				extension.getForgeUserdevProvider().getUserdevJar().toPath(),
-				((ForgeMinecraftProvider) extension.getMinecraftProvider())
-						.getPatchedProvider()
-						.getMinecraftPatchedSrgJar()
-		);
-
-		Files.deleteIfExists(target);
-
-		try (var tempFiles = new TempFiles()) {
-			AccessTransformerJarProcessor.executeAt(project, input, target, args -> {
-				for (Path jar : atSources) {
-					byte[] atBytes = ZipUtils.unpackNullable(jar, Constants.Forge.ACCESS_TRANSFORMER_PATH);
-
-					if (atBytes != null) {
-						Path tmpFile = tempFiles.file("at-conf", ".cfg");
-						Files.write(tmpFile, atBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-						args.add("--atFile");
-						args.add(tmpFile.toAbsolutePath().toString());
-					}
-				}
-			});
+		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
+			AccessTransformerService service = serviceFactory.get(AccessTransformerService.createOptionsForLoaderAts(project, tempFiles));
+			Files.deleteIfExists(target);
+			service.execute(input, target);
 		}
 
-		project.getLogger().lifecycle(":access transformed minecraft in " + stopwatch.stop());
+		logger.lifecycle(":access transformed minecraft in " + stopwatch.stop());
 	}
 
-	private void remapPatchedJar(SharedServiceManager serviceManager) throws Exception {
+	private void remapPatchedJar(ServiceFactory serviceFactory) throws Exception {
 		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
-		Path mcInput = minecraftPatchedSrgAtJar;
+		Path mcInput = minecraftPatchedIntermediateAtJar;
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
 		Path forgeUserdevJar = getForgeUserdevJar().toPath();
 		Files.deleteIfExists(mcOutput);
 
-		TinyRemapper remapper = buildRemapper(serviceManager, mcInput);
+		TinyRemapper remapper = buildRemapper(serviceFactory, mcInput);
 
 		try (OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(mcOutput).build()) {
 			outputConsumer.addNonClassFiles(mcInput);
@@ -425,29 +445,38 @@ public class MinecraftPatchedProvider {
 		}
 
 		copyUserdevFiles(forgeUserdevJar, mcOutput);
+		remapCoreMods(mcOutput, serviceFactory);
 		applyLoomPatchVersion(mcOutput);
+	}
+
+	private void remapCoreMods(Path patchedJar, ServiceFactory serviceFactory) throws Exception {
+		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
+		final TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption);
+		final MappingTree mappings = mappingsService.getMappingTree();
+		CoreModClassRemapper.remapJar(project, getExtension().getPlatform().get(), patchedJar, mappings);
 	}
 
 	private void patchJars() throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		logger.lifecycle(":patching jars");
-		patchJars(minecraftSrgJar, minecraftPatchedSrgJar, type.patches.apply(getExtension().getPatchProvider(), getExtension().getForgeUserdevProvider()));
+		patchJars(minecraftIntermediateJar, minecraftPatchedIntermediateJar, type.patches.apply(getExtension().getPatchProvider(), getExtension().getForgeUserdevProvider()));
 
-		copyMissingClasses(minecraftSrgJar, minecraftPatchedSrgJar);
-		deleteParameterNames(minecraftPatchedSrgJar);
+		copyMissingClasses(minecraftIntermediateJar, minecraftPatchedIntermediateJar);
+		deleteParameterNames(minecraftPatchedIntermediateJar);
 
-		if (getExtension().isForgeAndNotOfficial()) {
-			fixParameterAnnotation(minecraftPatchedSrgJar);
+		if (getExtension().isForgeLikeAndNotOfficial()) {
+			fixParameterAnnotation(minecraftPatchedIntermediateJar);
 		}
 
 		logger.lifecycle(":patched jars in " + stopwatch.stop());
 	}
 
 	private void patchJars(Path clean, Path output, Path patches) {
-		ForgeToolExecutor.exec(project, spec -> {
-			ForgeUserdevProvider.BinaryPatcherConfig config = getExtension().getForgeUserdevProvider().binaryPatcherConfig;
-			spec.classpath(DependencyDownloader.download(project, config.dependency()));
-			spec.getMainClass().set("net.minecraftforge.binarypatcher.ConsoleTool");
+		ForgeToolValueSource.exec(project, spec -> {
+			UserdevConfig.BinaryPatcherConfig config = getExtension().getForgeUserdevProvider().getConfig().binpatcher();
+			final FileCollection download = DependencyDownloader.download(project, config.dependency());
+			spec.classpath(download);
+			spec.getMainClass().set(getMainClass(download));
 
 			for (String arg : config.args()) {
 				String actual = switch (arg) {
@@ -459,6 +488,45 @@ public class MinecraftPatchedProvider {
 				spec.args(actual);
 			}
 		});
+	}
+
+	private static String getMainClass(final Iterable<File> files) {
+		String mainClass = null;
+		IOException ex = null;
+
+		for (File file : files) {
+			if (file.getName().endsWith(".jar")) {
+				try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(file.toPath())) {
+					final Path mfPath = fs.getPath("META-INF/MANIFEST.MF");
+
+					if (Files.exists(mfPath)) {
+						try (InputStream in = Files.newInputStream(mfPath)) {
+							mainClass = new Manifest(in).getMainAttributes().getValue("Main-Class");
+						}
+					}
+				} catch (final IOException e) {
+					if (ex == null) {
+						ex = e;
+					} else {
+						ex.addSuppressed(e);
+					}
+				}
+
+				if (mainClass != null) {
+					break;
+				}
+			}
+		}
+
+		if (mainClass == null) {
+			if (ex != null) {
+				throw new UncheckedIOException(ex);
+			} else {
+				throw new RuntimeException("Failed to find main class");
+			}
+		}
+
+		return mainClass;
 	}
 
 	private void walkFileSystems(Path source, Path target, Predicate<Path> filter, Function<FileSystem, Iterable<Path>> toWalk, FsPathConsumer action)
@@ -560,21 +628,28 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
-	public McpExecutor createMcpExecutor(Path cache) {
+	public McpExecutorBuilder createMcpExecutor(Path cache) {
 		McpConfigProvider provider = getExtension().getMcpConfigProvider();
-		return new McpExecutor(project, minecraftProvider, cache, provider, type.mcpId);
+		return new McpExecutorBuilder(project, minecraftProvider, cache, provider, type.mcpId);
 	}
 
-	public Path getMinecraftSrgJar() {
-		return minecraftSrgJar;
+	public Path getMinecraftIntermediateJar() {
+		return minecraftIntermediateJar;
 	}
 
-	public Path getMinecraftPatchedSrgJar() {
-		return minecraftPatchedSrgJar;
+	public Path getMinecraftPatchedIntermediateJar() {
+		return minecraftPatchedIntermediateJar;
 	}
 
 	public Path getMinecraftPatchedJar() {
 		return minecraftPatchedJar;
+	}
+
+	/**
+	 * Checks whether the provider's state is dirty (regenerating jars).
+	 */
+	public boolean isDirty() {
+		return dirty;
 	}
 
 	public enum Type {
@@ -590,6 +665,11 @@ public class MinecraftPatchedProvider {
 			this.id = id;
 			this.mcpId = mcpId;
 			this.patches = patches;
+		}
+
+		// The value for Minecraft-Dists
+		private String getNeoForgeDistsAttribute() {
+			return this == MERGED ? "client server" : id;
 		}
 	}
 }

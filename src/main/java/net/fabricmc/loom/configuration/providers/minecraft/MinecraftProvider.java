@@ -29,26 +29,32 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Preconditions;
+import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
-import org.gradle.api.logging.Logger;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.ConfigContext;
-import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.BundleMetadata;
+import net.fabricmc.loom.configuration.providers.minecraft.verify.MinecraftJarVerification;
+import net.fabricmc.loom.configuration.providers.minecraft.verify.SignatureVerificationFailure;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.download.DownloadExecutor;
 import net.fabricmc.loom.util.download.GradleDownloadProgressListener;
+import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.ProgressGroup;
 
 public abstract class MinecraftProvider {
-	private String minecraftVersion;
-	private MinecraftMetadataProvider metadataProvider;
+	private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftProvider.class);
 
-	private File workingDir;
+	private final MinecraftMetadataProvider metadataProvider;
+
 	private File minecraftClientJar;
 	// Note this will be the boostrap jar starting with 21w39a
 	private File minecraftServerJar;
@@ -58,10 +64,11 @@ public abstract class MinecraftProvider {
 	private BundleMetadata serverBundleMetadata;
 	private String jarPrefix = "";
 
-	private final Project project;
+	private final ConfigContext configContext;
 
-	public MinecraftProvider(ConfigContext configContext) {
-		this.project = configContext.project();
+	public MinecraftProvider(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+		this.metadataProvider = metadataProvider;
+		this.configContext = configContext;
 	}
 
 	protected boolean provideClient() {
@@ -73,38 +80,42 @@ public abstract class MinecraftProvider {
 	}
 
 	public void provide() throws Exception {
-		final DependencyInfo dependency = DependencyInfo.create(getProject(), Constants.Configurations.MINECRAFT);
-		minecraftVersion = dependency.getDependency().getVersion();
-
-		if (getExtension().shouldGenerateSrgTiny() && !getExtension().isForge()) {
-			getProject().getDependencies().add(Constants.Configurations.SRG, "de.oceanlabs.mcp:mcp_config:" + minecraftVersion);
+		if (getExtension().shouldGenerateSrgTiny() && !getExtension().isForgeLike()) {
+			getProject().getDependencies().add(Constants.Configurations.SRG, "de.oceanlabs.mcp:mcp_config:" + minecraftVersion());
 		}
 
 		initFiles();
 
-		metadataProvider = new MinecraftMetadataProvider(
-				MinecraftMetadataProvider.Options.create(
-						minecraftVersion,
-						getProject(),
-						file("minecraft-info.json").toPath()
-				),
-				getExtension()::download
-		);
+		final MinecraftVersionMeta.JavaVersion javaVersion = getVersionInfo().javaVersion();
 
-		downloadJars();
+		if (javaVersion != null) {
+			final int requiredMajorJavaVersion = getVersionInfo().javaVersion().majorVersion();
+			final JavaVersion requiredJavaVersion = JavaVersion.toVersion(requiredMajorJavaVersion);
+
+			if (!JavaVersion.current().isCompatibleWith(requiredJavaVersion)) {
+				throw new IllegalStateException("Minecraft " + minecraftVersion() + " requires Java " + requiredJavaVersion + " but Gradle is using " + JavaVersion.current());
+			}
+		}
+
+		boolean didDownload = downloadJars();
 
 		if (provideServer()) {
 			serverBundleMetadata = BundleMetadata.fromJar(minecraftServerJar.toPath());
+
+			if (serverBundleMetadata != null) {
+				extractBundledServerJar();
+			}
 		}
 
-		final MinecraftLibraryProvider libraryProvider = new MinecraftLibraryProvider(this, project);
+		if (didDownload) {
+			verifyJars();
+		}
+
+		final MinecraftLibraryProvider libraryProvider = new MinecraftLibraryProvider(this, configContext.project());
 		libraryProvider.provide();
 	}
 
 	protected void initFiles() {
-		workingDir = new File(getExtension().getFiles().getUserCache(), minecraftVersion);
-		workingDir.mkdirs();
-
 		if (provideClient()) {
 			minecraftClientJar = file("minecraft-client.jar");
 		}
@@ -115,7 +126,35 @@ public abstract class MinecraftProvider {
 		}
 	}
 
-	private void downloadJars() throws IOException {
+	private void verifyJars() throws IOException, SignatureVerificationFailure {
+		if (GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DISABLE_MINECRAFT_VERIFICATION)) {
+			LOGGER.info("Skipping Minecraft jar verification!");
+			return;
+		}
+
+		LOGGER.info("Verifying Minecraft jars");
+
+		MinecraftJarVerification verification = getProject().getObjects().newInstance(MinecraftJarVerification.class, minecraftVersion());
+
+		if (provideClient()) {
+			verification.verifyClientJar(minecraftClientJar.toPath());
+		}
+
+		if (provideServer()) {
+			if (serverBundleMetadata == null) {
+				verification.verifyServerJar(minecraftServerJar.toPath());
+			} else {
+				verification.verifyServerJar(getMinecraftExtractedServerJar().toPath());
+			}
+		}
+
+		LOGGER.info("Jar verification complete");
+	}
+
+	// Returns true when a file was downloaded
+	private boolean downloadJars() throws IOException {
+		AtomicBoolean didDownload = new AtomicBoolean(false);
+
 		try (ProgressGroup progressGroup = new ProgressGroup(getProject(), "Download Minecraft jars");
 				DownloadExecutor executor = new DownloadExecutor(2)) {
 			if (provideClient()) {
@@ -123,7 +162,12 @@ public abstract class MinecraftProvider {
 				getExtension().download(client.url())
 						.sha1(client.sha1())
 						.progress(new GradleDownloadProgressListener("Minecraft client", progressGroup::createProgressLogger))
-						.downloadPathAsync(minecraftClientJar.toPath(), executor);
+						.downloadPathAsync(minecraftClientJar.toPath(), executor)
+						.thenAccept(downloadResult -> {
+							if (downloadResult.didDownload()) {
+								didDownload.set(true);
+							}
+						});
 			}
 
 			if (provideServer()) {
@@ -131,26 +175,39 @@ public abstract class MinecraftProvider {
 				getExtension().download(server.url())
 						.sha1(server.sha1())
 						.progress(new GradleDownloadProgressListener("Minecraft server", progressGroup::createProgressLogger))
-						.downloadPathAsync(minecraftServerJar.toPath(), executor);
+						.downloadPathAsync(minecraftServerJar.toPath(), executor)
+						.thenAccept(downloadResult -> {
+							if (downloadResult.didDownload()) {
+								didDownload.set(true);
+							}
+						});
 			}
 		}
+
+		if (didDownload.get()) {
+			LOGGER.info("Downloaded new Minecraft jars");
+			return true;
+		}
+
+		LOGGER.info("Using cached Minecraft jars");
+		return false;
 	}
 
-	protected final void extractBundledServerJar() throws IOException {
+	public final void extractBundledServerJar() throws IOException {
 		Preconditions.checkArgument(provideServer(), "Not configured to provide server jar");
 		Objects.requireNonNull(getServerBundleMetadata(), "Cannot bundled mc jar from none bundled server jar");
 
-		getLogger().info(":Extracting server jar from bootstrap");
+		LOGGER.info(":Extracting server jar from bootstrap");
 
 		if (getServerBundleMetadata().versions().size() != 1) {
 			throw new UnsupportedOperationException("Expected only 1 version in META-INF/versions.list, but got %d".formatted(getServerBundleMetadata().versions().size()));
 		}
 
-		getServerBundleMetadata().versions().get(0).unpackEntry(minecraftServerJar.toPath(), getMinecraftExtractedServerJar().toPath(), project);
+		getServerBundleMetadata().versions().get(0).unpackEntry(minecraftServerJar.toPath(), getMinecraftExtractedServerJar().toPath(), configContext.project());
 	}
 
 	public File workingDir() {
-		return workingDir;
+		return minecraftWorkingDirectory(configContext.project(), minecraftVersion());
 	}
 
 	public File dir(String path) {
@@ -186,11 +243,18 @@ public abstract class MinecraftProvider {
 	}
 
 	public String minecraftVersion() {
-		return minecraftVersion;
+		return Objects.requireNonNull(metadataProvider, "Metadata provider not setup").getMinecraftVersion();
 	}
 
 	public MinecraftVersionMeta getVersionInfo() {
 		return Objects.requireNonNull(metadataProvider, "Metadata provider not setup").getVersionMeta();
+	}
+
+	/**
+	 * @return true if the minecraft version is older than 1.3.
+	 */
+	public boolean isLegacyVersion() {
+		return !getVersionInfo().isVersionOrNewer(Constants.RELEASE_TIME_1_3);
 	}
 
 	public String getJarPrefix() {
@@ -206,21 +270,26 @@ public abstract class MinecraftProvider {
 		return serverBundleMetadata;
 	}
 
-	protected Logger getLogger() {
-		return getProject().getLogger();
-	}
-
 	public abstract List<Path> getMinecraftJars();
 
+	public abstract MappingsNamespace getOfficialNamespace();
+
 	protected Project getProject() {
-		return project;
+		return configContext.project();
 	}
 
 	protected LoomGradleExtension getExtension() {
-		return LoomGradleExtension.get(getProject());
+		return configContext.extension();
 	}
 
 	public boolean refreshDeps() {
 		return getExtension().refreshDeps();
+	}
+
+	public static File minecraftWorkingDirectory(Project project, String version) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		File workingDir = new File(extension.getFiles().getUserCache(), version);
+		workingDir.mkdirs();
+		return workingDir;
 	}
 }

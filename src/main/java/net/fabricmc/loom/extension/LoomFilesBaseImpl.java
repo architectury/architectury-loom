@@ -40,11 +40,7 @@ public abstract class LoomFilesBaseImpl implements LoomFiles {
 
 	private static File createFile(File parent, String child) {
 		File file = new File(parent, child);
-
-		if (!file.exists()) {
-			file.mkdirs();
-		}
-
+		file.mkdirs();
 		return file;
 	}
 
@@ -89,11 +85,6 @@ public abstract class LoomFilesBaseImpl implements LoomFiles {
 	}
 
 	@Override
-	public File getUnpickLoggingConfigFile() {
-		return new File(getProjectPersistentCache(), "unpick-logging.properties");
-	}
-
-	@Override
 	public File getRemapClasspathFile() {
 		return new File(getProjectPersistentCache(), "remapClasspath.txt");
 	}
@@ -106,6 +97,11 @@ public abstract class LoomFilesBaseImpl implements LoomFiles {
 	@Override
 	public File getLocalMinecraftRepo() {
 		return new File(getRootProjectPersistentCache(), "minecraftMaven");
+	}
+
+	@Override
+	public File getDecompileCache(String version) {
+		return new File(getUserCache(), "decompile/" + version + ".zip");
 	}
 
 	@Override

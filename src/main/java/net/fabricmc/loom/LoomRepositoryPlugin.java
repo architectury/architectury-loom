@@ -24,6 +24,8 @@
 
 package net.fabricmc.loom;
 
+import java.util.List;
+
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ArtifactRepositoryContainer;
@@ -40,6 +42,14 @@ import net.fabricmc.loom.extension.LoomFiles;
 import net.fabricmc.loom.util.MirrorUtil;
 
 public class LoomRepositoryPlugin implements Plugin<PluginAware> {
+	private static final List<String> FORGE_GROUPS = List.of(
+			"net.minecraftforge",
+			"cpw.mods",
+			"de.oceanlabs",
+			"net.jodah",
+			"org.mcmodlauncher"
+	);
+
 	@Override
 	public void apply(@NotNull PluginAware target) {
 		if (target instanceof Settings settings) {
@@ -85,15 +95,21 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 				sources.artifact();
 				sources.ignoreGradleMetadataRedirection();
 			});
+
+			// Fallback to maven central for artifacts such as sources or javadocs that are not mirrored on Mojang's repo.
+			// See: https://github.com/FabricMC/fabric-loom/issues/1032
+			repo.artifactUrls(ArtifactRepositoryContainer.MAVEN_CENTRAL_URL);
 		});
 		repositories.maven(repo -> {
 			repo.setName("Forge");
 			repo.setUrl("https://maven.minecraftforge.net/");
 
 			repo.content(descriptor -> {
-				descriptor.excludeGroupByRegex("org\\.eclipse\\.?.*");
-				// Some of these downloads hang and this is already available from central to begin with.
-				descriptor.excludeGroup("org.ow2.asm");
+				// Only include these groups to avoid slowing down/hanging the build,
+				// or downloading incorrect artifacts.
+				for (String group : FORGE_GROUPS) {
+					descriptor.includeGroupAndSubgroups(group);
+				}
 			});
 			repo.metadataSources(sources -> {
 				sources.mavenPom();

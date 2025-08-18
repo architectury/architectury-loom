@@ -26,9 +26,10 @@ package net.fabricmc.loom.util;
 
 import java.util.Locale;
 
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
+
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 /**
  * Applies the @Environment annotation to all classes.

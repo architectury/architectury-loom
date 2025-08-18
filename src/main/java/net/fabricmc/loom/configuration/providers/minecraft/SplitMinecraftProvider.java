@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.providers.BundleMetadata;
 
@@ -35,8 +36,8 @@ public final class SplitMinecraftProvider extends MinecraftProvider {
 	private Path minecraftClientOnlyJar;
 	private Path minecraftCommonJar;
 
-	public SplitMinecraftProvider(ConfigContext configContext) {
-		super(configContext);
+	public SplitMinecraftProvider(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+		super(metadataProvider, configContext);
 	}
 
 	@Override
@@ -50,6 +51,11 @@ public final class SplitMinecraftProvider extends MinecraftProvider {
 	@Override
 	public List<Path> getMinecraftJars() {
 		return List.of(minecraftClientOnlyJar, minecraftCommonJar);
+	}
+
+	@Override
+	public MappingsNamespace getOfficialNamespace() {
+		return MappingsNamespace.OFFICIAL;
 	}
 
 	@Override
@@ -67,8 +73,6 @@ public final class SplitMinecraftProvider extends MinecraftProvider {
 		if (serverBundleMetadata == null) {
 			throw new UnsupportedOperationException("Only Minecraft versions using a bundled server jar can be split, please use a merged jar setup for this version of minecraft");
 		}
-
-		extractBundledServerJar();
 
 		final Path clientJar = getMinecraftClientJar().toPath();
 		final Path serverJar = getMinecraftExtractedServerJar().toPath();

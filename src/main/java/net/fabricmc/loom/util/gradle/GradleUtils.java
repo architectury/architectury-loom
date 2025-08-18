@@ -24,26 +24,18 @@
 
 package net.fabricmc.loom.util.gradle;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
+import java.io.File;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
-
 import org.gradle.api.Project;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.JavaExec;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.Constants;
 
 public final class GradleUtils {
-	@Nullable
-	// TODO remove when updating loom to Gradle 8.1
-	public static final MethodHandle JavaExecSpec_getJvmArguments = getJavaExecSpec_getJvmArguments();
-
 	private GradleUtils() {
 	}
 
@@ -72,11 +64,41 @@ public final class GradleUtils {
 	}
 
 	public static Provider<Boolean> getBooleanPropertyProvider(Project project, String key) {
-		return project.getProviders().gradleProperty(key).map(string -> {
-			try {
-				return Boolean.parseBoolean(string);
-			} catch (final IllegalArgumentException ex) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (extension.isProjectIsolationActive()) {
+			// TODO write a custom property parser for isolated projects
+			return project.provider(() -> false);
+		}
+
+		// Works around https://github.com/gradle/gradle/issues/23572
+		return project.provider(() -> {
+			final Object value = project.findProperty(key);
+
+			if (value instanceof String str) {
+				try {
+					return Boolean.parseBoolean(str);
+				} catch (final IllegalArgumentException ex) {
+					return false;
+				}
+			} else {
 				return false;
+			}
+		});
+	}
+
+	public static Provider<Integer> getIntegerPropertyProvider(Project project, String key) {
+		return project.provider(() -> {
+			final Object value = project.findProperty(key);
+
+			if (value == null) {
+				return null;
+			}
+
+			try {
+				return Integer.parseInt(value.toString());
+			} catch (final NumberFormatException ex) {
+				throw new IllegalArgumentException("Property " + key + " must be an integer", ex);
 			}
 		});
 	}
@@ -85,12 +107,22 @@ public final class GradleUtils {
 		return getBooleanPropertyProvider(project, key).getOrElse(false);
 	}
 
-	// TODO remove when updating loom to Gradle 8.1
-	private static MethodHandle getJavaExecSpec_getJvmArguments() {
-		try {
-			return MethodHandles.publicLookup().findVirtual(JavaExec.class, "getJvmArguments", MethodType.methodType(ListProperty.class));
-		} catch (NoSuchMethodException | IllegalAccessException ignored) {
+	public static Object getProperty(Project project, String key) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (extension.isProjectIsolationActive()) {
+			// TODO write a custom property parser for isolated projects
 			return null;
 		}
+
+		return project.findProperty(key);
+	}
+
+	// A hack to include the given file in the configuration cache input
+	// this ensures that configuration cache is invalidated when the file changes
+	public static File configurationInputFile(Project project, File file) {
+		final RegularFileProperty property = project.getObjects().fileProperty();
+		property.set(file);
+		return property.getAsFile().get();
 	}
 }

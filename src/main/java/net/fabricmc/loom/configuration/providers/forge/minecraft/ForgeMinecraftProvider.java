@@ -28,6 +28,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftProvider;
 
 /**
@@ -37,15 +38,15 @@ import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftPro
 public interface ForgeMinecraftProvider {
 	MinecraftPatchedProvider getPatchedProvider();
 
-	static MergedMinecraftProvider createMerged(ConfigContext context) {
-		return LoomGradleExtension.get(context.project()).isForge() ? new MergedForgeMinecraftProvider(context) : new MergedMinecraftProvider(context);
+	static MergedMinecraftProvider createMerged(MinecraftMetadataProvider metadataProvider, ConfigContext context) {
+		return LoomGradleExtension.get(context.project()).isForgeLike() ? new MergedForgeMinecraftProvider(metadataProvider, context) : new MergedMinecraftProvider(metadataProvider, context);
 	}
 
-	static SingleJarMinecraftProvider createServerOnly(ConfigContext context) {
-		return LoomGradleExtension.get(context.project()).isForge() ? SingleJarForgeMinecraftProvider.server(context) : SingleJarMinecraftProvider.server(context);
+	static SingleJarMinecraftProvider createServerOnly(MinecraftMetadataProvider metadataProvider, ConfigContext context) {
+		return LoomGradleExtension.get(context.project()).isForgeLike() ? SingleJarForgeMinecraftProvider.forgeServer(metadataProvider, context) : SingleJarMinecraftProvider.server(metadataProvider, context);
 	}
 
-	static SingleJarMinecraftProvider createClientOnly(ConfigContext context) {
-		return LoomGradleExtension.get(context.project()).isForge() ? SingleJarForgeMinecraftProvider.client(context) : SingleJarMinecraftProvider.client(context);
+	static SingleJarMinecraftProvider createClientOnly(MinecraftMetadataProvider metadataProvider, ConfigContext context) {
+		return LoomGradleExtension.get(context.project()).isForgeLike() ? SingleJarForgeMinecraftProvider.forgeClient(metadataProvider, context) : SingleJarMinecraftProvider.client(metadataProvider, context);
 	}
 }

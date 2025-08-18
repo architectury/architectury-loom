@@ -32,61 +32,73 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
-import dev.architectury.tinyremapper.InputTag;
-import dev.architectury.tinyremapper.NonClassCopyMode;
-import dev.architectury.tinyremapper.OutputConsumerPath;
-import dev.architectury.tinyremapper.TinyRemapper;
+import dev.architectury.loom.neoforge.NeoForgeModDependencies;
+import dev.architectury.loom.util.MappingOption;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
+import net.fabricmc.loom.configuration.mods.extension.ModProcessorExtension;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
-import net.fabricmc.loom.task.RemapJarTask;
+import net.fabricmc.loom.extension.RemapperExtensionHolder;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.IdentityBiMap;
 import net.fabricmc.loom.util.LoggerFilter;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.TinyRemapperHelper;
+import net.fabricmc.loom.util.TinyRemapperLoggerAdapter;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.kotlin.KotlinClasspathService;
 import net.fabricmc.loom.util.kotlin.KotlinRemapperClassloader;
-import net.fabricmc.loom.util.service.SharedServiceManager;
-import net.fabricmc.loom.util.srg.AtRemapper;
+import net.fabricmc.loom.util.service.ServiceFactory;
+import net.fabricmc.loom.util.srg.AtClassRemapper;
 import net.fabricmc.loom.util.srg.CoreModClassRemapper;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.InputTag;
+import net.fabricmc.tinyremapper.NonClassCopyMode;
+import net.fabricmc.tinyremapper.OutputConsumerPath;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public class ModProcessor {
 	private static final String toM = MappingsNamespace.NAMED.toString();
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ModProcessor.class);
 
 	private static final Pattern COPY_CONFIGURATION_PATTERN = Pattern.compile("^(.+)Copy[0-9]*$");
 
 	private final Project project;
 	private final Configuration sourceConfiguration;
-	private final SharedServiceManager serviceManager;
+	private final ServiceFactory serviceFactory;
 
-	public ModProcessor(Project project, Configuration sourceConfiguration, SharedServiceManager serviceManager) {
+	public ModProcessor(Project project, Configuration sourceConfiguration, ServiceFactory serviceFactory) {
 		this.project = project;
 		this.sourceConfiguration = sourceConfiguration;
-		this.serviceManager = serviceManager;
+		this.serviceFactory = serviceFactory;
 	}
 
 	public void processMods(List<ModDependency> remapList) throws IOException {
 		try {
-			project.getLogger().lifecycle(":remapping {} mods from {}", remapList.size(), describeConfiguration(sourceConfiguration));
+			LOGGER.info(":remapping {} mods from {}", remapList.size(), describeConfiguration(sourceConfiguration));
 			remapJars(remapList);
 		} catch (Exception e) {
 			throw new RuntimeException(String.format(Locale.ENGLISH, "Failed to remap %d mods", remapList.size()), e);
@@ -121,6 +133,12 @@ public class ModProcessor {
 	}
 
 	private void stripNestedJars(Path path) {
+		try {
+			ZipUtils.deleteIfExists(path, "META-INF/jarjar/metadata.json");
+		} catch (IOException e) {
+			throw new UncheckedIOException("Failed to strip nested jars from %s".formatted(path), e);
+		}
+
 		if (!ZipUtils.contains(path, "fabric.mod.json")) {
 			if (ZipUtils.contains(path, "quilt.mod.json")) {
 				// Strip out all contained jar info as we dont want loader to try and load the jars contained in dev.
@@ -154,23 +172,25 @@ public class ModProcessor {
 	private void remapJars(List<ModDependency> remapList) throws IOException {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
-		String fromM = IntermediaryNamespaces.intermediary(project);
-		Path[] mcDeps = project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES).getFiles()
-				.stream().map(File::toPath).toArray(Path[]::new);
-
+		String fromM = IntermediaryNamespaces.runtimeIntermediary(project);
 		Stopwatch stopwatch = Stopwatch.createStarted();
+		Set<String> knownIndyBsms = new HashSet<>(extension.getKnownIndyBsms().get());
 
-		boolean srg = (fromM.equals("srg") || toM.equals("srg")) && extension.isForge();
-		MemoryMappingTree mappings = mappingConfiguration.getMappingsService(serviceManager, srg).getMappingTree();
+		for (ModDependency modDependency : remapList) {
+			knownIndyBsms.addAll(modDependency.getMetadata().knownIdyBsms());
+		}
+
+		MappingOption mappingOption = MappingOption.forPlatform(extension);
+		MemoryMappingTree mappings = mappingConfiguration.getMappingsService(project, serviceFactory, mappingOption).getMappingTree();
 		LoggerFilter.replaceSystemOut();
-		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
-				.logger(project.getLogger()::lifecycle)
-				.logUnknownInvokeDynamic(false)
+
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
+				.withKnownIndyBsm(knownIndyBsms)
 				.withMappings(TinyRemapperHelper.create(mappings, fromM, toM, false))
 				.renameInvalidLocals(false)
 				.extraAnalyzeVisitor(AccessWidenerAnalyzeVisitorProvider.createFromMods(fromM, remapList, extension.getPlatform().get()));
 
-		final KotlinClasspathService kotlinClasspathService = KotlinClasspathService.getOrCreateIfRequired(serviceManager, project);
+		final KotlinClasspathService kotlinClasspathService = serviceFactory.getOrNull(KotlinClasspathService.createOptions(project));
 		KotlinRemapperClassloader kotlinRemapperClassloader = null;
 
 		if (kotlinClasspathService != null) {
@@ -178,23 +198,38 @@ public class ModProcessor {
 			builder.extension(kotlinRemapperClassloader.getTinyRemapperExtension());
 		}
 
-		final TinyRemapper remapper = builder.build();
+		final IdentityBiMap<InputTag, ModDependency> inputTags = new IdentityBiMap<>();
+		final List<ModProcessorExtension> activeExtensions = ModProcessorExtension.EXTENSIONS.stream()
+				.filter(e -> remapList.stream().anyMatch(e::appliesTo))
+				.toList();
+		final ModProcessorExtension.Context context = new ModProcessorExtension.Context(fromM, toM, remapList);
 
-		for (Path minecraftJar : extension.getMinecraftJars(extension.isForge() ? MappingsNamespace.SRG : MappingsNamespace.INTERMEDIARY)) {
-			remapper.readClassPathAsync(minecraftJar);
+		for (ModProcessorExtension modProcessorExtension : activeExtensions) {
+			LOGGER.info("Applying mod processor extension: {}", modProcessorExtension.getClass().getSimpleName());
+
+			final Predicate<InputTag> applyPredicate = inputTag -> {
+				ModDependency mod = inputTags.getByKey(inputTag);
+				return mod != null && modProcessorExtension.appliesTo(mod);
+			};
+
+			builder.extension(modProcessorExtension.createExtension(context, applyPredicate));
 		}
 
-		remapper.readClassPathAsync(mcDeps);
+		for (RemapperExtensionHolder holder : extension.getRemapperExtensions().get()) {
+			holder.apply(builder, fromM, toM);
+		}
 
-		final Map<ModDependency, InputTag> tagMap = new HashMap<>();
+		final TinyRemapper remapper = builder.build();
+
+		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project)).toArray(Path[]::new));
+
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();
 		final Map<ModDependency, Pair<byte[], String>> accessWidenerMap = new HashMap<>();
 
 		for (RemapConfigurationSettings entry : extension.getRemapConfigurations()) {
 			for (File inputFile : entry.getSourceConfiguration().get().getFiles()) {
 				if (remapList.stream().noneMatch(info -> info.getInputFile().toFile().equals(inputFile))) {
-					project.getLogger().debug("Adding " + inputFile + " onto the remap classpath");
-
+					LOGGER.debug("Adding " + inputFile + " onto the remap classpath");
 					remapper.readClassPathAsync(inputFile.toPath());
 				}
 			}
@@ -203,11 +238,10 @@ public class ModProcessor {
 		for (ModDependency info : remapList) {
 			InputTag tag = remapper.createInputTag();
 
-			project.getLogger().debug("Adding " + info.getInputFile() + " as a remap input");
+			LOGGER.debug("Adding " + info.getInputFile() + " as a remap input");
+			inputTags.put(tag, info);
 
 			remapper.readInputsAsync(tag, info.getInputFile());
-			tagMap.put(info, tag);
-
 			Files.deleteIfExists(getRemappedOutput(info));
 		}
 
@@ -224,12 +258,12 @@ public class ModProcessor {
 					final AccessWidenerUtils.AccessWidenerData accessWidenerData = AccessWidenerUtils.readAccessWidenerData(dependency.getInputFile(), platform);
 
 					if (accessWidenerData != null) {
-						project.getLogger().debug("Remapping access widener in {}", dependency.getInputFile());
+						LOGGER.debug("Remapping access widener in {}", dependency.getInputFile());
 						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper());
 						accessWidenerMap.put(dependency, new Pair<>(remappedAw, accessWidenerData.path()));
 					}
 
-					remapper.apply(outputConsumer, tagMap.get(dependency));
+					remapper.apply(outputConsumer, inputTags.getByValue(dependency));
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to remap: " + dependency, e);
 				}
@@ -254,27 +288,40 @@ public class ModProcessor {
 				ZipUtils.replace(output, accessWidener.right(), accessWidener.left());
 			}
 
+			for (ModProcessorExtension modProcessorExtension : activeExtensions) {
+				if (modProcessorExtension.appliesTo(dependency)) {
+					modProcessorExtension.finalise(dependency, output);
+				}
+			}
+
 			stripNestedJars(output);
 			remapJarManifestEntries(output);
 
-			if (extension.isForge()) {
-				AtRemapper.remap(project.getLogger(), output, mappings);
-				CoreModClassRemapper.remapJar(output, mappings, project.getLogger());
+			if (extension.isForgeLike()) {
+				if (extension.isNeoForge()) {
+					// NeoForge: Fully map ATs
+					NeoForgeModDependencies.remapAts(output, mappings, fromM, toM);
+				} else {
+					// Forge: only map class names, the rest are mapped srg -> named at runtime
+					AtClassRemapper.remap(project, output, mappings);
+				}
+
+				CoreModClassRemapper.remapJar(project, extension.getPlatform().get(), output, mappings);
 			}
 
 			dependency.copyToCache(project, output, null);
 		}
 	}
 
-	private static Path getRemappedOutput(ModDependency dependency) {
-		return dependency.getWorkingFile(null);
+	private Path getRemappedOutput(ModDependency dependency) {
+		return dependency.getWorkingFile(project, null);
 	}
 
 	private void remapJarManifestEntries(Path jar) throws IOException {
-		ZipUtils.transform(jar, Map.of(RemapJarTask.MANIFEST_PATH, bytes -> {
+		ZipUtils.transform(jar, Map.of(Constants.Manifest.PATH, bytes -> {
 			var manifest = new Manifest(new ByteArrayInputStream(bytes));
 
-			manifest.getMainAttributes().putValue(RemapJarTask.MANIFEST_NAMESPACE_KEY, toM);
+			manifest.getMainAttributes().putValue(Constants.Manifest.MAPPING_NAMESPACE, toM);
 
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			manifest.write(out);

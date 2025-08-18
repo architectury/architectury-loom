@@ -33,7 +33,7 @@ import java.nio.file.Path;
 import net.fabricmc.loom.api.mappings.layered.MappingLayer;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingVisitor;
-import net.fabricmc.mappingio.format.Tiny2Reader;
+import net.fabricmc.mappingio.format.tiny.Tiny2FileReader;
 
 public record CraneMappingLayer(Path craneJar) implements MappingLayer {
 	private static final String TINY_FILE_NAME = "crane.tiny";
@@ -42,7 +42,7 @@ public record CraneMappingLayer(Path craneJar) implements MappingLayer {
 	public void visit(MappingVisitor visitor) throws IOException {
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(craneJar(), false)) {
 			try (BufferedReader reader = Files.newBufferedReader(fs.get().getPath(TINY_FILE_NAME), StandardCharsets.UTF_8)) {
-				Tiny2Reader.read(reader, visitor);
+				Tiny2FileReader.read(reader, visitor);
 			}
 		}
 	}

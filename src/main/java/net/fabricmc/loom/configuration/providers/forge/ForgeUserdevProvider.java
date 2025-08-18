@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2022 FabricMC
+ * Copyright (c) 2020-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,13 +29,13 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
+import dev.architectury.loom.forge.UserdevConfig;
 import org.gradle.api.Project;
 
-import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipUtils;
@@ -43,8 +43,8 @@ import net.fabricmc.loom.util.ZipUtils;
 public class ForgeUserdevProvider extends DependencyProvider {
 	private File userdevJar;
 	private JsonObject json;
+	private UserdevConfig config;
 	Path joinedPatches;
-	BinaryPatcherConfig binaryPatcherConfig;
 
 	public ForgeUserdevProvider(Project project) {
 		super(project);
@@ -64,17 +64,21 @@ public class ForgeUserdevProvider extends DependencyProvider {
 
 		try (Reader reader = Files.newBufferedReader(configJson)) {
 			json = new Gson().fromJson(reader, JsonObject.class);
+			config = UserdevConfig.CODEC.parse(JsonOps.INSTANCE, json)
+					.getOrThrow(false, msg -> getProject().getLogger().error("Couldn't read userdev config, {}", msg));
 		}
 
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.MCP_CONFIG);
-		addDependency(json.get("mcp").getAsString(), Constants.Configurations.SRG);
-		addDependency(json.get("universal").getAsString(), Constants.Configurations.FORGE_UNIVERSAL);
+		addDependency(config.mcp(), Constants.Configurations.MCP_CONFIG);
+
+		if (!getExtension().isNeoForge()) {
+			addDependency(config.mcp(), Constants.Configurations.SRG);
+		}
+
+		addDependency(config.universal(), Constants.Configurations.FORGE_UNIVERSAL);
 
 		if (Files.notExists(joinedPatches)) {
-			Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), json.get("binpatches").getAsString()));
+			Files.write(joinedPatches, ZipUtils.unpack(userdevJar.toPath(), config.binpatches()));
 		}
-
-		binaryPatcherConfig = BinaryPatcherConfig.fromJson(json.getAsJsonObject("binpatcher"));
 	}
 
 	public File getUserdevJar() {
@@ -90,11 +94,7 @@ public class ForgeUserdevProvider extends DependencyProvider {
 		return json;
 	}
 
-	public record BinaryPatcherConfig(String dependency, List<String> args) {
-		public static BinaryPatcherConfig fromJson(JsonObject json) {
-			String dependency = json.get("version").getAsString();
-			List<String> args = List.of(LoomGradlePlugin.GSON.fromJson(json.get("args"), String[].class));
-			return new BinaryPatcherConfig(dependency, args);
-		}
+	public UserdevConfig getConfig() {
+		return config;
 	}
 }

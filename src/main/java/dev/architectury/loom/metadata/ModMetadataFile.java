@@ -6,6 +6,7 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.function.CollectionUtil;
 
 /**
@@ -31,6 +32,13 @@ public interface ModMetadataFile {
 	 * {@return the paths to the access widener file of this mod, or an empty set if absent}.
 	 */
 	Set<String> getAccessWideners();
+
+	/**
+	 * {@return the paths to the access transformer files of this mod, or an empty set if absent}.
+	 *
+	 * @param platform the platform to run the query on
+	 */
+	Set<String> getAccessTransformers(ModPlatform platform);
 
 	/**
 	 * {@return the injected interface data in this mod metadata file}.

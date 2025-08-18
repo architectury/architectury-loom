@@ -25,11 +25,10 @@
 package net.fabricmc.loom.configuration.providers.minecraft;
 
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 import org.gradle.api.Project;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.decompile.DecompileConfiguration;
 import net.fabricmc.loom.configuration.decompile.SingleJarDecompileConfiguration;
@@ -38,100 +37,159 @@ import net.fabricmc.loom.configuration.processors.MinecraftJarProcessorManager;
 import net.fabricmc.loom.configuration.providers.forge.minecraft.ForgeMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.mapped.MojangMappedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.ProcessedNamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftProvider;
 
-public enum MinecraftJarConfiguration {
-	MERGED(
-		ForgeMinecraftProvider::createMerged,
-		IntermediaryMinecraftProvider.MergedImpl::new,
-		NamedMinecraftProvider.MergedImpl::new,
-		SrgMinecraftProvider.MergedImpl::new,
-		ProcessedNamedMinecraftProvider.MergedImpl::new,
-		SingleJarDecompileConfiguration::new,
-		List.of("client", "server")
-	),
-	SERVER_ONLY(
-		ForgeMinecraftProvider::createServerOnly,
-		IntermediaryMinecraftProvider.SingleJarImpl::server,
-		NamedMinecraftProvider.SingleJarImpl::server,
-		SrgMinecraftProvider.SingleJarImpl::server,
-		ProcessedNamedMinecraftProvider.SingleJarImpl::server,
-		SingleJarDecompileConfiguration::new,
-		List.of("server")
-	),
-	CLIENT_ONLY(
-		ForgeMinecraftProvider::createClientOnly,
-		IntermediaryMinecraftProvider.SingleJarImpl::client,
-		NamedMinecraftProvider.SingleJarImpl::client,
-		SrgMinecraftProvider.SingleJarImpl::client,
-		ProcessedNamedMinecraftProvider.SingleJarImpl::client,
-		SingleJarDecompileConfiguration::new,
-		List.of("client")
-	),
-	SPLIT(
-		SplitMinecraftProvider::new,
-		IntermediaryMinecraftProvider.SplitImpl::new,
-		NamedMinecraftProvider.SplitImpl::new,
-		SrgMinecraftProvider.SplitImpl::new,
-		ProcessedNamedMinecraftProvider.SplitImpl::new,
-		SplitDecompileConfiguration::new,
-		List.of("client", "server")
-	);
+public record MinecraftJarConfiguration<
+		M extends MinecraftProvider,
+		N extends NamedMinecraftProvider<M>,
+		Q extends MappedMinecraftProvider>(
+				MinecraftProviderFactory<M> minecraftProviderFactory,
+				IntermediaryMinecraftProviderFactory<M> intermediaryMinecraftProviderFactory,
+				NamedMinecraftProviderFactory<M> namedMinecraftProviderFactory,
+				SrgMinecraftProviderFactory<M> srgMinecraftProviderFactory,
+				MojangMappedMinecraftProviderFactory<M> mojangMappedMinecraftProviderFactory,
+				ProcessedNamedMinecraftProviderFactory<M, N> processedNamedMinecraftProviderFactory,
+				DecompileConfigurationFactory<Q> decompileConfigurationFactory,
+				List<String> supportedEnvironments) {
+	public static final MinecraftJarConfiguration<
+			MergedMinecraftProvider,
+			NamedMinecraftProvider.MergedImpl,
+			MappedMinecraftProvider> MERGED = new MinecraftJarConfiguration<>(
+				ForgeMinecraftProvider::createMerged,
+				IntermediaryMinecraftProvider.MergedImpl::new,
+				NamedMinecraftProvider.MergedImpl::new,
+				SrgMinecraftProvider.MergedImpl::new,
+				MojangMappedMinecraftProvider.MergedImpl::new,
+				ProcessedNamedMinecraftProvider.MergedImpl::new,
+				SingleJarDecompileConfiguration::new,
+				List.of("client", "server")
+			);
+	public static final MinecraftJarConfiguration<
+			LegacyMergedMinecraftProvider,
+			NamedMinecraftProvider.LegacyMergedImpl,
+			MappedMinecraftProvider> LEGACY_MERGED = new MinecraftJarConfiguration<>(
+				LegacyMergedMinecraftProvider::new,
+				IntermediaryMinecraftProvider.LegacyMergedImpl::new,
+				NamedMinecraftProvider.LegacyMergedImpl::new,
+			SrgMinecraftProvider.LegacyMergedImpl::new,
+			MojangMappedMinecraftProvider.LegacyMergedImpl::new,
+				ProcessedNamedMinecraftProvider.LegacyMergedImpl::new,
+				SingleJarDecompileConfiguration::new,
+				List.of("client", "server")
+			);
+	public static final MinecraftJarConfiguration<
+			SingleJarMinecraftProvider,
+			NamedMinecraftProvider.SingleJarImpl,
+			MappedMinecraftProvider> SERVER_ONLY = new MinecraftJarConfiguration<>(
+				ForgeMinecraftProvider::createServerOnly,
+				IntermediaryMinecraftProvider.SingleJarImpl::server,
+				NamedMinecraftProvider.SingleJarImpl::server,
+				SrgMinecraftProvider.SingleJarImpl::server,
+				MojangMappedMinecraftProvider.SingleJarImpl::server,
+				ProcessedNamedMinecraftProvider.SingleJarImpl::server,
+				SingleJarDecompileConfiguration::new,
+				List.of("server")
+			);
+	public static final MinecraftJarConfiguration<
+			SingleJarMinecraftProvider,
+			NamedMinecraftProvider.SingleJarImpl,
+			MappedMinecraftProvider> CLIENT_ONLY = new MinecraftJarConfiguration<>(
+				ForgeMinecraftProvider::createClientOnly,
+				IntermediaryMinecraftProvider.SingleJarImpl::client,
+				NamedMinecraftProvider.SingleJarImpl::client,
+				SrgMinecraftProvider.SingleJarImpl::client,
+				MojangMappedMinecraftProvider.SingleJarImpl::client,
+				ProcessedNamedMinecraftProvider.SingleJarImpl::client,
+				SingleJarDecompileConfiguration::new,
+				List.of("client")
+			);
+	public static final MinecraftJarConfiguration<
+			SplitMinecraftProvider,
+			NamedMinecraftProvider.SplitImpl,
+			MappedMinecraftProvider.Split> SPLIT = new MinecraftJarConfiguration<>(
+				SplitMinecraftProvider::new,
+				IntermediaryMinecraftProvider.SplitImpl::new,
+				NamedMinecraftProvider.SplitImpl::new,
+				SrgMinecraftProvider.SplitImpl::new,
+				MojangMappedMinecraftProvider.SplitImpl::new,
+				ProcessedNamedMinecraftProvider.SplitImpl::new,
+				SplitDecompileConfiguration::new,
+				List.of("client", "server")
+			);
 
-	private final Function<ConfigContext, MinecraftProvider> minecraftProviderFunction;
-	private final BiFunction<Project, MinecraftProvider, IntermediaryMinecraftProvider<?>> intermediaryMinecraftProviderBiFunction;
-	private final BiFunction<Project, MinecraftProvider, NamedMinecraftProvider<?>> namedMinecraftProviderBiFunction;
-	private final BiFunction<Project, MinecraftProvider, SrgMinecraftProvider<?>> srgMinecraftProviderBiFunction;
-	private final BiFunction<NamedMinecraftProvider<?>, MinecraftJarProcessorManager, ProcessedNamedMinecraftProvider<?, ?>> processedNamedMinecraftProviderBiFunction;
-	private final BiFunction<ConfigContext, MappedMinecraftProvider, DecompileConfiguration<?>> decompileConfigurationBiFunction;
-	private final List<String> supportedEnvironments;
-
-	@SuppressWarnings("unchecked") // Just a bit of a generic mess :)
-	<M extends MinecraftProvider, P extends NamedMinecraftProvider<M>, Q extends MappedMinecraftProvider> MinecraftJarConfiguration(
-			Function<ConfigContext, M> minecraftProviderFunction,
-			BiFunction<Project, M, IntermediaryMinecraftProvider<M>> intermediaryMinecraftProviderBiFunction,
-			BiFunction<Project, M, P> namedMinecraftProviderBiFunction,
-			BiFunction<Project, M, SrgMinecraftProvider<M>> srgMinecraftProviderBiFunction,
-			BiFunction<P, MinecraftJarProcessorManager, ProcessedNamedMinecraftProvider<M, P>> processedNamedMinecraftProviderBiFunction,
-			BiFunction<ConfigContext, Q, DecompileConfiguration<?>> decompileConfigurationBiFunction,
-			List<String> supportedEnvironments
-	) {
-		this.minecraftProviderFunction = (Function<ConfigContext, MinecraftProvider>) minecraftProviderFunction;
-		this.intermediaryMinecraftProviderBiFunction = (BiFunction<Project, MinecraftProvider, IntermediaryMinecraftProvider<?>>) (Object) intermediaryMinecraftProviderBiFunction;
-		this.namedMinecraftProviderBiFunction = (BiFunction<Project, MinecraftProvider, NamedMinecraftProvider<?>>) namedMinecraftProviderBiFunction;
-		this.srgMinecraftProviderBiFunction = (BiFunction<Project, MinecraftProvider, SrgMinecraftProvider<?>>) (Object) srgMinecraftProviderBiFunction;
-		this.processedNamedMinecraftProviderBiFunction = (BiFunction<NamedMinecraftProvider<?>, MinecraftJarProcessorManager, ProcessedNamedMinecraftProvider<?, ?>>) (Object) processedNamedMinecraftProviderBiFunction;
-		this.decompileConfigurationBiFunction = (BiFunction<ConfigContext, MappedMinecraftProvider, DecompileConfiguration<?>>) decompileConfigurationBiFunction;
-		this.supportedEnvironments = supportedEnvironments;
+	public MinecraftProvider createMinecraftProvider(MinecraftMetadataProvider metadataProvider, ConfigContext context) {
+		return minecraftProviderFactory.create(metadataProvider, context);
 	}
 
-	public Function<ConfigContext, MinecraftProvider> getMinecraftProviderFunction() {
-		return minecraftProviderFunction;
+	public IntermediaryMinecraftProvider<M> createIntermediaryMinecraftProvider(Project project) {
+		return intermediaryMinecraftProviderFactory.create(project, getMinecraftProvider(project));
 	}
 
-	public BiFunction<Project, MinecraftProvider, IntermediaryMinecraftProvider<?>> getIntermediaryMinecraftProviderBiFunction() {
-		return intermediaryMinecraftProviderBiFunction;
+	public NamedMinecraftProvider<M> createNamedMinecraftProvider(Project project) {
+		return namedMinecraftProviderFactory.create(project, getMinecraftProvider(project));
 	}
 
-	public BiFunction<Project, MinecraftProvider, NamedMinecraftProvider<?>> getNamedMinecraftProviderBiFunction() {
-		return namedMinecraftProviderBiFunction;
+	public SrgMinecraftProvider<M> createSrgMinecraftProvider(Project project) {
+		return srgMinecraftProviderFactory.create(project, getMinecraftProvider(project));
 	}
 
-	public BiFunction<NamedMinecraftProvider<?>, MinecraftJarProcessorManager, ProcessedNamedMinecraftProvider<?, ?>> getProcessedNamedMinecraftProviderBiFunction() {
-		return processedNamedMinecraftProviderBiFunction;
+	public MojangMappedMinecraftProvider<M> createMojangMappedMinecraftProvider(Project project) {
+		return mojangMappedMinecraftProviderFactory.create(project, getMinecraftProvider(project));
 	}
 
-	public BiFunction<ConfigContext, MappedMinecraftProvider, DecompileConfiguration<?>> getDecompileConfigurationBiFunction() {
-		return decompileConfigurationBiFunction;
+	public ProcessedNamedMinecraftProvider<M, N> createProcessedNamedMinecraftProvider(NamedMinecraftProvider<?> namedMinecraftProvider, MinecraftJarProcessorManager jarProcessorManager) {
+		return processedNamedMinecraftProviderFactory.create((N) namedMinecraftProvider, jarProcessorManager);
 	}
 
-	public BiFunction<Project, MinecraftProvider, SrgMinecraftProvider<?>> getSrgMinecraftProviderBiFunction() {
-		return srgMinecraftProviderBiFunction;
+	public DecompileConfiguration<Q> createDecompileConfiguration(Project project) {
+		return decompileConfigurationFactory.create(project, getMappedMinecraftProvider(project));
+	}
+
+	private M getMinecraftProvider(Project project) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		//noinspection unchecked
+		return (M) extension.getMinecraftProvider();
+	}
+
+	private Q getMappedMinecraftProvider(Project project) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		//noinspection unchecked
+		return (Q) extension.getNamedMinecraftProvider();
 	}
 
 	public List<String> getSupportedEnvironments() {
 		return supportedEnvironments;
+	}
+
+	// Factory interfaces:
+	private interface MinecraftProviderFactory<M extends MinecraftProvider> {
+		M create(MinecraftMetadataProvider metadataProvider, ConfigContext configContext);
+	}
+
+	private interface IntermediaryMinecraftProviderFactory<M extends MinecraftProvider> {
+		IntermediaryMinecraftProvider<M> create(Project project, M minecraftProvider);
+	}
+
+	private interface NamedMinecraftProviderFactory<M extends MinecraftProvider> {
+		NamedMinecraftProvider<M> create(Project project, M minecraftProvider);
+	}
+
+	private interface SrgMinecraftProviderFactory<M extends MinecraftProvider> {
+		SrgMinecraftProvider<M> create(Project project, M minecraftProvider);
+	}
+
+	private interface MojangMappedMinecraftProviderFactory<M extends MinecraftProvider> {
+		MojangMappedMinecraftProvider<M> create(Project project, M minecraftProvider);
+	}
+
+	private interface ProcessedNamedMinecraftProviderFactory<M extends MinecraftProvider, N extends NamedMinecraftProvider<M>> {
+		ProcessedNamedMinecraftProvider<M, N> create(N namedMinecraftProvider, MinecraftJarProcessorManager jarProcessorManager);
+	}
+
+	private interface DecompileConfigurationFactory<M extends MappedMinecraftProvider> {
+		DecompileConfiguration<M> create(Project project, M minecraftProvider);
 	}
 }

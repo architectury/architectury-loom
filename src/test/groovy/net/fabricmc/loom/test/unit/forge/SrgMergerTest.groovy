@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,9 +30,10 @@ import java.nio.file.Path
 import spock.lang.Specification
 import spock.lang.TempDir
 
-import net.fabricmc.loom.util.srg.SrgMerger
+import net.fabricmc.loom.util.srg.ForgeMappingsMerger
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.format.MappingFormat
+import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter
 
 class SrgMergerTest extends Specification {
 	@TempDir
@@ -42,7 +43,7 @@ class SrgMergerTest extends Specification {
 		def output = mappingsDir.resolve("output.tiny")
 		def expected = readTestData("expectedOutput.tiny")
 		def proguardInput = extractTempFile("proguard.txt")
-		def extraMappings = new SrgMerger.ExtraMappings(proguardInput, MappingFormat.PROGUARD, MappingUtil.NS_TARGET_FALLBACK, MappingUtil.NS_SOURCE_FALLBACK)
+		def extraMappings = new ForgeMappingsMerger.ExtraMappings(proguardInput, MappingFormat.PROGUARD_FILE, MappingUtil.NS_TARGET_FALLBACK, MappingUtil.NS_SOURCE_FALLBACK)
 
 		when:
 		merge(extraMappings, output)
@@ -55,7 +56,7 @@ class SrgMergerTest extends Specification {
 		def output = mappingsDir.resolve("output.tiny")
 		def expected = readTestData("expectedOutput.tiny")
 		def extraInput = extractTempFile("extraInput.tsrg")
-		def extraMappings = SrgMerger.ExtraMappings.ofMojmapTsrg(extraInput)
+		def extraMappings = ForgeMappingsMerger.ExtraMappings.ofMojmapTsrg(extraInput)
 
 		when:
 		merge(extraMappings, output)
@@ -64,10 +65,13 @@ class SrgMergerTest extends Specification {
 		Files.readAllLines(output) == expected
 	}
 
-	private def merge(SrgMerger.ExtraMappings extraMappings, Path output) {
+	private def merge(ForgeMappingsMerger.ExtraMappings extraMappings, Path output) {
 		def srgInput = extractTempFile("srgInput.tsrg")
 		def tinyInput = extractTempFile("tinyInput.tiny")
-		SrgMerger.mergeSrg(srgInput, tinyInput, output, extraMappings, true)
+
+		new Tiny2FileWriter(Files.newBufferedWriter(output), false).withCloseable { writer ->
+			ForgeMappingsMerger.mergeSrg(srgInput, tinyInput, extraMappings, true).accept(writer)
+		}
 	}
 
 	private InputStream openTestDataStream(String path) {

@@ -25,14 +25,23 @@
 package net.fabricmc.loom.task;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
+import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.ModPlatform;
 
 public abstract class AbstractLoomTask extends DefaultTask {
+	@Input
+	@ApiStatus.Internal
+	protected abstract Property<ModPlatform> getModPlatform();
+
 	public AbstractLoomTask() {
 		setGroup(Constants.TaskGroup.FABRIC);
+		getModPlatform().value(getExtension().getPlatform()).finalizeValue();
 	}
 
 	@Internal

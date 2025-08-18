@@ -24,9 +24,11 @@
 
 package net.fabricmc.loom.test.unit
 
+import java.nio.file.Path
 import java.util.function.Function
 
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider
+import net.fabricmc.loom.configuration.providers.mappings.IntermediateMappingsService
 import net.fabricmc.loom.test.util.GradleTestUtil
 import net.fabricmc.loom.util.download.Download
 
@@ -38,6 +40,7 @@ class LoomMocks {
 		def minecraftVersionProperty = GradleTestUtil.mockProperty(minecraftVersion)
 		def intermediaryUrlProperty = GradleTestUtil.mockProperty(intermediaryUrl)
 		def downloaderProperty = GradleTestUtil.mockProperty(Download.&create as Function)
+		def refreshDeps = GradleTestUtil.mockProperty(false)
 
 		Objects.requireNonNull(minecraftVersionProperty.get())
 
@@ -45,6 +48,23 @@ class LoomMocks {
 		when(mock.getMinecraftVersion()).thenReturn(minecraftVersionProperty)
 		when(mock.getIntermediaryUrl()).thenReturn(intermediaryUrlProperty)
 		when(mock.getDownloader()).thenReturn(downloaderProperty)
+		when(mock.getRefreshDeps()).thenReturn(refreshDeps)
+		return mock
+	}
+
+	static IntermediateMappingsService.Options intermediateMappingsServiceOptionsMock(Path intermediaryTiny, String expectedSrcNs) {
+		def intermediaryTinyProperty = GradleTestUtil.mockProperty(intermediaryTiny)
+		def expectedSrcNsProperty = GradleTestUtil.mockProperty(expectedSrcNs)
+
+		def mock = spy(IntermediateMappingsService.Options.class)
+		when(mock.getIntermediaryTiny()).thenReturn(intermediaryTinyProperty)
+		when(mock.getExpectedSrcNs()).thenReturn(expectedSrcNsProperty)
+		return mock
+	}
+
+	static IntermediateMappingsService intermediateMappingsServiceMock(IntermediateMappingsService.Options options) {
+		def mock = spy(IntermediateMappingsService.class)
+		when(mock.getOptions()).thenReturn(options)
 		return mock
 	}
 }

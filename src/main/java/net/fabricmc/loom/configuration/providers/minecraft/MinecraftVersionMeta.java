@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.minecraft;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,7 +48,8 @@ public record MinecraftVersionMeta(
 		int minimumLauncherVersion,
 		String releaseTime,
 		String time,
-		String type
+		String type,
+		@Nullable JavaVersion javaVersion
 ) {
 	private static Map<Platform.OperatingSystem, String> OS_NAMES = Map.of(
 			Platform.OperatingSystem.WINDOWS, "windows",
@@ -162,10 +164,13 @@ public record MinecraftVersionMeta(
 		}
 	}
 
-	public record Download(String path, String sha1, long size, String url) {
+	public record Download(String path, String sha1, long size, String url) implements Serializable {
 		public File relativeFile(File baseDirectory) {
 			Objects.requireNonNull(path(), "Cannot get relative file from a null path");
 			return new File(baseDirectory, path());
 		}
+	}
+
+	public record JavaVersion(String component, int majorVersion) {
 	}
 }

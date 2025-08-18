@@ -46,9 +46,9 @@ public interface LoomFiles {
 	File getNativesDirectory(Project project);
 	File getDefaultLog4jConfigFile();
 	File getDevLauncherConfig();
-	File getUnpickLoggingConfigFile();
 	File getRemapClasspathFile();
 	File getGlobalMinecraftRepo();
 	File getLocalMinecraftRepo();
+	File getDecompileCache(String version);
 	File getForgeDependencyRepo();
 }

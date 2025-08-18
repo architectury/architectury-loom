@@ -41,9 +41,8 @@ class MultiProjectTest extends Specification implements GradleProjectTestTrait {
 		when:
 		def result = gradle.run(tasks: [
 			"build",
-			"eclipse",
+			"genEclipseRuns",
 			"vscode",
-			"idea"
 		])
 
 		then:

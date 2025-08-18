@@ -28,7 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Collection;
-import java.util.List;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -37,26 +37,29 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.gradle.api.UncheckedIOException;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import net.fabricmc.loom.LoomGradlePlugin;
-import net.fabricmc.loom.build.nesting.IncludedJarFactory.NestedFile;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 
 public class JarNester {
-	public static void nestJars(Collection<File> jars, List<NestedFile> forgeJars, File modJar, ModPlatform platform, Logger logger) {
+	public static void nestJars(Collection<File> jars, File modJar, ModPlatform platform, Logger logger) {
 		if (jars.isEmpty()) {
 			logger.debug("Nothing to nest into " + modJar.getName());
 			return;
 		}
 
-		Preconditions.checkArgument(FabricModJsonFactory.isModJar(modJar, platform), "Cannot nest jars into none mod jar " + modJar.getName());
+		Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(modJar, platform), "Cannot nest jars into none mod jar " + modJar.getName());
+
+		// Ensure deterministic ordering of entries in fabric.mod.json
+		Collection<File> sortedJars = jars.stream().sorted(Comparator.comparing(File::getName)).toList();
 
 		try {
-			ZipUtils.add(modJar.toPath(), jars.stream().map(file -> {
+			ZipUtils.add(modJar.toPath(), sortedJars.stream().map(file -> {
 				try {
 					return new Pair<>("META-INF/jars/" + file.getName(), Files.readAllBytes(file.toPath()));
 				} catch (IOException e) {
@@ -64,8 +67,8 @@ public class JarNester {
 				}
 			}).collect(Collectors.toList()));
 
-			if (platform == ModPlatform.FORGE) {
-				handleForgeJarJar(forgeJars, modJar, logger);
+			if (platform.isForgeLike()) {
+				handleForgeJarJar(jars, modJar, logger);
 				return;
 			}
 
@@ -76,9 +79,9 @@ public class JarNester {
 					nestedJars = new JsonArray();
 				}
 
-				for (File file : jars) {
+				for (File file : sortedJars) {
 					String nestedJarPath = "META-INF/jars/" + file.getName();
-					Preconditions.checkArgument(FabricModJsonFactory.isModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
+					Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
 
 					for (JsonElement nestedJar : nestedJars) {
 						JsonObject jsonObject = nestedJar.getAsJsonObject();
@@ -115,7 +118,7 @@ public class JarNester {
 
 				for (File file : jars) {
 					String nestedJarPath = "META-INF/jars/" + file.getName();
-					Preconditions.checkArgument(FabricModJsonFactory.isModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
+					Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
 
 					for (JsonElement nestedJar : nestedJars) {
 						String nestedJarString = nestedJar.getAsString();
@@ -141,13 +144,27 @@ public class JarNester {
 		}
 	}
 
-	private static void handleForgeJarJar(List<NestedFile> forgeJars, File modJar, Logger logger) throws IOException {
+	private static @Nullable NestableJarGenerationTask.Metadata readNestedFile(File file, Logger logger) {
+		try {
+			return ZipUtils.unpackGsonNullable(file.toPath(), NestableJarGenerationTask.NESTING_METADATA_PATH, NestableJarGenerationTask.Metadata.class);
+		} catch (IOException e) {
+			logger.error("Could not read {}", file.getAbsolutePath(), e);
+			return null;
+		}
+	}
+
+	private static void handleForgeJarJar(Collection<File> jars, File modJar, Logger logger) throws IOException {
 		JsonObject json = new JsonObject();
 		JsonArray nestedJars = new JsonArray();
 
-		for (NestedFile nestedFile : forgeJars) {
-			IncludedJarFactory.Metadata metadata = nestedFile.metadata();
-			File file = nestedFile.file();
+		for (File file : jars) {
+			NestableJarGenerationTask.Metadata metadata = readNestedFile(file, logger);
+
+			if (metadata == null) {
+				logger.error("Jar {} does not contain Loom nesting metadata", file.getAbsolutePath());
+				continue;
+			}
+
 			String nestedJarPath = "META-INF/jars/" + file.getName();
 
 			for (JsonElement nestedJar : nestedJars) {

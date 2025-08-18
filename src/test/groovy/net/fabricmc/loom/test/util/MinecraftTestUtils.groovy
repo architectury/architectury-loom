@@ -26,26 +26,26 @@ package net.fabricmc.loom.test.util
 
 import java.time.Duration
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 
-import net.fabricmc.loom.configuration.providers.minecraft.ManifestVersion
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta
+import net.fabricmc.loom.configuration.providers.minecraft.VersionsManifest
 import net.fabricmc.loom.test.LoomTestConstants
 import net.fabricmc.loom.util.Constants
 import net.fabricmc.loom.util.download.Download
 
 class MinecraftTestUtils {
 	private static final File TEST_DIR = new File(LoomTestConstants.TEST_DIR, "minecraft")
-	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+	public static final Gson GSON = new GsonBuilder().create()
 
 	static MinecraftVersionMeta getVersionMeta(String id) {
 		def versionManifest = download(Constants.VERSION_MANIFESTS, "version_manifest.json")
-		def manifest = OBJECT_MAPPER.readValue(versionManifest, ManifestVersion.class)
+		def manifest = GSON.fromJson(versionManifest, VersionsManifest.class)
 		def version = manifest.versions().find { it.id == id }
 
 		def metaJson = download(version.url, "${id}.json")
-		OBJECT_MAPPER.readValue(metaJson, MinecraftVersionMeta.class)
+		GSON.fromJson(metaJson, MinecraftVersionMeta.class)
 	}
 
 	static String download(String url, String name) {

@@ -38,6 +38,18 @@ public enum MappingsNamespace {
 	OFFICIAL,
 
 	/**
+	 * Official names for the Minecraft client jar, usually obfuscated.
+	 * This namespace is used for versions <1.3, where the client and server jars are obfuscated differently.
+	 */
+	CLIENT_OFFICIAL,
+
+	/**
+	 * Official names for the Minecraft server jar, usually obfuscated.
+	 * This namespace is used for versions <1.3, where the client and server jars are obfuscated differently.
+	 */
+	SERVER_OFFICIAL,
+
+	/**
 	 * Intermediary mappings have been generated to provide a stable set of names across minecraft versions.
 	 *
 	 * <p>Intermediary is used in a production runtime (outside a dev env) allowing mods to run across multiple versions of the game. Mods are remapped from "named" at build time.
@@ -55,6 +67,14 @@ public enum MappingsNamespace {
 	SRG,
 
 	/**
+	 * Mojang's official names from their deobfuscation maps.
+	 *
+	 * <p>They are used as the mapping set in a NeoForge production environment akin to Fabric's
+	 * {@linkplain #INTERMEDIARY intermediary mappings}.
+	 */
+	MOJANG,
+
+	/**
 	 * Named mappings are the developer friendly names used to develop mods against.
 	 */
 	NAMED;
@@ -68,8 +88,11 @@ public enum MappingsNamespace {
 	public static @Nullable MappingsNamespace of(String namespace) {
 		return switch (namespace) {
 		case "official" -> OFFICIAL;
+		case "clientOfficial" -> CLIENT_OFFICIAL;
+		case "serverOfficial" -> SERVER_OFFICIAL;
 		case "intermediary" -> INTERMEDIARY;
 		case "srg" -> SRG;
+		case "mojang" -> MOJANG;
 		case "named" -> NAMED;
 		default -> null;
 		};
@@ -77,6 +100,10 @@ public enum MappingsNamespace {
 
 	@Override
 	public String toString() {
-		return name().toLowerCase(Locale.ROOT);
+		return switch (this) {
+		case CLIENT_OFFICIAL -> "clientOfficial";
+		case SERVER_OFFICIAL -> "serverOfficial";
+		default -> name().toLowerCase(Locale.ROOT);
+		};
 	}
 }

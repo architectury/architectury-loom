@@ -32,11 +32,10 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.function.BiConsumer;
 
-import dev.architectury.tinyremapper.InputTag;
-import dev.architectury.tinyremapper.TinyRemapper;
-
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.ThreadingUtils;
+import net.fabricmc.tinyremapper.InputTag;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public class OutputRemappingHandler {
 	public static void remap(TinyRemapper remapper, Path assets, Path output) throws IOException {

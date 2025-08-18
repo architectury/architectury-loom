@@ -1,0 +1,55 @@
+[versions]
+# Decompilers
+fernflower = "2.0.0"
+cfr = "0.2.2"
+vineflower = "1.11.1"
+
+# Runtime depedencies
+mixin-compile-extensions = "0.6.0"
+dev-launch-injector = "0.2.1+build.8"
+terminal-console-appender = "1.3.0"
+jetbrains-annotations = "26.0.2"
+native-support = "1.0.1"
+fabric-installer = "1.0.3"
+
+# Debug tools
+renderdoc = "1.37"
+
+# Forge Runtime depedencies
+javax-annotations = "3.0.2"
+forge-runtime = "2.0.9"
+access-transformers = "3.0.1"
+access-transformers-new = "8.0.5"
+access-transformers-neo = "10.0.2"
+unprotect = "1.3.1"
+asm = "9.7"
+access-transformers-log4j = "2.17.1"
+
+[libraries]
+# Decompilers
+fernflower = { module = "net.fabricmc:fabric-fernflower", version.ref = "fernflower" }
+cfr = { module = "net.fabricmc:cfr", version.ref = "cfr" }
+vineflower = { module = "org.vineflower:vineflower", version.ref = "vineflower" }
+
+# Runtime depedencies
+mixin-compile-extensions = { module = "net.fabricmc:fabric-mixin-compile-extensions", version.ref = "mixin-compile-extensions" }
+dev-launch-injector = { module = "net.fabricmc:dev-launch-injector", version.ref = "dev-launch-injector" }
+terminal-console-appender = { module = "net.minecrell:terminalconsoleappender", version.ref = "terminal-console-appender" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+native-support = { module = "net.fabricmc:fabric-loom-native-support", version.ref = "native-support" }
+fabric-installer = { module = "net.fabricmc:fabric-installer", version.ref = "fabric-installer" }
+
+# Debug tools
+renderdoc = { module = "org.renderdoc:renderdoc", version.ref = "renderdoc" } # Not a maven dependency
+
+# Forge Runtime depedencies
+javax-annotations = { module = "com.google.code.findbugs:jsr305", version.ref = "javax-annotations" }
+mixin-remapper-service = { module = "dev.architectury:architectury-mixin-remapper-service", version.ref = "forge-runtime" }
+naming-service = { module = "dev.architectury:architectury-naming-service", version.ref = "forge-runtime" }
+mcp-annotations = { module = "dev.architectury:mcp-annotations", version.ref = "forge-runtime" }
+access-transformers = { module = "net.minecraftforge:accesstransformers", version.ref = "access-transformers" }
+access-transformers-new = { module = "net.minecraftforge:accesstransformers", version.ref = "access-transformers-new" }
+access-transformers-neo = { module = "net.neoforged.accesstransformers:at-cli", version.ref = "access-transformers-neo" }
+unprotect = { module = "io.github.juuxel:unprotect", version.ref = "unprotect" }
+asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
+access-transformers-log4j-bom = { module = "org.apache.logging.log4j:log4j-bom", version.ref = "access-transformers-log4j" }

@@ -24,14 +24,15 @@
 
 package net.fabricmc.loom.test.util
 
+import groovy.io.FileType
 import groovy.transform.Immutable
 import org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.util.GradleVersion
 import spock.lang.Shared
 
 import net.fabricmc.loom.test.LoomTestConstants
-import net.fabricmc.loom.util.Constants
 import net.fabricmc.loom.util.ZipUtils
 
 trait GradleProjectTestTrait {
@@ -44,7 +45,7 @@ trait GradleProjectTestTrait {
 		String gradleVersion = options.version as String ?: LoomTestConstants.DEFAULT_GRADLE
 		String warningMode = options.warningMode as String ?: "fail"
 		File projectDir = options.projectDir as File ?: options.sharedFiles ? sharedProjectDir : File.createTempDir()
-		File gradleHomeDir = gradleHomeDir
+		File gradleHomeDir = options.gradleHomeDir as File ?: gradleHomeDir
 
 		setupProject(options, projectDir)
 
@@ -149,6 +150,7 @@ trait GradleProjectTestTrait {
 		private String gradleHomeDir
 		private String warningMode
 		private boolean useBuildSrc
+		private boolean enableDebugging = true
 
 		BuildResult run(Map options) {
 			// Setup the system props to tell loom that its running in a test env
@@ -162,6 +164,24 @@ trait GradleProjectTestTrait {
 
 			if (options.task) {
 				args << options.task
+			}
+
+			boolean configurationCache = true
+
+			if (options.containsKey("configurationCache")) {
+				configurationCache = options.configurationCache
+			}
+
+			if (configurationCache) {
+				args << "--configuration-cache"
+			}
+
+			if (options.isloatedProjects) {
+				args << "-Dorg.gradle.unsafe.isolated-projects=true"
+			}
+
+			if (options.configureOnDemand) {
+				args << "--configure-on-demand"
 			}
 
 			args.addAll(options.tasks ?: [])
@@ -178,6 +198,10 @@ trait GradleProjectTestTrait {
 				writeBuildSrcDeps(runner)
 			}
 
+			if (options.disableDebugging) {
+				enableDebugging = false
+			}
+
 			return options.expectFailure ? runner.buildAndFail() : runner.build()
 		}
 
@@ -187,7 +211,8 @@ trait GradleProjectTestTrait {
 					.withPluginClasspath()
 					.withGradleVersion(gradleVersion)
 					.forwardOutput()
-					.withDebug(true)
+					// Only enable debugging when the current gradle version matches the version we are testing
+					.withDebug(enableDebugging && gradleVersion == GradleVersion.current().getVersion())
 		}
 
 		File getProjectDir() {
@@ -241,10 +266,23 @@ trait GradleProjectTestTrait {
 		}
 
 		File getGeneratedLocalSources(String mappings) {
-			return new File(getProjectDir(), ".gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-project-root/${mappings}/minecraft-merged-project-root-${mappings}-sources.jar")
+			File file
+			getProjectDir().traverse(type: FileType.FILES) {
+				if (it.name.startsWith("minecraft-merged-")
+						&& it.name.contains(mappings)
+						&& it.name.endsWith("-sources.jar")) {
+					file = it
+				}
+			}
+
+			if (file == null) {
+				throw new FileNotFoundException()
+			}
+
+			return file
 		}
 
-		void buildSrc(String name) {
+		void buildSrc(String name, boolean apply = true) {
 			useBuildSrc = true
 
 			def buildSrcDir = new File(projectDir, "buildSrc")
@@ -271,24 +309,26 @@ trait GradleProjectTestTrait {
                 rootProject.name='loom-test-plugin'
             '''
 
-			// Patch the new plugin into the end of the plugins block
-			def matcher = buildGradle.text =~ /(?s)plugins \{(?<ids>.*?)}/
-			assert matcher.find()
-			def ids = matcher.group("ids")
-
-			def pluginBlock = """
-                plugins {
-                    ${ids}
-                    id 'loom-test-plugin'
-                }
-            """
-
-			buildGradle.text = buildGradle.text.replaceAll("(?s)(plugins \\{.*?})", pluginBlock)
-
 			def sourceSrc = new File("src/test/groovy/net/fabricmc/loom/test/integration/buildSrc/" + name)
 			def targetSrc = new File(buildSrcDir, "src/main/groovy/net/fabricmc/loom/test/integration/buildSrc/" + name)
 
 			FileUtils.copyDirectory(sourceSrc, targetSrc)
+
+			if (apply) {
+				// Patch the new plugin into the end of the plugins block
+				def matcher = buildGradle.text =~ /(?s)plugins \{(?<ids>.*?)}/
+				assert matcher.find()
+				def ids = matcher.group("ids")
+
+				def pluginBlock = """
+					plugins {
+						${ids}
+						id 'loom-test-plugin'
+					}
+				"""
+
+				buildGradle.text = buildGradle.text.replaceAll("(?s)(plugins \\{.*?})", pluginBlock)
+			}
 		}
 
 		void writeBuildSrcDeps(GradleRunner runner) {
@@ -302,10 +342,6 @@ trait GradleProjectTestTrait {
                     ${dependencies}
                 }
             """
-		}
-
-		void enableMultiProjectOptimisation() {
-			getGradleProperties() << "\n${Constants.Properties.MULTI_PROJECT_OPTIMISATION}=true"
 		}
 	}
 }

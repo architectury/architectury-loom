@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,11 +40,11 @@ import javax.inject.Inject;
 
 import com.google.common.hash.Hashing;
 import com.google.common.io.MoreFiles;
+import dev.architectury.at.AccessTransformSet;
+import dev.architectury.at.io.AccessTransformFormats;
+import dev.architectury.loom.forge.tool.AccessTransformerService;
 import dev.architectury.loom.util.TempFiles;
-import org.cadixdev.at.AccessTransformSet;
-import org.cadixdev.at.io.AccessTransformFormats;
 import org.gradle.api.Project;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
@@ -54,12 +54,13 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.api.processor.MinecraftJarProcessor;
 import net.fabricmc.loom.api.processor.ProcessorContext;
 import net.fabricmc.loom.api.processor.SpecContext;
+import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.ExceptionUtil;
-import net.fabricmc.loom.util.ForgeToolExecutor;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.fmj.FabricModJson;
-import net.fabricmc.lorenztiny.TinyMappingsReader;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public class AccessTransformerJarProcessor implements MinecraftJarProcessor<AccessTransformerJarProcessor.Spec> {
 	private static final Logger LOGGER = Logging.getLogger(AccessTransformerJarProcessor.class);
@@ -95,6 +96,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 			final byte[] bytes;
 
 			try {
+				// TODO: Shouldn't we check for the mods.toml AT list on Neo?
 				bytes = localMod.getSource().read(Constants.Forge.ACCESS_TRANSFORMER_PATH);
 			} catch (FileNotFoundException | NoSuchFileException e) {
 				continue;
@@ -111,16 +113,14 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 
 	@Override
 	public void processJar(Path jar, Spec spec, ProcessorContext context) throws IOException {
-		try (var tempFiles = new TempFiles()) {
+		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			LOGGER.lifecycle(":applying project access transformers");
 			final Path tempInput = tempFiles.file("input", ".jar");
 			Files.copy(jar, tempInput, StandardCopyOption.REPLACE_EXISTING);
 			final Path atPath = mergeAndRemapAccessTransformers(context, spec.accessTransformers(), tempFiles);
 
-			executeAt(project, tempInput, jar, args -> {
-				args.add("--atFile");
-				args.add(atPath.toAbsolutePath().toString());
-			});
+			final AccessTransformerService service = serviceFactory.get(AccessTransformerService.createOptions(project, atPath.toAbsolutePath()));
+			service.execute(tempInput, jar);
 		} catch (IOException e) {
 			throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Could not access transform " + jar.toAbsolutePath(), e);
 		}
@@ -137,7 +137,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 			}
 		}
 
-		accessTransformSet = accessTransformSet.remap(new TinyMappingsReader(context.getMappings(), MappingsNamespace.SRG.toString(), MappingsNamespace.NAMED.toString()).read());
+		accessTransformSet = accessTransformSet.remap(context.getMappings(), IntermediaryNamespaces.intermediary(project), MappingsNamespace.NAMED.toString());
 
 		final Path accessTransformerPath = tempFiles.file("accesstransformer-merged", ".cfg");
 
@@ -155,25 +155,21 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 		return name;
 	}
 
-	public static void executeAt(Project project, Path input, Path output, AccessTransformerConfiguration configuration) throws IOException {
-		boolean serverBundleMetadataPresent = LoomGradleExtension.get(project).getMinecraftProvider().getServerBundleMetadata() != null;
-		FileCollection classpath = new DependencyDownloader(project)
-				.add(Constants.Dependencies.ACCESS_TRANSFORMERS + (serverBundleMetadataPresent ? Constants.Dependencies.Versions.ACCESS_TRANSFORMERS_NEW : Constants.Dependencies.Versions.ACCESS_TRANSFORMERS))
-				.add(Constants.Dependencies.ASM + Constants.Dependencies.Versions.ASM)
-				.download();
-		List<String> args = new ArrayList<>();
-		args.add("--inJar");
-		args.add(input.toAbsolutePath().toString());
-		args.add("--outJar");
-		args.add(output.toAbsolutePath().toString());
+	private static LoomVersions chooseAccessTransformer(Project project) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		boolean serverBundleMetadataPresent = extension.getMinecraftProvider().getServerBundleMetadata() != null;
 
-		configuration.apply(args);
+		if (!serverBundleMetadataPresent) {
+			return LoomVersions.ACCESS_TRANSFORMERS;
+		} else if (extension.isNeoForge()) {
+			MinecraftVersionMeta.JavaVersion javaVersion = extension.getMinecraftProvider().getVersionInfo().javaVersion();
 
-		ForgeToolExecutor.exec(project, spec -> {
-			spec.getMainClass().set("net.minecraftforge.accesstransformer.TransformerProcessor");
-			spec.setArgs(args);
-			spec.setClasspath(classpath);
-		}).rethrowFailure().assertNormalExitValue();
+			if (javaVersion != null && javaVersion.majorVersion() >= 21) {
+				return LoomVersions.ACCESS_TRANSFORMERS_NEO;
+			}
+		}
+
+		return LoomVersions.ACCESS_TRANSFORMERS_NEW;
 	}
 
 	@FunctionalInterface

@@ -35,10 +35,10 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import dev.architectury.tinyremapper.IMappingProvider;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.tree.MappingTree;
+import net.fabricmc.tinyremapper.IMappingProvider;
 
 public class InnerClassRemapper {
 	public static IMappingProvider of(Set<String> fromClassNames, MappingTree mappingsWithSrg, String from, String to) throws IOException {

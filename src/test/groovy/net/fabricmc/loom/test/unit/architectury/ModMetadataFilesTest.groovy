@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023 FabricMC
+ * Copyright (c) 2023-2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -118,21 +118,15 @@ class ModMetadataFilesTest extends Specification {
 		modMetadata.fileName == 'mods.toml [erroring]'
 	}
 
-	def "read fabric.mod.json from directory"() {
+	def "read broken neoforge.mods.toml from directory"() {
 		given:
-		workingDir.resolve('fabric.mod.json').text = '''
-			{
-				"schemaVersion": 1,
-				"id": "test",
-				"version": 1
-			}
-			'''.stripIndent()
-		workingDir.resolve('architectury.common.json').text = '{}'
+		Files.createDirectories(workingDir.resolve('META-INF'))
+		workingDir.resolve('META-INF/neoforge.mods.toml').text = ModsTomlTest.BROKEN_INPUT
 		when:
-		def fmj = FabricModJsonFactory.createFromDirectory(workingDir)
+		def modMetadata = ModMetadataFiles.fromDirectory(workingDir)
 		then:
-		!(fmj instanceof ModMetadataFabricModJson)
-		fmj.id == 'test'
+		modMetadata instanceof ErroringModMetadataFile
+		modMetadata.fileName == 'neoforge.mods.toml [erroring]'
 	}
 
 	def "read fabric.mod.json from zip"() {

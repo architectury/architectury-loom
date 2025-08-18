@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "forge:resource_pack_format": 32,
+    "forge:data_pack_format": 41,
+    "pack_format": 32,
+    "description": "Example mod"
+  }
+}

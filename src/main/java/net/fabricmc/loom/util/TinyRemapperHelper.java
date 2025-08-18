@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021 FabricMC
+ * Copyright (c) 2021-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,6 @@
 
 package net.fabricmc.loom.util;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -32,29 +31,29 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.ImmutableMap;
-import dev.architectury.tinyremapper.IMappingProvider;
-import dev.architectury.tinyremapper.TinyRemapper;
+import dev.architectury.loom.util.MappingOption;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.util.service.SharedServiceManager;
+import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.srg.InnerClassRemapper;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import net.fabricmc.tinyremapper.IMappingProvider;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 /**
  * Contains shortcuts to create tiny remappers using the mappings accessibly to the project.
  */
 public final class TinyRemapperHelper {
-	public static final Map<String, String> JSR_TO_JETBRAINS = new ImmutableMap.Builder<String, String>()
-			.put("javax/annotation/Nullable", "org/jetbrains/annotations/Nullable")
-			.put("javax/annotation/Nonnull", "org/jetbrains/annotations/NotNull")
-			.put("javax/annotation/concurrent/Immutable", "org/jetbrains/annotations/Unmodifiable")
-			.build();
+	public static final Map<String, String> JSR_TO_JETBRAINS = Map.of(
+				"javax/annotation/Nullable", "org/jetbrains/annotations/Nullable",
+				"javax/annotation/Nonnull", "org/jetbrains/annotations/NotNull",
+				"javax/annotation/concurrent/Immutable", "org/jetbrains/annotations/Unmodifiable"
+			);
 
 	/**
 	 * Matches the new local variable naming format introduced in 21w37a.
@@ -64,32 +63,30 @@ public final class TinyRemapperHelper {
 	private TinyRemapperHelper() {
 	}
 
-	public static TinyRemapper getTinyRemapper(Project project, SharedServiceManager serviceManager, String fromM, String toM) throws IOException {
-		return getTinyRemapper(project, serviceManager, fromM, toM, false, (builder) -> { }, Set.of());
+	public static TinyRemapper getTinyRemapper(Project project, ServiceFactory serviceFactory, String fromM, String toM) throws IOException {
+		return getTinyRemapper(project, serviceFactory, fromM, toM, false, (builder) -> { }, Set.of());
 	}
 
-	public static TinyRemapper getTinyRemapper(Project project, SharedServiceManager serviceManager, String fromM, String toM, boolean fixRecords, Consumer<TinyRemapper.Builder> builderConsumer, Set<String> fromClassNames) throws IOException {
+	public static TinyRemapper getTinyRemapper(Project project, ServiceFactory serviceFactory, String fromM, String toM, boolean fixRecords, Consumer<TinyRemapper.Builder> builderConsumer, Set<String> fromClassNames) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		boolean srg = (fromM.equals(MappingsNamespace.SRG.toString()) || toM.equals(MappingsNamespace.SRG.toString())) && extension.isForge();
-		MemoryMappingTree mappingTree = extension.getMappingConfiguration().getMappingsService(serviceManager, srg).getMappingTree();
+		final MappingOption mappingOption = MappingOption.forPlatform(extension);
+		MemoryMappingTree mappingTree = extension.getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption).getMappingTree();
 
 		if (fixRecords && !mappingTree.getSrcNamespace().equals(fromM)) {
-			throw new IllegalStateException("Mappings src namespace must match remap src namespace");
+			throw new IllegalStateException("Mappings src namespace must match remap src namespace, expected " + fromM + " but got " + mappingTree.getSrcNamespace());
 		}
 
 		int intermediaryNsId = mappingTree.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString());
 
-		TinyRemapper.Builder builder = TinyRemapper.newRemapper()
-				.logUnknownInvokeDynamic(false)
-				.ignoreConflicts(extension.isForge())
-				.cacheMappings(true)
+		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
+				.ignoreConflicts(extension.isForgeLike())
 				.threads(Runtime.getRuntime().availableProcessors())
-				.logger(project.getLogger()::lifecycle)
 				.withMappings(create(mappingTree, fromM, toM, true))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true)
 				.invalidLvNamePattern(MC_LV_PATTERN)
 				.inferNameFromSameLvIndex(true)
+				.withKnownIndyBsm(extension.getKnownIndyBsms().get())
 				.extraPreApplyVisitor((cls, next) -> {
 					if (fixRecords && !cls.isRecord() && "java/lang/Record".equals(cls.getSuperName())) {
 						return new RecordComponentFixVisitor(next, mappingTree, intermediaryNsId);
@@ -98,7 +95,7 @@ public final class TinyRemapperHelper {
 					return next;
 				});
 
-		if (extension.isForge()) {
+		if (extension.isForgeLike()) {
 			if (!fromClassNames.isEmpty()) {
 				builder.withMappings(InnerClassRemapper.of(fromClassNames, mappingTree, fromM, toM));
 			}
@@ -108,11 +105,6 @@ public final class TinyRemapperHelper {
 
 		builderConsumer.accept(builder);
 		return builder.build();
-	}
-
-	public static Path[] getMinecraftCompileLibraries(Project project) {
-		return project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES).getFiles()
-				.stream().map(File::toPath).toArray(Path[]::new);
 	}
 
 	private static IMappingProvider.Member memberOf(String className, String memberName, String descriptor) {
@@ -139,22 +131,51 @@ public final class TinyRemapperHelper {
 
 			for (MappingTree.ClassMapping classDef : mappings.getClasses()) {
 				String className = classDef.getName(fromId);
-				String dstName = classDef.getName(toId);
 
-				if (dstName == null) {
-					// Unsure if this is correct, should be better than crashing tho.
-					dstName = className;
+				if (className == null) {
+					continue;
 				}
 
-				acceptor.acceptClass(className, dstName);
+				String dstClassName = classDef.getName(toId);
+
+				if (dstClassName == null) {
+					// Unsure if this is correct, should be better than crashing tho.
+					dstClassName = className;
+				}
+
+				acceptor.acceptClass(className, dstClassName);
 
 				for (MappingTree.FieldMapping field : classDef.getFields()) {
-					acceptor.acceptField(memberOf(className, field.getName(fromId), field.getDesc(fromId)), field.getName(toId));
+					String fieldName = field.getName(fromId);
+
+					if (fieldName == null) {
+						continue;
+					}
+
+					String dstFieldName = field.getName(toId);
+
+					if (dstFieldName == null) {
+						dstFieldName = fieldName;
+					}
+
+					acceptor.acceptField(memberOf(className, fieldName, field.getDesc(fromId)), dstFieldName);
 				}
 
 				for (MappingTree.MethodMapping method : classDef.getMethods()) {
-					IMappingProvider.Member methodIdentifier = memberOf(className, method.getName(fromId), method.getDesc(fromId));
-					acceptor.acceptMethod(methodIdentifier, method.getName(toId));
+					String methodName = method.getName(fromId);
+
+					if (methodName == null) {
+						continue;
+					}
+
+					String dstMethodName = method.getName(toId);
+
+					if (dstMethodName == null) {
+						dstMethodName = methodName;
+					}
+
+					IMappingProvider.Member methodIdentifier = memberOf(className, methodName, method.getDesc(fromId));
+					acceptor.acceptMethod(methodIdentifier, dstMethodName);
 
 					if (remapLocalVariables) {
 						for (MappingTree.MethodArgMapping parameter : method.getArgs()) {

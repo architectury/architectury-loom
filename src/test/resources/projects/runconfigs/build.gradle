@@ -25,6 +25,13 @@ loom {
 			name = 'Custom Main Class'
 			mainClass.set 'net.fabricmc.example.Main'
 		}
+
+		// Test that removing a run config works
+		removeMe {
+			inherit server
+		}
+
+		remove removeMe
 	}
 
 	runConfigs.configureEach {
@@ -37,9 +44,13 @@ version = "1.0.0"
 dependencies {
 	minecraft "com.mojang:minecraft:1.18.1"
 	mappings "net.fabricmc:yarn:1.18.1+build.12:v2"
-	modImplementation "net.fabricmc:fabric-loader:0.12.12"
+	modImplementation "net.fabricmc:fabric-loader:0.15.11"
 }
 
 base {
 	archivesName = "fabric-example-mod"
+}
+
+runClient {
+	// Realise this task to ensure that the runConfig is lazily evaluated
 }

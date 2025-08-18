@@ -34,13 +34,18 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import javax.inject.Inject;
+
+import org.gradle.api.Action;
 import org.gradle.api.Named;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.configuration.providers.forge.ForgeRunTemplate;
 import net.fabricmc.loom.configuration.providers.forge.ForgeRunsProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
@@ -49,7 +54,7 @@ import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Platform;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 
-public final class RunConfigSettings implements Named {
+public abstract class RunConfigSettings implements Named {
 	/**
 	 * Arguments for the JVM, such as system properties.
 	 */
@@ -69,8 +74,19 @@ public final class RunConfigSettings implements Named {
 	 * The full name of the run configuration, i.e. 'Minecraft Client'.
 	 *
 	 * <p>By default this is determined from the base name.
+	 *
+	 * <p>Note: unless the project is the root project (or {@link #appendProjectPathToConfigName} is disabled),
+	 * the project path will be appended automatically, e.g. 'Minecraft Client (:some:project)'.
 	 */
-	private String name;
+	private String configName;
+
+	/**
+	 * Whether to append the project path to the {@link #configName} when {@code project} isn't the root project.
+	 *
+	 * <p>Warning: could produce ambiguous run config names if disabled, unless used carefully in conjunction with
+	 * {@link #configName}.
+	 */
+	private final Property<Boolean> appendProjectPathToConfigName;
 
 	/**
 	 * The default main class of the run configuration.
@@ -89,6 +105,14 @@ public final class RunConfigSettings implements Named {
 	private final Property<String> mainClass;
 
 	/**
+	 * The true entrypoint, this is usually dev launch injector.
+	 * This should not be changed unless you know what you are doing.
+	 */
+	@ApiStatus.Internal
+	@ApiStatus.Experimental
+	private final Property<String> devLaunchMainClass;
+
+	/**
 	 * The source set getter, which obtains the source set from the given project.
 	 */
 	private Function<Project, SourceSet> source;
@@ -101,7 +125,7 @@ public final class RunConfigSettings implements Named {
 	/**
 	 * The base name of the run configuration, which is the name it is created with, i.e. 'client'
 	 */
-	private final String baseName;
+	private final String name;
 
 	/**
 	 * When true a run configuration file will be generated for IDE's.
@@ -114,19 +138,26 @@ public final class RunConfigSettings implements Named {
 
 	private final Project project;
 	private final LoomGradleExtension extension;
+
+	// Architectury
 	private final List<Runnable> evaluateLater = new ArrayList<>();
 	private boolean evaluated = false;
+	private final NamedDomainObjectContainer<ModSettings> mods;
 
-	public RunConfigSettings(Project project, String baseName) {
-		this.baseName = baseName;
+	@Inject
+	public RunConfigSettings(Project project, String name) {
+		this.name = name;
 		this.project = project;
+		this.appendProjectPathToConfigName = project.getObjects().property(Boolean.class).convention(true);
 		this.extension = LoomGradleExtension.get(project);
 		this.ideConfigGenerated = extension.isRootProject();
 		this.mainClass = project.getObjects().property(String.class).convention(project.provider(() -> {
-			Objects.requireNonNull(environment, "Run config " + baseName + " must specify environment");
-			Objects.requireNonNull(defaultMainClass, "Run config " + baseName + " must specify default main class");
+			Objects.requireNonNull(environment, "Run config " + name + " must specify environment");
+			Objects.requireNonNull(defaultMainClass, "Run config " + name + " must specify default main class");
 			return RunConfig.getMainClass(environment, extension, defaultMainClass);
 		}));
+		this.devLaunchMainClass = project.getObjects().property(String.class).convention("net.fabricmc.devlaunchinjector.Main");
+		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
 
 		setSource(p -> {
 			final String sourceSetName = MinecraftSourceSets.get(p).getSourceSetForEnv(getEnvironment());
@@ -169,7 +200,11 @@ public final class RunConfigSettings implements Named {
 
 	@Override
 	public String getName() {
-		return baseName;
+		return name;
+	}
+
+	public void setName(String name) {
+		this.configName = name;
 	}
 
 	public List<String> getVmArgs() {
@@ -189,11 +224,15 @@ public final class RunConfigSettings implements Named {
 	}
 
 	public String getConfigName() {
-		return name;
+		return configName;
 	}
 
 	public void setConfigName(String name) {
-		this.name = name;
+		this.configName = name;
+	}
+
+	public Property<Boolean> getAppendProjectPathToConfigName() {
+		return appendProjectPathToConfigName;
 	}
 
 	public String getDefaultMainClass() {
@@ -327,11 +366,15 @@ public final class RunConfigSettings implements Named {
 	 * Configure run config with the default client options.
 	 */
 	public void client() {
-		startFirstThread();
 		environment("client");
 		defaultMainClass(Constants.Knot.KNOT_CLIENT);
 
-		if (getExtension().isForge()) {
+		if (Platform.CURRENT.isRaspberryPi()) {
+			getProject().getLogger().info("Raspberry Pi detected, setting MESA_GL_VERSION_OVERRIDE=4.3");
+			environmentVariable("MESA_GL_VERSION_OVERRIDE", "4.3");
+		}
+
+		if (getExtension().isForgeLike()) {
 			forgeTemplate("client");
 		}
 	}
@@ -344,7 +387,7 @@ public final class RunConfigSettings implements Named {
 		environment("server");
 		defaultMainClass(Constants.Knot.KNOT_SERVER);
 
-		if (getExtension().isForge()) {
+		if (getExtension().isForgeLike()) {
 			forgeTemplate("server");
 		}
 	}
@@ -355,9 +398,33 @@ public final class RunConfigSettings implements Named {
 	 * <p>This method can only be used on Forge.
 	 */
 	public void data() {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE, () -> "RunConfigSettings.data() is only usable on Forge.");
+		ModPlatform.assertForgeLike(getExtension(), () -> "RunConfigSettings.data() is only usable on Forge.");
 		environment("data");
 		forgeTemplate("data");
+	}
+
+	/**
+	 * Configure run config with the default data options.
+	 *
+	 * <p>This method can only be used on NeoForge.
+	 */
+	@ApiStatus.Experimental
+	public void clientData() {
+		ModPlatform.assertForgeLike(getExtension(), () -> "RunConfigSettings.clientData() is only usable on NeoForge.");
+		environment("dataClient");
+		forgeTemplate("dataClient");
+	}
+
+	/**
+	 * Configure run config with the default data options.
+	 *
+	 * <p>This method can only be used on NeoForge.
+	 */
+	@ApiStatus.Experimental
+	public void serverData() {
+		ModPlatform.assertForgeLike(getExtension(), () -> "RunConfigSettings.serverData() is only usable on NeoForge.");
+		environment("dataServer");
+		forgeTemplate("dataServer");
 	}
 
 	/**
@@ -370,7 +437,7 @@ public final class RunConfigSettings implements Named {
 	 * @since 1.0
 	 */
 	public void forgeTemplate(String templateName) {
-		ModPlatform.assertPlatform(getExtension(), ModPlatform.FORGE);
+		ModPlatform.assertForgeLike(getExtension());
 		defaultMainClass(Constants.Forge.UNDETERMINED_MAIN_CLASS);
 		// Evaluate later if Forge hasn't been resolved yet.
 		evaluateNowOrLater(() -> {
@@ -378,7 +445,7 @@ public final class RunConfigSettings implements Named {
 			ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
 
 			if (template != null) {
-				template.applyTo(this, runsProvider);
+				template.applyTo(this, runsProvider.getResolver(this));
 			} else {
 				project.getLogger().warn("Could not find Forge run template with name '{}'", templateName);
 			}
@@ -394,10 +461,11 @@ public final class RunConfigSettings implements Named {
 		environmentVariables.putAll(parent.environmentVariables);
 
 		environment = parent.environment;
-		name = parent.name;
+		configName = parent.configName;
 		defaultMainClass = parent.defaultMainClass;
 		source = parent.source;
 		ideConfigGenerated = parent.ideConfigGenerated;
+		getIdeConfigFolder().set(parent.getIdeConfigFolder());
 	}
 
 	public void makeRunDir() {
@@ -414,5 +482,43 @@ public final class RunConfigSettings implements Named {
 
 	public void setIdeConfigGenerated(boolean ideConfigGenerated) {
 		this.ideConfigGenerated = ideConfigGenerated;
+	}
+
+	/**
+	 * Group this run config under the given folder.
+	 *
+	 * <p>This is currently only supported on IntelliJ IDEA.
+	 *
+	 * @return The property used to set the config folder.
+	 */
+	public abstract Property<String> getIdeConfigFolder();
+
+	@ApiStatus.Internal
+	@ApiStatus.Experimental
+	public Property<String> devLaunchMainClass() {
+		return devLaunchMainClass;
+	}
+
+	/**
+	 * {@return a container of mod settings for this run configuration}
+	 *
+	 * <p>If non-empty, this container will override the
+	 * {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getMods global container}
+	 * declared in the {@code loom} extension.
+	 *
+	 * <p>This method is currently only available on Forge and NeoForge.
+	 */
+	public NamedDomainObjectContainer<ModSettings> getMods() {
+		ModPlatform.assertForgeLike(extension);
+		return mods;
+	}
+
+	/**
+	 * Configures the {@linkplain #getMods mods} of this run configuration.
+	 *
+	 * <p>This method is currently only available on Forge.
+	 */
+	public void mods(Action<NamedDomainObjectContainer<ModSettings>> action) {
+		action.execute(getMods());
 	}
 }

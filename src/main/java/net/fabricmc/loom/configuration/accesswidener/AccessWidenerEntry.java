@@ -26,12 +26,12 @@ package net.fabricmc.loom.configuration.accesswidener;
 
 import java.io.IOException;
 
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.accesswidener.AccessWidenerVisitor;
 import net.fabricmc.loom.util.LazyCloseable;
 import net.fabricmc.loom.util.fmj.ModEnvironment;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public interface AccessWidenerEntry {
 	ModEnvironment environment();

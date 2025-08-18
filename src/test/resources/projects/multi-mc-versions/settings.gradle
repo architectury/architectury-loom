@@ -1,3 +1,16 @@
+plugins {
+	id 'dev.architectury.loom' apply false
+}
+
+gradle.lifecycle.beforeProject {
+	if (it.rootProject == it) {
+		return
+	}
+
+	apply plugin: 'dev.architectury.loom'
+	apply plugin: 'loom-test-plugin'
+}
+
 rootProject.name = "multi-mc-versions"
 
 // Yes lot of mc version

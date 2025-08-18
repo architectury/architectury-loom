@@ -18,4 +18,4 @@ A [Gradle](https://gradle.org/) plugin to setup a deobfuscated development envir
 
 ## Usage
 
-View the [documentation](https://architectury.github.io/architectury-documentations/docs/forge_loom/) for usages.
+View the [documentation](https://docs.architectury.dev/loom/introduction) for usages.

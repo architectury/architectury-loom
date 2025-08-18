@@ -25,38 +25,34 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Stopwatch;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingLayer;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ZipUtils;
-import net.fabricmc.loom.util.srg.Tsrg2Utils;
-import net.fabricmc.loom.util.srg.Tsrg2Writer;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.MappingWriter;
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
+import net.fabricmc.mappingio.format.MappingFormat;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
@@ -64,9 +60,7 @@ public class SrgProvider extends DependencyProvider {
 	private Path srg;
 	private Boolean isTsrgV2;
 	private Path mergedMojangRaw;
-	private Path mergedMojang;
 	private Path mergedMojangTrimmed;
-	private static Map<String, Path> mojmapTsrgMap = new HashMap<>();
 	private static Map<String, Path> mojmapTsrg2Map = new HashMap<>();
 
 	public SrgProvider(Project project) {
@@ -87,7 +81,7 @@ public class SrgProvider extends DependencyProvider {
 		}
 
 		if (isTsrgV2) {
-			if (!Files.exists(mergedMojangRaw) || !Files.exists(mergedMojang) || !Files.exists(mergedMojangTrimmed) || refreshDeps()) {
+			if (!Files.exists(mergedMojangRaw) || !Files.exists(mergedMojangTrimmed) || refreshDeps()) {
 				Stopwatch stopwatch = Stopwatch.createStarted();
 				getProject().getLogger().lifecycle(":merging mappings (InstallerTools, srg + mojmap)");
 				PrintStream out = System.out;
@@ -99,7 +93,6 @@ public class SrgProvider extends DependencyProvider {
 				}
 
 				Files.deleteIfExists(mergedMojangRaw);
-				Files.deleteIfExists(mergedMojang);
 				net.minecraftforge.installertools.ConsoleTool.main(new String[] {
 						"--task",
 						"MERGE_MAPPING",
@@ -113,16 +106,12 @@ public class SrgProvider extends DependencyProvider {
 				});
 
 				MemoryMappingTree tree = new MemoryMappingTree();
-				MappingReader.read(new StringReader(FileUtils.readFileToString(mergedMojangRaw.toFile(), StandardCharsets.UTF_8)), new FieldDescWrappingVisitor(tree));
-				Files.writeString(mergedMojang, Tsrg2Writer.serialize(tree), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				MappingVisitor visitor = new ArgDroppingVisitor(new FieldDescWrappingVisitor(tree));
+				MappingReader.read(mergedMojangRaw, visitor);
 
-				for (MappingTree.ClassMapping classDef : tree.getClasses()) {
-					for (MappingTree.MethodMapping methodDef : classDef.getMethods()) {
-						methodDef.getArgs().clear();
-					}
+				try (MappingWriter writer = MappingWriter.create(mergedMojangTrimmed, MappingFormat.TSRG_2_FILE)) {
+					tree.accept(writer);
 				}
-
-				Files.writeString(mergedMojangTrimmed, Tsrg2Writer.serialize(tree), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
 				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
 					System.setOut(out);
@@ -131,6 +120,19 @@ public class SrgProvider extends DependencyProvider {
 
 				getProject().getLogger().lifecycle(":merged mappings (InstallerTools, srg + mojmap) in " + stopwatch.stop());
 			}
+		}
+	}
+
+	// A visitor that drop all method args from srg
+	private static final class ArgDroppingVisitor extends ForwardingMappingVisitor {
+		ArgDroppingVisitor(MappingVisitor next) {
+			super(next);
+		}
+
+		@Override
+		public boolean visitMethodArg(int argPosition, int lvIndex, @Nullable String srcName) throws IOException {
+			// skip
+			return false;
 		}
 	}
 
@@ -178,7 +180,6 @@ public class SrgProvider extends DependencyProvider {
 		File dir = getMinecraftProvider().dir("srg/" + version);
 		srg = new File(dir, "srg.tsrg").toPath();
 		mergedMojangRaw = new File(dir, "srg-mojmap-merged-raw.tsrg").toPath();
-		mergedMojang = new File(dir, "srg-mojmap-merged.tsrg").toPath();
 		mergedMojangTrimmed = new File(dir, "srg-mojmap-merged-trimmed.tsrg").toPath();
 	}
 
@@ -192,12 +193,6 @@ public class SrgProvider extends DependencyProvider {
 		return mergedMojangRaw;
 	}
 
-	public Path getMergedMojang() {
-		if (!isTsrgV2()) throw new IllegalStateException("May not access merged mojmap srg if not on modern Minecraft!");
-
-		return mergedMojang;
-	}
-
 	public Path getMergedMojangTrimmed() {
 		if (!isTsrgV2()) throw new IllegalStateException("May not access merged mojmap srg if not on modern Minecraft!");
 
@@ -208,23 +203,6 @@ public class SrgProvider extends DependencyProvider {
 		return isTsrgV2;
 	}
 
-	public static Path getMojmapTsrg(Project project, LoomGradleExtension extension) throws IOException {
-		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
-		if (mojmapTsrgMap.containsKey(minecraftVersion)) return mojmapTsrgMap.get(minecraftVersion);
-
-		Path mojmapTsrg = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg");
-
-		if (Files.notExists(mojmapTsrg) || extension.refreshDeps()) {
-			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-				Tsrg2Utils.writeTsrg(visitor -> visitMojmap(visitor, project),
-						MappingsNamespace.NAMED.toString(), false, writer);
-			}
-		}
-
-		mojmapTsrgMap.put(minecraftVersion, mojmapTsrg);
-		return mojmapTsrg;
-	}
-
 	public static Path getMojmapTsrg2(Project project, LoomGradleExtension extension) throws IOException {
 		String minecraftVersion = extension.getMinecraftProvider().minecraftVersion();
 		if (mojmapTsrg2Map.containsKey(minecraftVersion)) return mojmapTsrg2Map.get(minecraftVersion);
@@ -232,10 +210,11 @@ public class SrgProvider extends DependencyProvider {
 		Path mojmapTsrg2 = extension.getMinecraftProvider().dir("forge").toPath().resolve("mojmap.tsrg2");
 
 		if (Files.notExists(mojmapTsrg2) || extension.refreshDeps()) {
-			try (BufferedWriter writer = Files.newBufferedWriter(mojmapTsrg2, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+			try (MappingWriter writer = MappingWriter.create(mojmapTsrg2, MappingFormat.TSRG_2_FILE)) {
+				GradleMappingContext context = new GradleMappingContext(project, "tmp-mojmap");
 				MemoryMappingTree tree = new MemoryMappingTree();
-				visitMojmap(tree, project);
-				writer.write(Tsrg2Writer.serialize(tree));
+				visitMojangMappings(tree, context);
+				tree.accept(writer);
 			}
 		}
 
@@ -243,21 +222,12 @@ public class SrgProvider extends DependencyProvider {
 		return mojmapTsrg2;
 	}
 
-	private static void visitMojmap(MappingVisitor visitor, Project project) {
-		GradleMappingContext context = new GradleMappingContext(project, "tmp-mojmap");
-
+	public static void visitMojangMappings(MappingVisitor visitor, MappingContext context) {
 		try {
-			FileUtils.deleteDirectory(context.workingDirectory("/").toFile());
 			MojangMappingLayer layer = new MojangMappingsSpec(() -> true, true).createLayer(context);
 			layer.visit(visitor);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
-		} finally {
-			try {
-				FileUtils.deleteDirectory(context.workingDirectory("/").toFile());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 

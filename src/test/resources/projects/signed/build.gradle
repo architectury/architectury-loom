@@ -18,10 +18,11 @@ base {
 }
 
 processResources {
-	inputs.property "version", project.version
+	def version = project.version
+	inputs.property "version", version
 
 	filesMatching("fabric.mod.json") {
-		expand "version": project.version
+		expand "version": version
 	}
 }
 
@@ -35,14 +36,14 @@ publishing {
 			from components.java
 			artifact(remapJar) {
 				builtBy remapJar
-				classifier "classifier"
+				classifier = "classifier"
 			}
 		}
 	}
 
 	repositories {
 		maven {
-			url "http://localhost:${System.getProperty("loom.test.mavenPort")}/"
+			url = "http://localhost:${System.getProperty("loom.test.mavenPort")}/"
 			allowInsecureProtocol = true
 		}
 	}

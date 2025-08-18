@@ -36,11 +36,15 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import dev.architectury.loom.metadata.ModMetadataFile;
 import dev.architectury.loom.metadata.ModMetadataFiles;
+import org.gradle.api.Project;
 import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -49,7 +53,9 @@ import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 
 public final class FabricModJsonFactory {
-	private static final String FABRIC_MOD_JSON = "fabric.mod.json";
+	public static final String FABRIC_MOD_JSON = "fabric.mod.json";
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(FabricModJsonFactory.class);
 
 	private FabricModJsonFactory() {
 	}
@@ -89,6 +95,8 @@ public final class FabricModJsonFactory {
 			}
 
 			throw new UncheckedIOException("Failed to read fabric.mod.json file in zip: " + zipPath, e);
+		} catch (JsonSyntaxException e) {
+			throw new JsonSyntaxException("Failed to parse fabric.mod.json in zip: " + zipPath, e);
 		}
 	}
 
@@ -100,6 +108,8 @@ public final class FabricModJsonFactory {
 			jsonObject = ZipUtils.unpackGsonNullable(zipPath, FABRIC_MOD_JSON, JsonObject.class);
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to read zip: " + zipPath, e);
+		} catch (JsonSyntaxException e) {
+			throw new JsonSyntaxException("Failed to parse fabric.mod.json in zip: " + zipPath, e);
 		}
 
 		if (jsonObject == null) {
@@ -124,40 +134,36 @@ public final class FabricModJsonFactory {
 		return Optional.ofNullable(createFromZipNullable(zipPath));
 	}
 
-	public static FabricModJson createFromDirectory(Path directory) throws IOException {
-		final Path path = directory.resolve(FABRIC_MOD_JSON);
-
-		// Try another mod metadata file if fabric.mod.json wasn't found.
-		if (Files.notExists(path)) {
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromDirectory(directory);
-
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.DirectorySource(directory));
-			}
-		}
-
-		try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-			return create(LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class), new FabricModJsonSource.DirectorySource(directory));
-		}
-	}
-
 	@Nullable
-	public static FabricModJson createFromSourceSetsNullable(SourceSet... sourceSets) throws IOException {
-		final File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, sourceSets);
+	public static FabricModJson createFromSourceSetsNullable(Project project, SourceSet... sourceSets) throws IOException {
+		final File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, project, sourceSets);
 
 		if (file == null) {
 			// Try another mod metadata file if fabric.mod.json wasn't found.
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(sourceSets);
+			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(project, sourceSets);
 
 			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(sourceSets));
+				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(project, sourceSets));
 			}
 
 			return null;
 		}
 
 		try (Reader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
-			return create(LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class), new FabricModJsonSource.SourceSetSource(sourceSets));
+			final JsonObject modJson = LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class);
+
+			if (modJson == null) {
+				// fromJson returns null if the file is empty
+				LOGGER.warn("Failed to parse empty fabric.mod.json: {}", file.getAbsolutePath());
+				return null;
+			}
+
+			return create(modJson, new FabricModJsonSource.SourceSetSource(project, sourceSets));
+		} catch (JsonSyntaxException e) {
+			LOGGER.warn("Failed to parse fabric.mod.json: {}", file.getAbsolutePath());
+			return null;
+		} catch (IOException e) {
+			throw new UncheckedIOException("Failed to read " + file.getAbsolutePath(), e);
 		}
 	}
 
@@ -166,8 +172,8 @@ public final class FabricModJsonFactory {
 	}
 
 	public static boolean isModJar(Path input, ModPlatform platform) {
-		if (platform == ModPlatform.FORGE) {
-			return ZipUtils.contains(input, "META-INF/mods.toml");
+		if (platform.isForgeLike()) {
+			return ZipUtils.contains(input, "META-INF/mods.toml") || (platform == ModPlatform.NEOFORGE && ZipUtils.contains(input, "META-INF/neoforge.mods.toml"));
 		} else if (platform == ModPlatform.QUILT) {
 			return ZipUtils.contains(input, "quilt.mod.json") || isModJar(input, ModPlatform.FABRIC);
 		}
@@ -175,13 +181,23 @@ public final class FabricModJsonFactory {
 		return ZipUtils.contains(input, FABRIC_MOD_JSON);
 	}
 
+	public static boolean isNestableModJar(File file, ModPlatform platform) {
+		return isNestableModJar(file.toPath(), platform);
+	}
+
+	public static boolean isNestableModJar(Path input, ModPlatform platform) {
+		// Forge and NeoForge don't care if the main jar is mod jar.
+		if (platform.isForgeLike()) return true;
+		return isModJar(input, platform);
+	}
+
 	public static boolean containsMod(FileSystemUtil.Delegate fs, ModPlatform platform) {
 		if (Files.exists(fs.getPath("architectury.common.marker"))) {
 			return true;
 		}
 
-		if (platform == ModPlatform.FORGE) {
-			return Files.exists(fs.getPath("META-INF/mods.toml"));
+		if (platform.isForgeLike()) {
+			return Files.exists(fs.getPath("META-INF/mods.toml")) || (platform == ModPlatform.NEOFORGE && Files.exists(fs.getPath("META-INF/neoforge.mods.toml")));
 		} else if (platform == ModPlatform.QUILT) {
 			return Files.exists(fs.getPath("quilt.mod.json")) || containsMod(fs, ModPlatform.FABRIC);
 		}

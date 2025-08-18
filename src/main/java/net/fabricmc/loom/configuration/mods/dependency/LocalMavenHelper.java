@@ -34,20 +34,9 @@ import java.nio.file.StandardCopyOption;
 
 import org.jetbrains.annotations.Nullable;
 
-public final class LocalMavenHelper {
-	private final String group;
-	private final String name;
-	private final String version;
-	@Nullable
-	private final String baseClassifier;
-	private final Path root;
-
-	public LocalMavenHelper(String group, String name, String version, @Nullable String classifier, Path root) {
-		this.group = group;
-		this.name = name;
-		this.version = version;
-		this.baseClassifier = classifier;
-		this.root = root;
+public record LocalMavenHelper(String group, String name, String version, @Nullable String baseClassifier, Path root, @Nullable String snapshotVersion) {
+	public LocalMavenHelper(String group, String name, String version, @Nullable String baseClassifier, Path root) {
+		this(group, name, version, baseClassifier, root, null);
 	}
 
 	public Path copyToMaven(Path artifact, @Nullable String classifier) throws IOException {
@@ -92,6 +81,13 @@ public final class LocalMavenHelper {
 	}
 
 	private Path getDirectory() {
+		String version = this.version();
+
+		// When using a specific snapshot version the directory name should be the 1.0.0-SNAPSHOT version
+		if (this.snapshotVersion() != null) {
+			version = this.snapshotVersion();
+		}
+
 		return root.resolve("%s/%s/%s".formatted(group.replace(".", "/"), name, version));
 	}
 
@@ -107,5 +103,9 @@ public final class LocalMavenHelper {
 		final String fileName = classifier == null ? String.format("%s-%s.jar", name, version)
 													: String.format("%s-%s-%s.jar", name, version, classifier);
 		return getDirectory().resolve(fileName);
+	}
+
+	public LocalMavenHelper withClassifier(String classifier) {
+		return new LocalMavenHelper(group, name, version, classifier, root);
 	}
 }

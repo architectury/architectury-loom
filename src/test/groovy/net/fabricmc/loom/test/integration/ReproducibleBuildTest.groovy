@@ -24,17 +24,16 @@
 
 package net.fabricmc.loom.test.integration
 
-import com.google.common.hash.HashCode
-import com.google.common.hash.Hashing
-import com.google.common.io.Files
 import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.environment.RestoreSystemProperties
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
+import net.fabricmc.loom.util.Checksum
 
 import static java.lang.System.setProperty
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
+import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class ReproducibleBuildTest extends Specification implements GradleProjectTestTrait {
@@ -51,22 +50,15 @@ class ReproducibleBuildTest extends Specification implements GradleProjectTestTr
 		then:
 		result.task(":build").outcome == SUCCESS
 		generateMD5(gradle.getOutputFile("fabric-example-mod-1.0.0.jar")) == modHash
-		generateMD5(gradle.getOutputFile("fabric-example-mod-1.0.0-sources.jar")) in sourceHash // Done for different line endings.
+		generateMD5(gradle.getOutputFile("fabric-example-mod-1.0.0-sources.jar")) == sourceHash
 
 		where:
 		version              | modHash                               | sourceHash
-		DEFAULT_GRADLE      | "174c9b52f4bc6d489548d11b42e853cf"    | [
-			"5e6e56df303b4fbaaef372d6f143dbfc",
-			"92b6fbffd0bd14bf3c626750eb86c264"
-		]
-		PRE_RELEASE_GRADLE  | "174c9b52f4bc6d489548d11b42e853cf"    | [
-			"5e6e56df303b4fbaaef372d6f143dbfc",
-			"92b6fbffd0bd14bf3c626750eb86c264"
-		]
+		DEFAULT_GRADLE       | "207bd75aa34fc996a97e962dd98b61d5"    | "8e8fac2a5e32fc872e6cf0f9ccc55cfd"
+		PRE_RELEASE_GRADLE   | "207bd75aa34fc996a97e962dd98b61d5"    | "8e8fac2a5e32fc872e6cf0f9ccc55cfd"
 	}
 
 	String generateMD5(File file) {
-		HashCode hash = Files.asByteSource(file).hash(Hashing.md5())
-		return hash.asBytes().encodeHex() as String
+		return Checksum.of(file).md5().hex()
 	}
 }

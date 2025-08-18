@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+import net.fabricmc.loom.util.ModPlatform;
 
 /**
  * A fallback mod metadata file that represents a non-fatal format error
@@ -28,6 +29,11 @@ public final class ErroringModMetadataFile implements ModMetadataFile {
 
 	@Override
 	public Set<String> getAccessWideners() {
+		return Set.of();
+	}
+
+	@Override
+	public Set<String> getAccessTransformers(ModPlatform platform) {
 		return Set.of();
 	}
 

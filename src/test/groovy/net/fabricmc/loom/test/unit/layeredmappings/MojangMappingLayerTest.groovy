@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2021 FabricMC
+ * Copyright (c) 2016-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ class MojangMappingLayerTest extends LayeredMappingsSpecification {
 		setup:
 		intermediaryUrl = INTERMEDIARY_1_17_URL
 		mockMinecraftProvider.getVersionInfo() >> VERSION_META_1_17
+		mockMinecraftProvider.minecraftVersion() >> "1.17"
 		when:
 		def mappings = getLayeredMappings(
 				new IntermediaryMappingsSpec(),
@@ -52,6 +53,7 @@ class MojangMappingLayerTest extends LayeredMappingsSpecification {
 		setup:
 		intermediaryUrl = INTERMEDIARY_1_17_URL
 		mockMinecraftProvider.getVersionInfo() >> VERSION_META_1_17
+		mockMinecraftProvider.minecraftVersion() >> "1.17"
 		when:
 		def mappings = getLayeredMappings(
 				new IntermediaryMappingsSpec(),
@@ -66,6 +68,69 @@ class MojangMappingLayerTest extends LayeredMappingsSpecification {
 		mappings.classes[0].getDstName(0) == "net/minecraft/class_2354"
 		mappings.classes[0].methods[0].args.size() == 0 // No Args
 		!tiny.contains('this$0')
+	}
+
+	def "Read mojang mappings with synthetic field names drop roots" () {
+		setup:
+		intermediaryUrl = INTERMEDIARY_1_17_URL
+		mockMinecraftProvider.getVersionInfo() >> VERSION_META_1_17
+		mockMinecraftProvider.minecraftVersion() >> "1.17"
+		when:
+		def mappings = getLayeredMappingsDropNoneIntermediaryRoots(
+				new IntermediaryMappingsSpec(),
+				buildMojangMappingsSpec(true)
+				)
+		def tiny = getTiny(mappings)
+		then:
+		mappings.srcNamespace == "named"
+		mappings.dstNamespaces == ["intermediary", "official"]
+		mappings.classes.size() == 6107
+		mappings.classes[0].srcName.hashCode() == 1869546970 // MojMap name, just check the hash
+		mappings.classes[0].getDstName(0) == "net/minecraft/class_2354"
+		mappings.classes[0].methods[0].args.size() == 0 // No Args
+		tiny.contains('this$0')
+	}
+
+	def "Read mojang mappings without synthetic field names drop roots" () {
+		setup:
+		intermediaryUrl = INTERMEDIARY_1_17_URL
+		mockMinecraftProvider.getVersionInfo() >> VERSION_META_1_17
+		mockMinecraftProvider.minecraftVersion() >> "1.17"
+		when:
+		def mappings = getLayeredMappingsDropNoneIntermediaryRoots(
+				new IntermediaryMappingsSpec(),
+				buildMojangMappingsSpec(false)
+				)
+		def tiny = getTiny(mappings)
+		then:
+		mappings.srcNamespace == "named"
+		mappings.dstNamespaces == ["intermediary", "official"]
+		mappings.classes.size() == 6107
+		mappings.classes[0].srcName.hashCode() == 1869546970 // MojMap name, just check the hash
+		mappings.classes[0].getDstName(0) == "net/minecraft/class_2354"
+		mappings.classes[0].methods[0].args.size() == 0 // No Args
+		!tiny.contains('this$0')
+	}
+
+	def "Read mojang mappings with no intermediary" () {
+		setup:
+		intermediaryUrl = INTERMEDIARY_1_17_URL
+		mockMinecraftProvider.getVersionInfo() >> VERSION_META_1_17
+		when:
+		def mappings = getLayeredMappings(
+				new NoIntermediateMappingsSpec(),
+				buildMojangMappingsSpec(true)
+				)
+		def tiny = getTiny(mappings)
+		def intermediaryId = mappings.getNamespaceId("intermediary")
+		def officialId = mappings.getNamespaceId("official")
+		then:
+		mappings.srcNamespace == "named"
+		mappings.dstNamespaces == ["intermediary", "official"]
+		mappings.classes.size() == 6113
+		mappings.getClass("com/mojang/blaze3d/Blaze3D").getDstName(intermediaryId) == "com/mojang/blaze3d/Blaze3D"
+		mappings.getClass("com/mojang/blaze3d/Blaze3D").getDstName(officialId) == "doe"
+		mappings.getClass("com/mojang/blaze3d/Blaze3D").getSrcName() == "com/mojang/blaze3d/Blaze3D"
 	}
 
 	static def buildMojangMappingsSpec(boolean nameSyntheticFields) {

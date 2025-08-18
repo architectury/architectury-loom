@@ -28,10 +28,12 @@ import java.nio.file.Path
 
 import net.fabricmc.loom.api.decompilers.DecompilationMetadata
 import net.fabricmc.loom.api.decompilers.LoomDecompiler
+import net.fabricmc.loom.util.ZipUtils
 
 class CustomDecompiler implements LoomDecompiler {
 	@Override
 	void decompile(Path compiledJar, Path sourcesDestination, Path linemapDestination, DecompilationMetadata metaData) {
 		println("Running custom decompiler")
+		ZipUtils.add(sourcesDestination, "/META-INF/test.txt", "test")
 	}
 }

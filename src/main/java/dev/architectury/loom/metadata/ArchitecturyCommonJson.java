@@ -15,9 +15,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.signature.SignatureReader;
+import org.objectweb.asm.util.CheckSignatureAdapter;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
+import net.fabricmc.loom.util.ModPlatform;
 
 public final class ArchitecturyCommonJson implements JsonBackedModMetadataFile, SingleIdModMetadataFile {
 	public static final String FILE_NAME = "architectury.common.json";
@@ -69,6 +72,11 @@ public final class ArchitecturyCommonJson implements JsonBackedModMetadataFile, 
 	}
 
 	@Override
+	public Set<String> getAccessTransformers(ModPlatform platform) {
+		return Set.of();
+	}
+
+	@Override
 	public List<InterfaceInjectionProcessor.InjectedInterface> getInjectedInterfaces(@Nullable String modId) {
 		if (modId == null) {
 			throw new IllegalArgumentException("getInjectedInterfaces: mod ID has to be provided for architectury.common.json");
@@ -86,10 +94,25 @@ public final class ArchitecturyCommonJson implements JsonBackedModMetadataFile, 
 			final List<InterfaceInjectionProcessor.InjectedInterface> result = new ArrayList<>();
 
 			for (String className : addedIfaces.keySet()) {
-				final JsonArray ifaceNames = addedIfaces.getAsJsonArray(className);
+				final JsonArray ifacesInfo = addedIfaces.getAsJsonArray(className);
 
-				for (JsonElement ifaceName : ifaceNames) {
-					result.add(new InterfaceInjectionProcessor.InjectedInterface(modId, className, ifaceName.getAsString()));
+				for (JsonElement ifaceElement : ifacesInfo) {
+					String ifaceInfo = ifaceElement.getAsString();
+
+					String name = ifaceInfo;
+					String generics = null;
+
+					if (ifaceInfo.contains("<") && ifaceInfo.contains(">")) {
+						name = ifaceInfo.substring(0, ifaceInfo.indexOf("<"));
+						generics = ifaceInfo.substring(ifaceInfo.indexOf("<"));
+
+						// First Generics Check, if there are generics, are them correctly written?
+						SignatureReader reader = new SignatureReader("Ljava/lang/Object" + generics + ";");
+						CheckSignatureAdapter checker = new CheckSignatureAdapter(CheckSignatureAdapter.CLASS_SIGNATURE, null);
+						reader.accept(checker);
+					}
+
+					result.add(new InterfaceInjectionProcessor.InjectedInterface(modId, className, name, generics));
 				}
 			}
 

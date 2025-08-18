@@ -69,7 +69,7 @@ public interface ArtifactRef {
 		}
 
 		public String version() {
-			return replaceIfNullOrEmpty(artifact.getModuleVersion().getId().getVersion(), () -> Checksum.truncatedSha256(artifact.getFile()));
+			return replaceIfNullOrEmpty(artifact.getModuleVersion().getId().getVersion(), () -> Checksum.of(artifact.getFile()).sha256().hex(10));
 		}
 
 		public String classifier() {
@@ -80,7 +80,7 @@ public interface ArtifactRef {
 		public void applyToConfiguration(Project project, Configuration configuration) {
 			final DependencyHandler dependencies = project.getDependencies();
 
-			Dependency dep = dependencies.module(artifact.getModuleVersion() + (artifact.getClassifier() == null ? "" : ':' + artifact.getClassifier())); // the owning module of the artifact
+			Dependency dep = dependencies.create(artifact.getModuleVersion() + (artifact.getClassifier() == null ? "" : ':' + artifact.getClassifier())); // the owning module of the artifact
 
 			if (dep instanceof ModuleDependency moduleDependency) {
 				moduleDependency.setTransitive(false);

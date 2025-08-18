@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,19 +28,38 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Input;
+
+import net.fabricmc.loom.util.service.Service;
+import net.fabricmc.loom.util.service.ServiceFactory;
+import net.fabricmc.loom.util.service.ServiceType;
+
 /**
  * A no-op step logic that is used for steps automatically executed by Loom earlier.
  * This one returns a file.
  */
-public final class ConstantLogic implements StepLogic {
-	private final Supplier<Path> path;
+public final class ConstantLogic extends StepLogic<ConstantLogic.Options> {
+	public static final ServiceType<Options, ConstantLogic> TYPE = new ServiceType<>(Options.class, ConstantLogic.class);
 
-	public ConstantLogic(Supplier<Path> path) {
-		this.path = path;
+	public interface Options extends Service.Options {
+		@Input
+		Property<String> getFile();
+	}
+
+	public static Provider<Options> createOptions(SetupContext context, Supplier<Path> path) {
+		return TYPE.create(context.project(), options -> {
+			options.getFile().set(context.project().provider(() -> path.get().toAbsolutePath().toString()));
+		});
+	}
+
+	public ConstantLogic(Options options, ServiceFactory serviceFactory) {
+		super(options, serviceFactory);
 	}
 
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
-		context.setOutput(path.get());
+		context.setOutput(Path.of(getOptions().getFile().get()));
 	}
 }

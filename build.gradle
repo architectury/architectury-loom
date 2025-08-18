@@ -6,11 +6,10 @@ plugins {
 	id 'eclipse'
 	id 'groovy'
 	id 'checkstyle'
-	id 'jacoco'
 	id 'codenarc'
 	alias(libs.plugins.kotlin)
-	id "com.diffplug.spotless" version "6.18.0"
-	id "org.gradle.test-retry" version "1.5.2"
+	alias(libs.plugins.spotless)
+	alias(libs.plugins.retry)
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -19,13 +18,12 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 	kotlinOptions {
-		jvmTarget = "17"
+		jvmTarget = "21"
 	}
 }
 
 group = "dev.architectury"
-archivesBaseName = project.name
-def baseVersion = '1.3'
+def baseVersion = '1.11'
 
 def ENV = System.getenv()
 def runNumber = ENV.GITHUB_RUN_NUMBER ?: "9999"
@@ -41,81 +39,116 @@ if (!isSnapshot) {
 logger.lifecycle(":building plugin v${version}")
 
 // We must build against the version of Kotlin Gradle ships with.
-def kotlinVersion = KotlinDslVersion.current().getKotlinVersion()
+def props = new Properties()
+Project.class.getClassLoader().getResource("gradle-kotlin-dsl-versions.properties").openStream().withCloseable {
+	props.load(it)
+}
+def kotlinVersion = props.getProperty("kotlin")
 if (libs.versions.kotlin.get() != kotlinVersion) {
 	throw new IllegalStateException("Requires Kotlin version: ${kotlinVersion}")
 }
 
 repositories {
 	mavenCentral()
-	maven { url "https://maven.fabricmc.net/" }
-	maven { url "https://maven.architectury.dev/" }
+	maven { url = "https://maven.fabricmc.net/" }
+	maven { url = "https://maven.architectury.dev/" }
 	maven {
-		url "https://maven.minecraftforge.net/"
+		url = "https://maven.minecraftforge.net/"
 		content {
 			excludeGroupByRegex "org\\.eclipse\\.?.*"
 		}
 	}
 }
 
-configurations {
-	bootstrap {
-		transitive false
-	}
-	compileClasspath.extendsFrom bootstrap
-	runtimeClasspath.extendsFrom bootstrap
-	testRuntimeClasspath.extendsFrom bootstrap
-}
-
-configurations.all {
+configurations.configureEach {
 	resolutionStrategy {
 		// I am sorry, for now
 		// failOnNonReproducibleResolution()
+	}
+
+	if (canBeConsumed)  {
+		attributes {
+			attribute(GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE, objects.named(GradlePluginApiVersion, GradleVersion.current().getVersion()))
+		}
+	}
+}
+
+sourceSets {
+	commonDecompiler {
+		java {
+			srcDir("src/decompilers/common")
+		}
+	}
+	fernflower {
+		java {
+			srcDir("src/decompilers/fernflower")
+		}
+	}
+	cfr {
+		java {
+			srcDir("src/decompilers/cfr")
+		}
+	}
+	vineflower {
+		java {
+			srcDir("src/decompilers/vineflower")
+		}
 	}
 }
 
 dependencies {
 	implementation gradleApi()
 
-	bootstrap project(":bootstrap")
-
 	// libraries
-	implementation ('commons-io:commons-io:2.11.0')
-	implementation ('com.google.code.gson:gson:2.10.1')
-	implementation ('com.fasterxml.jackson.core:jackson-databind:2.14.2')
-	implementation ('com.google.guava:guava:31.1-jre')
-	implementation ('org.ow2.asm:asm:9.5')
-	implementation ('org.ow2.asm:asm-analysis:9.5')
-	implementation ('org.ow2.asm:asm-commons:9.5')
-	implementation ('org.ow2.asm:asm-tree:9.5')
-	implementation ('org.ow2.asm:asm-util:9.5')
-	implementation ('me.tongfei:progressbar:0.9.0')
+	implementation libs.commons.io
+	implementation libs.gson
+	implementation libs.guava
+	implementation libs.bundles.asm
 
 	// game handling utils
-	implementation ('net.fabricmc:stitch:0.6.2') {
+	implementation (libs.fabric.stitch) {
 		exclude module: 'mercury'
 		exclude module: 'enigma'
 	}
 
 	// tinyfile management
-	implementation ('dev.architectury:tiny-remapper:1.9.21')
-	implementation 'net.fabricmc:access-widener:2.1.0'
-	implementation 'net.fabricmc:mapping-io:0.2.1'
-
-	implementation ('net.fabricmc:lorenz-tiny:4.0.2') {
+	implementation libs.fabric.tiny.remapper
+	implementation libs.fabric.access.widener
+	implementation libs.fabric.mapping.io
+	implementation (libs.fabric.lorenz.tiny) {
 		transitive = false
 	}
 	implementation "dev.architectury:refmap-remapper:1.0.5"
 
+	implementation libs.fabric.loom.nativelib
+
 	// decompilers
-	implementation ('net.fabricmc:fabric-fernflower:2.0.0')
-	implementation ('net.fabricmc:cfr:0.2.1')
+	fernflowerCompileOnly runtimeLibs.fernflower
+	fernflowerCompileOnly libs.fabric.mapping.io
+
+	cfrCompileOnly runtimeLibs.cfr
+	cfrCompileOnly libs.fabric.mapping.io
+
+	vineflowerCompileOnly runtimeLibs.vineflower
+	vineflowerCompileOnly libs.fabric.mapping.io
+
+	fernflowerApi sourceSets.commonDecompiler.output
+	cfrApi sourceSets.commonDecompiler.output
+	vineflowerApi sourceSets.commonDecompiler.output
+
+	implementation sourceSets.commonDecompiler.output
+	implementation sourceSets.fernflower.output
+	implementation sourceSets.cfr.output
+	implementation sourceSets.vineflower.output
 
 	// source code remapping
-	implementation ('dev.architectury:mercury:0.1.2.15')
+	implementation libs.fabric.mercury
+
+	implementation libs.fabric.unpick
+	implementation libs.fabric.unpick.utils
 
 	// Kotlin
-	implementation('org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.0') {
+	implementation(libs.kotlin.metadata) {
 		transitive = false
 	}
 
@@ -123,35 +156,40 @@ dependencies {
 	compileOnly libs.kotlin.gradle.plugin
 
 	// Forge patches
-	implementation ('net.minecraftforge:installertools:1.2.0')
-	implementation ('org.cadixdev:lorenz:0.5.3')
-	implementation ('org.cadixdev:lorenz-asm:0.5.3')
-	implementation ('de.oceanlabs.mcp:mcinjector:3.8.0')
-	implementation ('com.opencsv:opencsv:5.4')
-	implementation ('net.minecraftforge:DiffPatch:2.0.7')
+	implementation libs.forge.installer.tools
+	implementation libs.lorenz
+	implementation libs.mcinjector
+	implementation libs.opencsv
+	implementation libs.forge.diffpatch
+	implementation libs.datafixerupper
+	implementation libs.at
 
 	// Forge mods.toml parsing
-	implementation ('com.electronwill.night-config:toml:3.6.6')
+	implementation libs.night.config.toml
 
 	// quilt.mod.json5 parsing
 	implementation ('blue.endless:jankson:1.2.2')
 
 	// Testing
 	testImplementation(gradleTestKit())
-	testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+	testImplementation(testLibs.spock) {
 		exclude module: 'groovy-all'
 	}
-	testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.9.2'
-	testImplementation ('io.javalin:javalin:5.4.2') {
+	testImplementation testLibs.junit.jupiter.engine
+	testRuntimeOnly testLibs.junit.platform.launcher
+	testImplementation (testLibs.javalin) {
 		exclude group: 'org.jetbrains.kotlin'
 	}
-	testImplementation 'org.mockito:mockito-core:5.2.0'
-	testImplementation 'com.microsoft.java:com.microsoft.java.debug.core:0.46.0'
+	testImplementation testLibs.mockito
+	testImplementation testLibs.java.debug
+	testImplementation testLibs.bcprov
+	testImplementation testLibs.bcutil
+	testImplementation testLibs.bcpkix
 
-	compileOnly 'org.jetbrains:annotations:24.0.1'
-	testCompileOnly 'org.jetbrains:annotations:24.0.1'
+	compileOnly runtimeLibs.jetbrains.annotations
+	testCompileOnly runtimeLibs.jetbrains.annotations
 
-	testCompileOnly ('net.fabricmc:sponge-mixin:0.11.4+mixin.0.8.5') {
+	testCompileOnly (testLibs.mixin) {
 		transitive = false
 	}
 }
@@ -161,21 +199,29 @@ jar {
 		attributes 'Implementation-Version': project.version
 	}
 
-	from configurations.bootstrap.collect { it.isDirectory() ? it : zipTree(it) }
+	from sourceSets.commonDecompiler.output.classesDirs
+	from sourceSets.cfr.output.classesDirs
+	from sourceSets.fernflower.output.classesDirs
+	from sourceSets.vineflower.output.classesDirs
 }
 
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
+base {
+	archivesName = project.name
+}
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 17
+	it.options.release = 21
 }
 
 java {
 	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 spotless {
+	lineEndings = com.diffplug.spotless.LineEnding.UNIX
+
 	java {
 		licenseHeaderFile(rootProject.file("HEADER")).yearSeparator("-")
 		targetExclude("**/loom/util/DownloadUtil.java", "**/loom/util/FileSystemUtil.java")
@@ -192,8 +238,11 @@ spotless {
 		target 'src/**/*.gradle', '*.gradle'
 		greclipse()
 
-		// This file uses a @MAPPINGS@ token which is not valid Groovy
-		targetExclude('**/projects/forge/simple/build.gradle')
+		targetExclude(
+				// These files use a @MAPPINGS@ token which is not valid Groovy
+				'**/projects/forge/simple/build.gradle',
+				'**/projects/neoforge/simple/build.gradle'
+				)
 	}
 
 	kotlin {
@@ -206,11 +255,18 @@ spotless {
 
 checkstyle {
 	configFile = file('checkstyle.xml')
-	toolVersion = '10.6.0'
+	toolVersion = libs.versions.checkstyle.get()
+}
+
+// Workaround https://github.com/gradle/gradle/issues/27035
+configurations.checkstyle {
+	resolutionStrategy.capabilitiesResolution.withCapability("com.google.collections:google-collections") {
+		select("com.google.guava:guava:0")
+	}
 }
 
 codenarc {
-	toolVersion = "3.2.0"
+	toolVersion = libs.versions.codenarc.get()
 	configFile = file("codenarc.groovy")
 }
 
@@ -218,22 +274,8 @@ gradlePlugin {
 	plugins {
 		fabricLoom {
 			id = 'dev.architectury.loom'
-			implementationClass = 'net.fabricmc.loom.bootstrap.LoomGradlePluginBootstrap'
+			implementationClass = 'net.fabricmc.loom.LoomGradlePlugin'
 		}
-	}
-}
-
-jacoco {
-	toolVersion = "0.8.8"
-}
-
-// Run to get test coverage.
-jacocoTestReport {
-	dependsOn test
-	reports {
-		xml.required = false
-		csv.required = false
-		html.outputLocation = file("${buildDir}/jacocoHtml")
 	}
 }
 
@@ -253,9 +295,25 @@ test {
 			maxRetries = 3
 		}
 	}
+
+	testLogging {
+		// Log everything to the console
+		setEvents(TestLogEvent.values().toList())
+	}
 }
 
-import org.gradle.launcher.cli.KotlinDslVersion
+// Workaround https://github.com/gradle/gradle/issues/25898
+tasks.withType(Test).configureEach {
+	jvmArgs = [
+		'--add-opens=java.base/java.lang=ALL-UNNAMED',
+		'--add-opens=java.base/java.util=ALL-UNNAMED',
+		'--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
+		'--add-opens=java.base/java.net=ALL-UNNAMED'
+	]
+}
+
+
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.util.GradleVersion
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -263,35 +321,35 @@ import org.w3c.dom.Node
 
 publishing {
 	publications {
-		if (isSnapshot) return
-
+		if (!isSnapshot && !ENV.EXPERIMENTAL) {
 			// Also publish a snapshot so people can use the latest version if they wish
 			snapshot(MavenPublication) { publication ->
-				groupId project.group
-				artifactId project.archivesBaseName
-				version baseVersion + '-SNAPSHOT'
+				groupId = project.group
+				artifactId = project.base.archivesName.get()
+				version = baseVersion + '-SNAPSHOT'
 
 				from components.java
 			}
 
-		// Manually crate the plugin marker for snapshot versions
-		snapshotPlugin(MavenPublication) {
-			groupId 'dev.architectury.loom'
-			artifactId 'dev.architectury.loom.gradle.plugin'
-			version baseVersion + '-SNAPSHOT'
+			// Manually crate the plugin marker for snapshot versions
+			snapshotPlugin(MavenPublication) {
+				groupId = 'dev.architectury.loom'
+				artifactId = 'dev.architectury.loom.gradle.plugin'
+				version = baseVersion + '-SNAPSHOT'
 
-			pom.withXml {
-				// Based off org.gradle.plugin.devel.plugins.MavenPluginPublishPlugin
-				Element root = asElement()
-				Document document = root.getOwnerDocument()
-				Node dependencies = root.appendChild(document.createElement('dependencies'))
-				Node dependency = dependencies.appendChild(document.createElement('dependency'))
-				Node groupId = dependency.appendChild(document.createElement('groupId'))
-				groupId.setTextContent(project.group)
-				Node artifactId = dependency.appendChild(document.createElement('artifactId'))
-				artifactId.setTextContent(project.archivesBaseName)
-				Node version = dependency.appendChild(document.createElement('version'))
-				version.setTextContent(baseVersion + '-SNAPSHOT')
+				pom.withXml({
+					// Based off org.gradle.plugin.devel.plugins.MavenPluginPublishPlugin
+					Element root = asElement()
+					Document document = root.getOwnerDocument()
+					Node dependencies = root.appendChild(document.createElement('dependencies'))
+					Node dependency = dependencies.appendChild(document.createElement('dependency'))
+					Node groupId = dependency.appendChild(document.createElement('groupId'))
+					groupId.setTextContent(project.group)
+					Node artifactId = dependency.appendChild(document.createElement('artifactId'))
+					artifactId.setTextContent(project.archivesBaseName)
+					Node version = dependency.appendChild(document.createElement('version'))
+					version.setTextContent(baseVersion + '-SNAPSHOT')
+				})
 			}
 		}
 	}
@@ -309,29 +367,20 @@ publishing {
 	}
 }
 
-// Need to tweak this file to pretend we are compatible with j8 so the bootstrap will run.
-tasks.withType(GenerateModuleMetadata) {
-	doLast {
-		def file = outputFile.get().asFile
-
-		def metadata = new groovy.json.JsonSlurper().parseText(file.text)
-
-		metadata.variants.each {
-			it.attributes["org.gradle.jvm.version"] = 8
-		}
-
-		file.text = groovy.json.JsonOutput.toJson(metadata)
-	}
-}
-
 // A task to output a json file with a list of all the test to run
-task writeActionsTestMatrix() {
+tasks.register('writeActionsTestMatrix') {
 	doLast {
 		def testMatrix = []
+		def extendedTests = Boolean.parseBoolean(System.getenv('EXTENDED_TESTS') ?: 'false')
 		file('src/test/groovy/net/fabricmc/loom/test/integration').traverse {
 			if (it.name.endsWith("Test.groovy")) {
 				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
 					// This test gets a special case to run across all os's
+					return
+				}
+
+				if (it.name.endsWith("DebugLineNumbersTest.groovy") && !extendedTests) {
+					// Known flakey test
 					return
 				}
 
@@ -350,9 +399,6 @@ task writeActionsTestMatrix() {
 		// Run all the unit tests together
 		testMatrix.add("net.fabricmc.loom.test.unit.*")
 
-		// Kotlin tests
-		testMatrix.add("net.fabricmc.loom.test.kotlin.*")
-
 		def json = groovy.json.JsonOutput.toJson(testMatrix)
 		def output = file("build/test_matrix.json")
 		output.parentFile.mkdir()
@@ -367,7 +413,7 @@ tasks.named('wrapper') {
 /**
  * Run this task to download the gradle sources next to the api jar, you may need to manually attach the sources jar
  */
-task downloadGradleSources() {
+tasks.register('downloadGradleSources') {
 	doLast {
 		// Awful hack to find the gradle api location
 		def gradleApiFile = project.configurations.detachedConfiguration(dependencies.gradleApi()).files.stream()
@@ -389,13 +435,13 @@ tasks.withType(GenerateModuleMetadata) {
 	enabled = false
 }
 
-task printActionsTestName(type: PrintActionsTestName) {
+tasks.register('printActionsTestName', PrintActionsTestName) {
 }
 
 /**
  * Replaces invalid characters in test names for GitHub Actions artifacts.
  */
-class PrintActionsTestName extends DefaultTask {
+abstract class PrintActionsTestName extends DefaultTask {
 	@Input
 	@Option(option = "name", description = "The test name")
 	String testName
@@ -406,3 +452,5 @@ class PrintActionsTestName extends DefaultTask {
 		new File(System.getenv().GITHUB_OUTPUT) << "\ntest=$sanitised"
 	}
 }
+
+apply from: rootProject.file('gradle/versions.gradle')

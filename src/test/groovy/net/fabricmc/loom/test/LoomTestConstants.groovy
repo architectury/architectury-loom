@@ -27,7 +27,7 @@ package net.fabricmc.loom.test
 import org.gradle.util.GradleVersion
 
 class LoomTestConstants {
-	private final static String NIGHTLY_VERSION = "8.3-20230430222526+0000"
+	private final static String NIGHTLY_VERSION = LoomTestVersions.GRADLE_NIGHTLY.version()
 	private final static boolean NIGHTLY_EXISTS = nightlyExists(NIGHTLY_VERSION)
 
 	// Test against the version of Gradle being used to build loom
@@ -37,8 +37,12 @@ class LoomTestConstants {
 	// Randomly sorted to ensure that all versions can run with a clean gradle home.
 	public final static List<String> STANDARD_TEST_VERSIONS = (NIGHTLY_EXISTS ? [
 		DEFAULT_GRADLE,
+		LoomTestVersions.GRADLE_LATEST.version(),
 		PRE_RELEASE_GRADLE
-	] : [DEFAULT_GRADLE]).shuffled().toArray()
+	] : [
+		DEFAULT_GRADLE,
+		LoomTestVersions.GRADLE_LATEST.version()
+	]).shuffled().toArray()
 
 	public static final File TEST_DIR = new File("./.gradle/test-files")
 

@@ -27,7 +27,6 @@ package net.fabricmc.loom.configuration.mods;
 import java.io.IOException;
 import java.util.List;
 
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.objectweb.asm.ClassVisitor;
 
 import net.fabricmc.accesswidener.AccessWidener;
@@ -36,6 +35,7 @@ import net.fabricmc.accesswidener.AccessWidenerReader;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public record AccessWidenerAnalyzeVisitorProvider(AccessWidener accessWidener) implements TinyRemapper.AnalyzeVisitorProvider {
 	static AccessWidenerAnalyzeVisitorProvider createFromMods(String namespace, List<ModDependency> mods, ModPlatform platform) throws IOException {

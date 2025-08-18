@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2018-2021 FabricMC
+ * Copyright (c) 2018-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,8 @@
 package net.fabricmc.loom.configuration.providers.mappings;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
@@ -39,7 +41,8 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.download.DownloadBuilder;
-import net.fabricmc.loom.util.service.ScopedSharedServiceManager;
+import net.fabricmc.loom.util.gradle.GradleUtils;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class GradleMappingContext implements MappingContext {
@@ -74,10 +77,18 @@ public class GradleMappingContext implements MappingContext {
 	@Override
 	public Supplier<MemoryMappingTree> intermediaryTree() {
 		return () -> {
-			try (var serviceManager = new ScopedSharedServiceManager()) {
-				return IntermediateMappingsService.getInstance(serviceManager, project, minecraftProvider()).getMemoryMappingTree();
+			try (var serviceFactory = new ScopedServiceFactory()) {
+				IntermediateMappingsService intermediateMappingsService = serviceFactory.get(IntermediateMappingsService.createOptions(project, minecraftProvider()));
+				return intermediateMappingsService.getMemoryMappingTree();
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
 			}
 		};
+	}
+
+	@Override
+	public boolean isUsingIntermediateMappings() {
+		return !(extension.getIntermediateMappingsProvider() instanceof NoOpIntermediateMappingsProvider);
 	}
 
 	@Override
@@ -103,6 +114,11 @@ public class GradleMappingContext implements MappingContext {
 	@Override
 	public boolean refreshDeps() {
 		return extension.refreshDeps();
+	}
+
+	@Override
+	public boolean hasProperty(String property) {
+		return GradleUtils.getBooleanProperty(project, property);
 	}
 
 	public Project getProject() {

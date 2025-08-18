@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,36 +24,39 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 
 import org.gradle.api.Action;
+import org.gradle.api.Project;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
+import org.gradle.api.provider.Provider;
 import org.gradle.process.JavaExecSpec;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
 import net.fabricmc.loom.util.download.DownloadBuilder;
 import net.fabricmc.loom.util.function.CollectionUtil;
+import net.fabricmc.loom.util.service.Service;
+import net.fabricmc.loom.util.service.ServiceFactory;
 
 /**
  * The logic for executing a step. This corresponds to the {@code type} key in the step JSON format.
  */
-public interface StepLogic {
-	void execute(ExecutionContext context) throws IOException;
+public abstract class StepLogic<O extends Service.Options> extends Service<O> {
+	public StepLogic(O options, ServiceFactory serviceFactory) {
+		super(options, serviceFactory);
+	}
 
-	default String getDisplayName(String stepName) {
+	public abstract void execute(ExecutionContext context) throws IOException;
+
+	public String getDisplayName(String stepName) {
 		return stepName;
 	}
 
-	default boolean hasNoContext() {
-		return false;
-	}
-
-	interface ExecutionContext {
+	public interface ExecutionContext {
 		Logger logger();
 		Path setOutput(String fileName) throws IOException;
 		Path setOutput(Path output);
@@ -61,18 +64,23 @@ public interface StepLogic {
 		/** Mappings extracted from {@code data.mappings} in the MCPConfig JSON. */
 		Path mappings();
 		String resolve(ConfigValue value);
-		Path download(String url) throws IOException;
 		DownloadBuilder downloadBuilder(String url);
 		void javaexec(Action<? super JavaExecSpec> configurator);
-		Set<File> getMinecraftLibraries();
 
 		default List<String> resolve(List<ConfigValue> configValues) {
 			return CollectionUtil.map(configValues, this::resolve);
 		}
 	}
 
+	public interface SetupContext {
+		Project project();
+		Path downloadFile(String url) throws IOException;
+		Path downloadDependency(String notation);
+		Provider<FileCollection> getMinecraftLibraries();
+	}
+
 	@FunctionalInterface
-	interface Provider {
-		Optional<StepLogic> getStepLogic(String name, String type);
+	public interface StepLogicProvider {
+		@Nullable Provider<? extends Service.Options> getStepLogic(SetupContext context, String name, String type);
 	}
 }

@@ -31,6 +31,7 @@ import java.util.List;
 
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -45,6 +46,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.library.MinecraftLibr
 import net.fabricmc.loom.configuration.providers.minecraft.library.processors.RuntimeLog4jLibraryProcessor;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.Platform;
+import net.fabricmc.loom.util.gradle.GradleUtils;
 
 public class MinecraftLibraryProvider {
 	private static final Platform platform = Platform.CURRENT;
@@ -82,8 +84,8 @@ public class MinecraftLibraryProvider {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MinecraftJarConfiguration jarConfiguration = extension.getMinecraftJarConfiguration().get();
 
-		final boolean provideClient = jarConfiguration.getSupportedEnvironments().contains("client");
-		final boolean provideServer = jarConfiguration.getSupportedEnvironments().contains("server");
+		final boolean provideClient = jarConfiguration.supportedEnvironments().contains("client");
+		final boolean provideServer = jarConfiguration.supportedEnvironments().contains("server");
 		assert provideClient || provideServer;
 
 		if (provideClient) {
@@ -92,6 +94,10 @@ public class MinecraftLibraryProvider {
 
 		if (provideServer) {
 			provideServerLibraries();
+		}
+
+		if (extension.isCollectingDependencyVerificationMetadata()) {
+			resolveAllLibraries();
 		}
 	}
 
@@ -108,19 +114,43 @@ public class MinecraftLibraryProvider {
 
 	private void provideServerLibraries() {
 		final BundleMetadata serverBundleMetadata = minecraftProvider.getServerBundleMetadata();
-
-		if (serverBundleMetadata == null) {
-			return;
-		}
-
-		final List<Library> libraries = MinecraftLibraryHelper.getServerLibraries(serverBundleMetadata);
+		final List<Library> libraries = serverBundleMetadata != null ? MinecraftLibraryHelper.getServerLibraries(serverBundleMetadata) : Collections.emptyList();
 		final List<Library> processLibraries = processLibraries(libraries);
 		processLibraries.forEach(this::applyServerLibrary);
 	}
 
+	/**
+	 * When Gradle is writing dependency verification metadata, we need to resolve all libraries across all platforms,
+	 * to ensure that they are captured.
+	 */
+	private void resolveAllLibraries() {
+		project.getLogger().info("Resolving all libraries for dependency verification metadata generation");
+
+		final List<Library> libraries = MinecraftLibraryHelper.getAllLibraries(minecraftProvider.getVersionInfo());
+		Configuration detachedConfiguration = project.getConfigurations().detachedConfiguration(
+				libraries.stream()
+					.map(library -> project.getDependencies().create(library.mavenNotation()))
+					.toArray(Dependency[]::new)
+		);
+		detachedConfiguration.getFiles();
+	}
+
 	private List<Library> processLibraries(List<Library> libraries) {
-		final LibraryContext libraryContext = new LibraryContext(minecraftProvider.getVersionInfo(), JavaVersion.current());
+		final LibraryContext libraryContext = new LibraryContext(minecraftProvider.getVersionInfo(), getTargetRuntimeJavaVersion());
 		return processorManager.processLibraries(libraries, libraryContext);
+	}
+
+	private JavaVersion getTargetRuntimeJavaVersion() {
+		final Object property = GradleUtils.getProperty(project, Constants.Properties.RUNTIME_JAVA_COMPATIBILITY_VERSION);
+
+		if (property != null) {
+			// This is very much a last ditch effort to allow users to set the runtime java version
+			// It's not recommended and will likely cause support confusion if it has been changed without good reason.
+			project.getLogger().warn("Runtime java compatibility version has manually been set to: %s".formatted(property));
+			return JavaVersion.toVersion(property);
+		}
+
+		return JavaVersion.current();
 	}
 
 	private void applyClientLibrary(Library library) {

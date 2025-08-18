@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import java.nio.file.Path
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.mojang.serialization.JsonOps
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.lang.Unroll
@@ -56,7 +57,8 @@ class ForgeRunTemplateTest extends Specification {
 		def json = downloadForgeConfig(gameVersion, forgeVersion)
 
 		when:
-		def template = ForgeRunTemplate.fromJson(json.getAsJsonObject("runs").getAsJsonObject("client"))
+		def result = ForgeRunTemplate.CODEC.parse(JsonOps.INSTANCE, json.getAsJsonObject("runs").getAsJsonObject("client"))
+		def template = result.getOrThrow(false) { }
 
 		then:
 		template.name == template.name() // check that the name gradle sees matches the name read from the json

@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,35 +38,34 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import dev.architectury.loom.forge.UserdevConfig;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Dependency;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ModSettings;
+import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
+import net.fabricmc.loom.util.Version;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.gradle.SourceSetReference;
 
-public class ForgeRunsProvider implements ConfigValue.Resolver {
+public class ForgeRunsProvider {
 	private final Project project;
 	private final LoomGradleExtension extension;
 	private final JsonObject json;
 	private final NamedDomainObjectSet<ForgeRunTemplate> templates;
 
-	public ForgeRunsProvider(Project project, JsonObject json) {
+	public ForgeRunsProvider(Project project, JsonObject json, UserdevConfig userdevConfig) {
 		this.project = project;
 		this.extension = LoomGradleExtension.get(project);
 		this.json = json;
 		this.templates = project.getObjects().namedDomainObjectSet(ForgeRunTemplate.class);
-		readTemplates();
-	}
-
-	private void readTemplates() {
-		for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("runs").entrySet()) {
-			ForgeRunTemplate template = ForgeRunTemplate.fromJson(entry.getValue().getAsJsonObject());
-			templates.add(template);
-		}
+		this.templates.addAll(userdevConfig.runs().values());
 	}
 
 	public NamedDomainObjectSet<ForgeRunTemplate> getTemplates() {
@@ -75,12 +73,15 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 	}
 
 	public static ForgeRunsProvider create(Project project) {
-		JsonObject json = LoomGradleExtension.get(project).getForgeUserdevProvider().getJson();
-		return new ForgeRunsProvider(project, json);
+		final ForgeUserdevProvider userdevProvider = LoomGradleExtension.get(project).getForgeUserdevProvider();
+		return new ForgeRunsProvider(project, userdevProvider.getJson(), userdevProvider.getConfig());
 	}
 
-	@Override
-	public String resolve(ConfigValue.Variable variable) {
+	public ConfigValue.Resolver getResolver(@Nullable RunConfigSettings runConfig) {
+		return variable -> resolve(runConfig, variable);
+	}
+
+	private String resolve(@Nullable RunConfigSettings runConfig, ConfigValue.Variable variable) {
 		String key = variable.name();
 		String string = '{' + key + '}';
 
@@ -128,8 +129,14 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 		} else if (key.equals("source_roots")) {
 			// Use a set-valued multimap for deduplicating paths.
 			Multimap<String, String> modClasses = MultimapBuilder.hashKeys().linkedHashSetValues().build();
+			NamedDomainObjectContainer<ModSettings> mods = extension.getMods();
+			String separator = getSourceRootsSeparator();
 
-			for (ModSettings mod : extension.getMods()) {
+			if (runConfig != null && !runConfig.getMods().isEmpty()) {
+				mods = runConfig.getMods();
+			}
+
+			for (ModSettings mod : mods) {
 				// Note: In Forge 1.16.5, resources have to come first to find mods.toml
 				for (SourceSetReference modSourceSet : mod.getModSourceSets().get()) {
 					File resourcesDir = modSourceSet.sourceSet().getOutput().getResourcesDir();
@@ -143,7 +150,7 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 
 			string = modClasses.entries().stream()
 					.map(entry -> entry.getKey() + "%%" + entry.getValue())
-					.collect(Collectors.joining(File.pathSeparator));
+					.collect(Collectors.joining(separator));
 		} else if (key.equals("mcp_mappings")) {
 			string = "loom.stub";
 		} else if (json.has(key)) {
@@ -179,5 +186,22 @@ public class ForgeRunsProvider implements ConfigValue.Resolver {
 
 	private Set<File> minecraftClasspath() {
 		return DependencyDownloader.resolveFiles(project, project.getConfigurations().getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY), true);
+	}
+
+	private String getSourceRootsSeparator() {
+		// Some versions of Forge 49+ requires a different separator
+		if (!extension.isForge() || extension.getForgeProvider().getVersion().getMajorVersion() < Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
+			return File.pathSeparator;
+		}
+
+		for (Dependency dependency : project.getConfigurations().getByName(Constants.Configurations.FORGE_DEPENDENCIES).getDependencies()) {
+			if (dependency.getGroup().equals("net.minecraftforge") && dependency.getName().equals("bootstrap-dev")) {
+				Version version = Version.parse(dependency.getVersion());
+				return version.compareTo(Version.parse("2.1.4")) >= 0 ? File.pathSeparator : ";";
+			}
+		}
+
+		project.getLogger().warn("Failed to find bootstrap-dev in forge dependencies, using File.pathSeparator as separator");
+		return File.pathSeparator;
 	}
 }

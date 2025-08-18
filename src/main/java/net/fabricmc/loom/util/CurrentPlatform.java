@@ -28,6 +28,10 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.StandardProtocolFamily;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 final class CurrentPlatform implements Platform {
 	static final Platform INSTANCE = new CurrentPlatform();
@@ -35,11 +39,13 @@ final class CurrentPlatform implements Platform {
 	private final OperatingSystem operatingSystem;
 	private final Architecture architecture;
 	private final boolean supportsUnixDomainSockets;
+	private final boolean isRaspberryPi;
 
 	private CurrentPlatform() {
 		this.operatingSystem = getCurrentOperatingSystem();
 		this.architecture = getCurrentArchitecture();
 		this.supportsUnixDomainSockets = isUnixDomainSocketsSupported();
+		this.isRaspberryPi = getIsRaspberryPi(operatingSystem, architecture);
 	}
 
 	private static OperatingSystem getCurrentOperatingSystem() {
@@ -59,6 +65,7 @@ final class CurrentPlatform implements Platform {
 		final String arch = System.getProperty("os.arch");
 		final boolean is64Bit = arch.contains("64") || arch.startsWith("armv8");
 		final boolean isArm = arch.startsWith("arm") || arch.startsWith("aarch64");
+		final boolean isRiscV = arch.startsWith("riscv");
 
 		return new Architecture() {
 			@Override
@@ -69,6 +76,11 @@ final class CurrentPlatform implements Platform {
 			@Override
 			public boolean isArm() {
 				return isArm;
+			}
+
+			@Override
+			public boolean isRiscV() {
+				return isRiscV;
 			}
 		};
 	}
@@ -81,6 +93,29 @@ final class CurrentPlatform implements Platform {
 			return false;
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	/**
+	 * Returns true if the current system is a Raspberry Pi running Debian 12 (Bookworm).
+	 */
+	private static boolean getIsRaspberryPi(OperatingSystem operatingSystem, Architecture architecture) {
+		if (operatingSystem != OperatingSystem.LINUX || !architecture.isArm()) {
+			return false;
+		}
+
+		try {
+			final Path releasePath = Paths.get("/etc/os-release");
+			final String release = Files.readString(releasePath, StandardCharsets.UTF_8);
+			final boolean isDebianBookworm = release.contains("VERSION_CODENAME=bookworm");
+
+			final Path modelPath = Paths.get("/sys/firmware/devicetree/base/model");
+			final String model = Files.readString(modelPath, StandardCharsets.UTF_8);
+			final boolean isRaspberryPi = model.startsWith("Raspberry Pi");
+
+			return isDebianBookworm && isRaspberryPi;
+		} catch (IOException e) {
+			return false;
 		}
 	}
 
@@ -97,5 +132,10 @@ final class CurrentPlatform implements Platform {
 	@Override
 	public boolean supportsUnixDomainSockets() {
 		return supportsUnixDomainSockets;
+	}
+
+	@Override
+	public boolean isRaspberryPi() {
+		return isRaspberryPi;
 	}
 }

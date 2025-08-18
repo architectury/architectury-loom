@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,37 @@ package net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic;
 
 import java.io.IOException;
 
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Input;
+
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
+import net.fabricmc.loom.util.service.Service;
+import net.fabricmc.loom.util.service.ServiceFactory;
+import net.fabricmc.loom.util.service.ServiceType;
 
 /**
  * Downloads a file from the Minecraft version metadata.
  */
-public final class DownloadManifestFileLogic implements StepLogic {
-	private final MinecraftVersionMeta.Download download;
+public final class DownloadManifestFileLogic extends StepLogic<DownloadManifestFileLogic.Options> {
+	public static final ServiceType<Options, DownloadManifestFileLogic> TYPE = new ServiceType<>(Options.class, DownloadManifestFileLogic.class);
 
-	public DownloadManifestFileLogic(MinecraftVersionMeta.Download download) {
-		this.download = download;
+	public interface Options extends Service.Options {
+		@Input
+		Property<MinecraftVersionMeta.Download> getDownload();
+	}
+
+	public static Provider<Options> createOptions(SetupContext context, MinecraftVersionMeta.Download download) {
+		return TYPE.create(context.project(), options -> options.getDownload().set(download));
+	}
+
+	public DownloadManifestFileLogic(Options options, ServiceFactory serviceFactory) {
+		super(options, serviceFactory);
 	}
 
 	@Override
 	public void execute(ExecutionContext context) throws IOException {
+		MinecraftVersionMeta.Download download = getOptions().getDownload().get();
 		context.downloadBuilder(download.url())
 				.sha1(download.sha1())
 				.downloadPath(context.setOutput("output"));

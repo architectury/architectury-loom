@@ -35,6 +35,7 @@ import com.google.gson.JsonObject;
 /**
  * Data extracted from the MCPConfig JSON file.
  *
+ * @param version      the Minecraft version - the value of the {@code version} property
  * @param data         the value of the {@code data} property
  * @param mappingsPath the path to srg mappings inside the MCP zip
  * @param official     the value of the {@code official} property
@@ -42,6 +43,7 @@ import com.google.gson.JsonObject;
  * @param functions    the MCP function definitions by name
  */
 public record McpConfigData(
+		String version,
 		JsonObject data,
 		String mappingsPath,
 		boolean official,
@@ -49,6 +51,7 @@ public record McpConfigData(
 		Map<String, McpConfigFunction> functions
 ) {
 	public static McpConfigData fromJson(JsonObject json) {
+		String version = json.get("version").getAsString();
 		JsonObject data = json.getAsJsonObject("data");
 		String mappingsPath = data.get("mappings").getAsString();
 		boolean official = json.has("official") && json.getAsJsonPrimitive("official").getAsBoolean();
@@ -73,6 +76,6 @@ public record McpConfigData(
 			functionsBuilder.put(key, McpConfigFunction.fromJson(functionsJson.getAsJsonObject(key)));
 		}
 
-		return new McpConfigData(data, mappingsPath, official, stepsBuilder.build(), functionsBuilder.build());
+		return new McpConfigData(version, data, mappingsPath, official, stepsBuilder.build(), functionsBuilder.build());
 	}
 }

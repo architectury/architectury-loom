@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.inject.Inject;
 
-import com.google.common.collect.ImmutableMap;
 import groovy.util.Node;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -54,7 +53,7 @@ import net.fabricmc.loom.util.gradle.GradleUtils;
 public abstract class MavenPublication implements Runnable {
 	// ImmutableMap is needed since it guarantees ordering
 	// (compile must go before runtime, or otherwise dependencies might get the "weaker" runtime scope).
-	private static final Map<String, String> CONFIGURATION_TO_SCOPE = ImmutableMap.of(
+	private static final Map<String, String> CONFIGURATION_TO_SCOPE = Map.of(
 			JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, "compile",
 			JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, "runtime"
 	);
@@ -100,7 +99,7 @@ public abstract class MavenPublication implements Runnable {
 
 				if (hasSoftwareComponent(publication) || EXCLUDED_PUBLICATIONS.contains(publication)) {
 					continue;
-				} else if (!reportedDeprecation.get() && !LoomGradleExtension.get(getProject()).isForge()) {
+				} else if (!reportedDeprecation.get() && !LoomGradleExtension.get(getProject()).isForgeLike()) {
 					DeprecationHelper deprecationHelper = LoomGradleExtension.get(getProject()).getDeprecationHelper();
 					deprecationHelper.warn("Loom is applying dependency data manually to publications instead of using a software component (from(components[\"java\"])). This is deprecated.");
 					reportedDeprecation.set(true);

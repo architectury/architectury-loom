@@ -51,9 +51,17 @@ public interface Platform {
 		boolean is64Bit();
 
 		boolean isArm();
+
+		boolean isRiscV();
+
+		default boolean isX64() {
+			return is64Bit() && !isArm() && !isRiscV();
+		}
 	}
 
 	Architecture getArchitecture();
 
 	boolean supportsUnixDomainSockets();
+
+	boolean isRaspberryPi();
 }

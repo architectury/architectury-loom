@@ -26,10 +26,16 @@ package net.fabricmc.loom.test.unit
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.time.ZoneId
 
+import com.google.gson.JsonObject
+import org.gradle.api.tasks.bundling.ZipEntryCompression
 import spock.lang.Specification
 
+import net.fabricmc.loom.util.Checksum
+import net.fabricmc.loom.util.FileSystemUtil
 import net.fabricmc.loom.util.Pair
+import net.fabricmc.loom.util.ZipReprocessorUtil
 import net.fabricmc.loom.util.ZipUtils
 
 class ZipUtilsTest extends Specification {
@@ -149,5 +155,107 @@ class ZipUtilsTest extends Specification {
 
 		then:
 		!result
+	}
+
+	def "append zip entry"() {
+		given:
+		def currentTimezone = TimeZone.getDefault()
+		TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of(timezone)))
+
+		// Create a reproducible input zip
+		def dir = Files.createTempDirectory("loom-zip-test")
+		def zip = Files.createTempFile("loom-zip-test", ".zip")
+		def fileInside = dir.resolve("text.txt")
+		Files.writeString(fileInside, "hello world")
+		ZipUtils.pack(dir, zip)
+		ZipReprocessorUtil.reprocessZip(zip, true, false)
+
+		when:
+		// Add an entry to it
+		ZipReprocessorUtil.appendZipEntry(zip, "fabric.mod.json", "Some text".getBytes(StandardCharsets.UTF_8))
+
+		// Reset the timezone back
+		TimeZone.setDefault(currentTimezone)
+
+		then:
+		ZipUtils.unpack(zip, "text.txt") == "hello world".bytes
+		ZipUtils.unpack(zip, "fabric.mod.json") == "Some text".bytes
+		Checksum.of(zip).sha1().hex() == "1b06cc0aaa65ab2b0d423fe33431ff5bd14bf9c8"
+
+		where:
+		timezone 			| _
+		"UTC" 				| _
+		"US/Central" 		| _
+		"Europe/London" 	| _
+		"Australia/Sydney" 	| _
+		"Etc/GMT-6" 		| _
+		"Etc/GMT+9" 		| _
+	}
+
+	def "transform json"() {
+		given:
+		def dir = File.createTempDir()
+		def zip = File.createTempFile("loom-zip-test", ".zip").toPath()
+		new File(dir, "test.json").text = """
+		{
+			"test": "This is a test of transforming"
+		}
+		"""
+		ZipUtils.pack(dir.toPath(), zip)
+
+		when:
+		ZipUtils.transformJson(JsonObject.class, zip, "test.json") { json ->
+			def test = json.get("test").getAsString()
+			json.addProperty("test", test.toUpperCase())
+			json
+		}
+
+		def transformed = ZipUtils.unpackJson(zip, "test.json", JsonObject.class)
+
+		then:
+		transformed.get("test").asString == "THIS IS A TEST OF TRANSFORMING"
+	}
+
+	// Also see: ClosedZipFSReproducer
+	def "unrecoverable error"() {
+		given:
+		def dir = File.createTempDir()
+		def zip = File.createTempFile("loom-zip-test", ".zip").toPath()
+		new File(dir, "test.json").text = """
+		{
+			"test": "This is a test of transforming"
+		}
+		"""
+		ZipUtils.pack(dir.toPath(), zip)
+
+		when:
+		ZipUtils.transformJson(JsonObject.class, zip, "test.json") { json ->
+			// Before we close the ZipFS do something to prevent the zip from being written on close
+			// E.G lock the file
+			Files.delete(zip)
+			Files.createDirectories(zip)
+			Files.createFile(zip.resolve("lock"))
+
+			json
+		}
+		then:
+		thrown FileSystemUtil.UnrecoverableZipException
+	}
+
+	def "reprocess uncompressed"() {
+		given:
+		// Create a reproducible input zip
+		def dir = Files.createTempDirectory("loom-zip-test")
+		def zip = Files.createTempFile("loom-zip-test", ".zip")
+		def fileInside = dir.resolve("text.txt")
+		Files.writeString(fileInside, "hello world")
+		ZipUtils.pack(dir, zip)
+
+		when:
+		ZipReprocessorUtil.reprocessZip(zip, true, false, ZipEntryCompression.STORED)
+
+		then:
+		ZipUtils.unpack(zip, "text.txt") == "hello world".bytes
+		Checksum.of(zip).sha1().hex() == "e699fa52a520553241aac798f72255ac0a912b05"
 	}
 }

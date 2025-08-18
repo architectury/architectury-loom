@@ -101,4 +101,10 @@ public class LayeredMappingSpecBuilderImpl implements LayeredMappingSpecBuilder 
 
 		return new LayeredMappingSpec(Collections.unmodifiableList(builtLayers));
 	}
+
+	public static LayeredMappingSpec buildOfficialMojangMappings() {
+		var builder = new LayeredMappingSpecBuilderImpl(null);
+		builder.officialMojangMappings();
+		return builder.build();
+	}
 }

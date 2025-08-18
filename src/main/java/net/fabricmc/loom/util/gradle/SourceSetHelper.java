@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2024 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@ import javax.xml.xpath.XPathFactory;
 
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
@@ -50,8 +51,10 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.xml.sax.InputSource;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.configuration.ide.idea.IdeaUtils;
+import net.fabricmc.loom.util.Constants;
 
 public final class SourceSetHelper {
 	@VisibleForTesting
@@ -122,16 +125,17 @@ public final class SourceSetHelper {
 	}
 
 	public static List<File> getClasspath(SourceSetReference reference, Project project) {
-		final List<File> classpath = getGradleClasspath(reference);
+		final List<File> classpath = getGradleClasspath(reference, project);
 
 		classpath.addAll(getIdeaClasspath(reference, project));
+		classpath.addAll(getIdeaModuleCompileOutput(reference));
 		classpath.addAll(getEclipseClasspath(reference, project));
 		classpath.addAll(getVscodeClasspath(reference, project));
 
 		return classpath;
 	}
 
-	private static List<File> getGradleClasspath(SourceSetReference reference) {
+	private static List<File> getGradleClasspath(SourceSetReference reference, Project project) {
 		final SourceSetOutput output = reference.sourceSet().getOutput();
 		final File resources = output.getResourcesDir();
 
@@ -141,6 +145,19 @@ public final class SourceSetHelper {
 
 		if (resources != null) {
 			classpath.add(resources);
+		}
+
+		// Add dev jars from dependency projects if the source set is "main".
+		if (SourceSet.MAIN_SOURCE_SET_NAME.equals(reference.sourceSet().getName()) && !reference.project().getPath().equals(project.getPath())
+				&& GradleUtils.isLoomProject(reference.project())) {
+			final Configuration namedElements = reference.project().getConfigurations().getByName(Constants.Configurations.NAMED_ELEMENTS);
+
+			// Note: We're not looking at the artifacts from configuration variants. It's probably not needed
+			// (certainly not with Loom's setup), but technically someone could add child variants that add additional
+			// dev jars that wouldn't be picked up by this.
+			for (File artifact : namedElements.getOutgoing().getArtifacts().getFiles()) {
+				classpath.add(artifact);
+			}
 		}
 
 		return classpath;
@@ -174,6 +191,25 @@ public final class SourceSetHelper {
 		final File outputDir = new File(productionDir, IdeaUtils.getIdeaModuleName(reference));
 
 		return Collections.singletonList(outputDir);
+	}
+
+	private static List<File> getIdeaModuleCompileOutput(SourceSetReference reference) {
+		final File dotIdea = new File(reference.project().getRootDir(), ".idea");
+
+		if (!dotIdea.exists()) {
+			// Not an intellij project
+			return Collections.emptyList();
+		}
+
+		final String name = reference.sourceSet().getName();
+		final File projectDir = reference.project().getProjectDir();
+		final File outDir = new File(projectDir, "out");
+		final File sourceSetOutDir = new File(outDir, name.equals(SourceSet.MAIN_SOURCE_SET_NAME) ? "production" : name);
+
+		return List.of(
+				new File(sourceSetOutDir, "classes"),
+				new File(sourceSetOutDir, "resources")
+		);
 	}
 
 	@Nullable
@@ -232,9 +268,24 @@ public final class SourceSetHelper {
 	}
 
 	@Nullable
-	public static File findFileInResource(SourceSet sourceSet, String path) {
+	public static File findFileInResource(Project project, SourceSet sourceSet, String path) {
+		Objects.requireNonNull(project);
 		Objects.requireNonNull(sourceSet);
 		Objects.requireNonNull(path);
+
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (extension.isConfigurationCacheActive()) {
+			for (File rootDir: sourceSet.getResources().getSrcDirs()) {
+				final File file = GradleUtils.configurationInputFile(project, new File(rootDir, path));
+
+				if (file.exists()) {
+					return file;
+				}
+			}
+
+			return null;
+		}
 
 		try {
 			return sourceSet.getResources()
@@ -247,9 +298,9 @@ public final class SourceSetHelper {
 	}
 
 	@Nullable
-	public static File findFirstFileInResource(String path, SourceSet... sourceSets) {
+	public static File findFirstFileInResource(String path, Project project, SourceSet... sourceSets) {
 		for (SourceSet sourceSet : sourceSets) {
-			File file = findFileInResource(sourceSet, path);
+			File file = findFileInResource(project, sourceSet, path);
 
 			if (file != null) {
 				return file;

@@ -3,9 +3,11 @@ plugins {
 	id 'maven-publish'
 }
 
+def javaVersion = @JAVA_VERSION@
+
 java {
-	sourceCompatibility = JavaVersion.VERSION_1_8
-	targetCompatibility = JavaVersion.VERSION_1_8
+	sourceCompatibility = JavaVersion.toVersion(javaVersion)
+	targetCompatibility = JavaVersion.toVersion(javaVersion)
 }
 
 base {
@@ -24,13 +26,15 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+
+	@REPOSITORIES@
 }
 
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:$mcVersion"
 	mappings @MAPPINGS@
-	forge "net.minecraftforge:forge:$mcVersion-$forgeVersion"
+	forge "@PACKAGE@:$mcVersion-$forgeVersion"
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -43,10 +47,7 @@ tasks.withType(JavaCompile).configureEach {
 	// The Minecraft launcher currently installs Java 8 for users, so your mod probably wants to target Java 8 too
 	// JDK 9 introduced a new way of specifying this that will make sure no newer classes or methods are used.
 	// We'll use that if it's available, but otherwise we'll use the older option.
-	def targetVersion = 8
-	if (JavaVersion.current().isJava9Compatible()) {
-		it.options.release = targetVersion
-	}
+	it.options.release = javaVersion
 }
 
 java {

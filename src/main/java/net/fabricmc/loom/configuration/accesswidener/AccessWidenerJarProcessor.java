@@ -35,7 +35,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import dev.architectury.tinyremapper.TinyRemapper;
 import org.gradle.api.file.RegularFileProperty;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,6 +46,7 @@ import net.fabricmc.loom.api.processor.SpecContext;
 import net.fabricmc.loom.util.LazyCloseable;
 import net.fabricmc.loom.util.fmj.FabricModJson;
 import net.fabricmc.loom.util.fmj.ModEnvironment;
+import net.fabricmc.tinyremapper.TinyRemapper;
 
 public class AccessWidenerJarProcessor implements MinecraftJarProcessor<AccessWidenerJarProcessor.Spec> {
 	private final String name;

@@ -27,24 +27,24 @@ package net.fabricmc.loom.task;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Objects;
 
 import javax.inject.Inject;
 
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.internal.logging.progress.ProgressLoggerFactory;
 
-import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.configuration.providers.minecraft.assets.AssetIndex;
 import net.fabricmc.loom.util.MirrorUtil;
 import net.fabricmc.loom.util.download.DownloadExecutor;
+import net.fabricmc.loom.util.download.DownloadFactory;
 import net.fabricmc.loom.util.download.GradleDownloadProgressListener;
 import net.fabricmc.loom.util.gradle.ProgressGroup;
 
@@ -59,11 +59,23 @@ public abstract class DownloadAssetsTask extends AbstractLoomTask {
 	@Input
 	public abstract Property<String> getMinecraftVersion();
 
+	@Input
+	public abstract Property<String> getResourcesBaseUrl();
+
+	@Input
+	protected abstract Property<String> getAssetsIndexJson();
+
 	@OutputDirectory
 	public abstract RegularFileProperty getAssetsDirectory();
 
 	@OutputDirectory
 	public abstract RegularFileProperty getLegacyResourcesDirectory();
+
+	@Inject
+	protected abstract ProgressLoggerFactory getProgressLoggerFactory();
+
+	@Nested
+	protected abstract DownloadFactory getDownloadFactory();
 
 	@Inject
 	public DownloadAssetsTask() {
@@ -80,9 +92,15 @@ public abstract class DownloadAssetsTask extends AbstractLoomTask {
 			getLegacyResourcesDirectory().set(new File(assetsDir, "/legacy/" + versionInfo.id()));
 		} else {
 			// pre-1.6 resources
-			RunConfigSettings client = Objects.requireNonNull(getExtension().getRunConfigs().findByName("client"), "Could not find client run config");
-			getLegacyResourcesDirectory().set(new File(getProject().getProjectDir(), client.getRunDir() + "/resources"));
+			RunConfigSettings client = getExtension().getRunConfigs().findByName("client");
+			String runDir = client != null ? client.getRunDir() : "run";
+			getLegacyResourcesDirectory().set(new File(getProject().getProjectDir(), runDir + "/resources"));
 		}
+
+		getResourcesBaseUrl().set(MirrorUtil.getResourcesBase(getProject()));
+		getResourcesBaseUrl().finalizeValue();
+
+		getAssetsIndexJson().set(LoomGradlePlugin.GSON.toJson(getExtension().getMinecraftProvider().getVersionInfo().assetIndex()));
 
 		getAssetsHash().finalizeValue();
 		getAssetsDirectory().finalizeValueOnRead();
@@ -93,13 +111,13 @@ public abstract class DownloadAssetsTask extends AbstractLoomTask {
 	public void downloadAssets() throws IOException {
 		final AssetIndex assetIndex = getAssetIndex();
 
-		try (ProgressGroup progressGroup = new ProgressGroup(getProject(), "Download Assets");
+		try (ProgressGroup progressGroup = new ProgressGroup("Download Assets", getProgressLoggerFactory());
 				DownloadExecutor executor = new DownloadExecutor(getDownloadThreads().get())) {
 			for (AssetIndex.Object object : assetIndex.getObjects()) {
 				final String sha1 = object.hash();
-				final String url = MirrorUtil.getResourcesBase(getProject()) + sha1.substring(0, 2) + "/" + sha1;
+				final String url = getResourcesBaseUrl().get() + sha1.substring(0, 2) + "/" + sha1;
 
-				getExtension()
+				getDownloadFactory()
 						.download(url)
 						.sha1(sha1)
 						.progress(new GradleDownloadProgressListener(object.name(), progressGroup::createProgressLogger))
@@ -108,22 +126,15 @@ public abstract class DownloadAssetsTask extends AbstractLoomTask {
 		}
 	}
 
-	private MinecraftVersionMeta.AssetIndex getAssetIndexMeta() {
-		MinecraftVersionMeta versionInfo = getExtension().getMinecraftProvider().getVersionInfo();
-		return versionInfo.assetIndex();
-	}
-
 	private AssetIndex getAssetIndex() throws IOException {
-		final LoomGradleExtension extension = getExtension();
-		final MinecraftProvider minecraftProvider = extension.getMinecraftProvider();
-		final MinecraftVersionMeta.AssetIndex assetIndex = getAssetIndexMeta();
-		final File indexFile = new File(getAssetsDirectory().get().getAsFile(), "indexes" + File.separator + assetIndex.fabricId(minecraftProvider.minecraftVersion()) + ".json");
+		final MinecraftVersionMeta.AssetIndex assetIndex = LoomGradlePlugin.GSON.fromJson(getAssetsIndexJson().get(), MinecraftVersionMeta.AssetIndex.class);
+		final File indexFile = new File(getAssetsDirectory().get().getAsFile(), "indexes" + File.separator + assetIndex.fabricId(getMinecraftVersion().get()) + ".json");
 
-		final String json = extension.download(assetIndex.url())
+		final String json = getDownloadFactory().download(assetIndex.url())
 				.sha1(assetIndex.sha1())
 				.downloadString(indexFile.toPath());
 
-		return LoomGradlePlugin.OBJECT_MAPPER.readValue(json, AssetIndex.class);
+		return LoomGradlePlugin.GSON.fromJson(json, AssetIndex.class);
 	}
 
 	private Path getAssetsPath(AssetIndex.Object object, AssetIndex index) {

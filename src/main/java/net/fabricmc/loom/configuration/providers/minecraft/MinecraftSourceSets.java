@@ -45,7 +45,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 		return LoomGradleExtension.get(project).areEnvironmentSourceSetsSplit() ? Split.INSTANCE : Single.INSTANCE;
 	}
 
-	public abstract void applyDependencies(BiConsumer<String, String> consumer, List<String> targets);
+	public abstract void applyDependencies(BiConsumer<String, MinecraftJar.Type> consumer, List<MinecraftJar.Type> targets);
 
 	public abstract String getSourceSetForEnv(String env);
 
@@ -70,7 +70,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 				configuration.extendsFrom(configurations.getByName(Constants.Configurations.LOADER_DEPENDENCIES));
 				configuration.extendsFrom(configurations.getByName(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES));
 
-				if (LoomGradleExtension.get(project).isForge()) {
+				if (LoomGradleExtension.get(project).isForgeLike()) {
 					configurations.getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY).extendsFrom(configuration);
 				}
 			});
@@ -104,8 +104,8 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 		private static final Single INSTANCE = new Single();
 
 		@Override
-		public void applyDependencies(BiConsumer<String, String> consumer, List<String> targets) {
-			for (String target : targets) {
+		public void applyDependencies(BiConsumer<String, MinecraftJar.Type> consumer, List<MinecraftJar.Type> targets) {
+			for (MinecraftJar.Type target : targets) {
 				consumer.accept(MINECRAFT_NAMED.compile(), target);
 				consumer.accept(MINECRAFT_NAMED.runtime(), target);
 			}
@@ -154,15 +154,15 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 		private static final Split INSTANCE = new Split();
 
 		@Override
-		public void applyDependencies(BiConsumer<String, String> consumer, List<String> targets) {
+		public void applyDependencies(BiConsumer<String, MinecraftJar.Type> consumer, List<MinecraftJar.Type> targets) {
 			Preconditions.checkArgument(targets.size() == 2);
-			Preconditions.checkArgument(targets.contains("common"));
-			Preconditions.checkArgument(targets.contains("clientOnly"));
+			Preconditions.checkArgument(targets.contains(MinecraftJar.Type.COMMON));
+			Preconditions.checkArgument(targets.contains(MinecraftJar.Type.CLIENT_ONLY));
 
-			consumer.accept(MINECRAFT_COMMON_NAMED.runtime(), "common");
-			consumer.accept(MINECRAFT_CLIENT_ONLY_NAMED.runtime(), "clientOnly");
-			consumer.accept(MINECRAFT_COMMON_NAMED.compile(), "common");
-			consumer.accept(MINECRAFT_CLIENT_ONLY_NAMED.compile(), "clientOnly");
+			consumer.accept(MINECRAFT_COMMON_NAMED.runtime(), MinecraftJar.Type.COMMON);
+			consumer.accept(MINECRAFT_CLIENT_ONLY_NAMED.runtime(), MinecraftJar.Type.CLIENT_ONLY);
+			consumer.accept(MINECRAFT_COMMON_NAMED.compile(), MinecraftJar.Type.COMMON);
+			consumer.accept(MINECRAFT_CLIENT_ONLY_NAMED.compile(), MinecraftJar.Type.CLIENT_ONLY);
 		}
 
 		@Override
@@ -194,16 +194,26 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 			extendsFrom(project, MINECRAFT_CLIENT_ONLY_NAMED.runtime(), MINECRAFT_COMMON_NAMED.runtime());
 			extendsFrom(project, MINECRAFT_CLIENT_ONLY_NAMED.compile(), MINECRAFT_COMMON_NAMED.compile());
 
+			// Client annotation processor configuration extendsFrom "annotationProcessor"
+			extendsFrom(project, clientOnlySourceSet.getAnnotationProcessorConfigurationName(), JavaPlugin.ANNOTATION_PROCESSOR_CONFIGURATION_NAME);
+
 			clientOnlySourceSet.setCompileClasspath(
 					clientOnlySourceSet.getCompileClasspath()
-							.plus(mainSourceSet.getCompileClasspath())
 							.plus(mainSourceSet.getOutput())
 			);
 			clientOnlySourceSet.setRuntimeClasspath(
 					clientOnlySourceSet.getRuntimeClasspath()
-							.plus(mainSourceSet.getRuntimeClasspath())
 							.plus(mainSourceSet.getOutput())
 			);
+
+			extendsFrom(project, clientOnlySourceSet.getCompileClasspathConfigurationName(), mainSourceSet.getCompileClasspathConfigurationName());
+			extendsFrom(project, clientOnlySourceSet.getRuntimeClasspathConfigurationName(), mainSourceSet.getRuntimeClasspathConfigurationName());
+
+			// Test source set depends on client
+			final SourceSet testSourceSet = SourceSetHelper.getSourceSetByName(SourceSet.TEST_SOURCE_SET_NAME, project);
+			extendsFrom(project, testSourceSet.getCompileClasspathConfigurationName(), clientOnlySourceSet.getCompileClasspathConfigurationName());
+			extendsFrom(project, testSourceSet.getRuntimeClasspathConfigurationName(), clientOnlySourceSet.getRuntimeClasspathConfigurationName());
+			project.getDependencies().add(testSourceSet.getImplementationConfigurationName(), clientOnlySourceSet.getOutput());
 
 			RemapConfigurations.configureClientConfigurations(project, clientOnlySourceSet);
 

@@ -16,11 +16,9 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.cadixdev.at.AccessTransformSet;
-import org.cadixdev.at.io.AccessTransformFormats;
-import org.cadixdev.lorenz.MappingSet;
-import org.gradle.api.provider.Property;
-import org.gradle.api.provider.SetProperty;
+import dev.architectury.at.AccessTransformSet;
+import dev.architectury.at.io.AccessTransformFormats;
+import org.gradle.api.provider.Provider;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.task.service.MappingsService;
@@ -28,8 +26,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.LfWriter;
 import net.fabricmc.loom.util.aw2at.Aw2At;
-import net.fabricmc.loom.util.service.UnsafeWorkQueueHelper;
-import net.fabricmc.lorenztiny.TinyMappingsReader;
+import net.fabricmc.loom.util.service.ServiceFactory;
 
 public final class ModBuildExtensions {
 	public static Set<String> readMixinConfigsFromManifest(File jarFile) {
@@ -51,13 +48,7 @@ public final class ModBuildExtensions {
 		}
 	}
 
-	public static void convertAwToAt(SetProperty<String> atAccessWidenersProperty, Path outputFile, Property<String> mappingBuildServiceUuid) throws IOException {
-		if (!atAccessWidenersProperty.isPresent()) {
-			return;
-		}
-
-		Set<String> atAccessWideners = atAccessWidenersProperty.get();
-
+	public static void convertAwToAt(ServiceFactory serviceFactory, Set<String> atAccessWideners, Path outputFile, Provider<MappingsService.Options> options) throws IOException {
 		if (atAccessWideners.isEmpty()) {
 			return;
 		}
@@ -86,12 +77,8 @@ public final class ModBuildExtensions {
 				Files.delete(awPath);
 			}
 
-			MappingsService service = UnsafeWorkQueueHelper.get(mappingBuildServiceUuid, MappingsService.class);
-
-			try (TinyMappingsReader reader = new TinyMappingsReader(service.getMemoryMappingTree(), service.getFromNamespace(), service.getToNamespace())) {
-				MappingSet mappingSet = reader.read();
-				at = at.remap(mappingSet);
-			}
+			MappingsService service = serviceFactory.get(options);
+			at = at.remap(service.getMemoryMappingTree(), service.getFrom(), service.getTo());
 
 			try (Writer writer = new LfWriter(Files.newBufferedWriter(atPath))) {
 				AccessTransformFormats.FML.write(writer, at);

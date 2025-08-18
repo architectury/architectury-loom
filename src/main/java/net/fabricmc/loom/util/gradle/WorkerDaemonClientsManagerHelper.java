@@ -45,7 +45,7 @@ public class WorkerDaemonClientsManagerHelper {
 		Transformer<List<Object>, List<Object>> transformer = workerDaemonClients -> {
 			for (Object /* WorkerDaemonClient */ client : workerDaemonClients) {
 				DaemonForkOptions forkOptions = getForkOptions(client);
-				Map<String, Object> systemProperties = forkOptions.getJavaForkOptions().getSystemProperties();
+				Map<String, Object> systemProperties = getSystemProperties(forkOptions);
 
 				if (systemProperties == null || !jvmMarkerValue.equals(systemProperties.get(MARKER_PROP))) {
 					// Not the JVM we are looking for
@@ -59,10 +59,42 @@ public class WorkerDaemonClientsManagerHelper {
 			return Collections.emptyList();
 		};
 
-		//noinspection unchecked
-		manager.selectIdleClientsToStop((Transformer) transformer);
+		try {
+			Method selectIdleClientsToStop = manager.getClass().getDeclaredMethod("selectIdleClientsToStop", Transformer.class);
+			selectIdleClientsToStop.setAccessible(true);
+			selectIdleClientsToStop.invoke(manager, transformer);
+		} catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+			throw new RuntimeException("Failed to selectIdleClientsToStop", e);
+		}
 
 		return stopped.get();
+	}
+
+	private static Map<String, Object> getSystemProperties(DaemonForkOptions forkOptions) {
+		try {
+			Method getJavaForkOptionsMethod = forkOptions.getClass().getDeclaredMethod("getJavaForkOptions");
+			getJavaForkOptionsMethod.setAccessible(true);
+			Object /* JavaForkOptions */ javaForkOptions = getJavaForkOptionsMethod.invoke(forkOptions);
+			Method getSystemPropertiesMethod = javaForkOptions.getClass().getDeclaredMethod("getSystemProperties");
+			getSystemPropertiesMethod.setAccessible(true);
+			//noinspection unchecked
+			return (Map<String, Object>) getSystemPropertiesMethod.invoke(javaForkOptions);
+		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+			// Gradle 8.11 and below
+		}
+
+		// Gradle 8.12+
+		try {
+			Method getJvmOptions = forkOptions.getClass().getDeclaredMethod("getJvmOptions");
+			getJvmOptions.setAccessible(true);
+			Object jvmOptions = getJvmOptions.invoke(forkOptions);
+			Method getMutableSystemProperties = jvmOptions.getClass().getDeclaredMethod("getMutableSystemProperties");
+			getMutableSystemProperties.setAccessible(true);
+			//noinspection unchecked
+			return (Map<String, Object>) getMutableSystemProperties.invoke(jvmOptions);
+		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+			throw new RuntimeException("Failed to daemon system properties", e);
+		}
 	}
 
 	private static DaemonForkOptions getForkOptions(Object /* WorkerDaemonClient */ client) {

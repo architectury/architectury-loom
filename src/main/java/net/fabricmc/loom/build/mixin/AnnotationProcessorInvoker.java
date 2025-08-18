@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2022 FabricMC
+ * Copyright (c) 2020-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,14 +41,15 @@ import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.ide.idea.IdeaUtils;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.extension.MixinExtension;
-import net.fabricmc.loom.task.PrepareJarRemapTask;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.LoomVersions;
 
 /**
  * Normally javac invokes annotation processors, but when the scala or kapt plugin are installed they will want to invoke
@@ -66,13 +67,13 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 	protected final Project project;
 	private final LoomGradleExtension loomExtension;
 	protected final MixinExtension mixinExtension;
-	protected final Map<SourceSet, T> invokerTasks;
+	protected final Map<SourceSet, TaskProvider<T>> invokerTasks;
 	private final String name;
 	private final Collection<Configuration> apConfigurations;
 
 	protected AnnotationProcessorInvoker(Project project,
 											Collection<Configuration> apConfigurations,
-											Map<SourceSet, T> invokerTasks, String name) {
+											Map<SourceSet, TaskProvider<T>> invokerTasks, String name) {
 		this.project = project;
 		this.loomExtension = LoomGradleExtension.get(project);
 		this.mixinExtension = loomExtension.getMixin();
@@ -123,11 +124,6 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 				args.put("MSG_" + key, value);
 			});
 
-			if (loomExtension.multiProjectOptimisation()) {
-				// Ensure that all of the mixin mappings have been generated before we create the mixin mappings.
-				runBeforePrepare(project, task);
-			}
-
 			project.getLogger().debug("Outputting refmap to dir: " + getRefmapDestinationDir(task) + " for compile task: " + task);
 			args.forEach((k, v) -> passArgument(task, k, v));
 		} catch (IOException e) {
@@ -150,19 +146,13 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 
 				// Add Mixin and mixin extensions (fabric-mixin-compile-extensions pulls mixin itself too)
 				project.getDependencies().add(processorConfig.getName(),
-								Constants.Dependencies.MIXIN_COMPILE_EXTENSIONS + Constants.Dependencies.Versions.MIXIN_COMPILE_EXTENSIONS);
+						LoomVersions.MIXIN_COMPILE_EXTENSIONS.mavenNotation());
 			}
 		}
 
-		for (Map.Entry<SourceSet, T> entry : invokerTasks.entrySet()) {
-			passMixinArguments(entry.getValue(), entry.getKey());
+		for (Map.Entry<SourceSet, TaskProvider<T>> entry : invokerTasks.entrySet()) {
+			entry.getValue().configure(t -> passMixinArguments(t, entry.getKey()));
 		}
-	}
-
-	private void runBeforePrepare(Project project, Task compileTask) {
-		project.getGradle().allprojects(otherProject -> {
-			otherProject.getTasks().withType(PrepareJarRemapTask.class, prepareRemapTask -> prepareRemapTask.mustRunAfter(compileTask));
-		});
 	}
 
 	private static void checkPattern(String input, Pattern pattern) {

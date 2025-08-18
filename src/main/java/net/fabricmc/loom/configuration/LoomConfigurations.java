@@ -24,18 +24,29 @@
 
 package net.fabricmc.loom.configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.inject.Inject;
 
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.attributes.Bundling;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.HasConfigurableAttributes;
+import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.Provider;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 
@@ -82,7 +93,40 @@ public abstract class LoomConfigurations implements Runnable {
 		registerNonTransitive(Constants.Configurations.LOADER_DEPENDENCIES, Role.RESOLVABLE);
 
 		registerNonTransitive(Constants.Configurations.MINECRAFT, Role.NONE);
-		registerNonTransitive(Constants.Configurations.INCLUDE, Role.RESOLVABLE);
+
+		Provider<Configuration> include = register(Constants.Configurations.INCLUDE, Role.NONE);
+		register(Constants.Configurations.INCLUDE_INTERNAL, Role.RESOLVABLE).configure(configuration -> {
+			configuration.getDependencies().addAllLater(getProject().provider(() -> {
+				List<Dependency> dependencies = new ArrayList<>();
+
+				for (Dependency dependency : include.get().getIncoming().getDependencies()) {
+					if (dependency instanceof HasConfigurableAttributes<?> hasAttributes) {
+						Category category = hasAttributes.getAttributes().getAttribute(Category.CATEGORY_ATTRIBUTE);
+
+						if (category != null && (category.getName().equals(Category.ENFORCED_PLATFORM) || category.getName().equals(Category.REGULAR_PLATFORM))) {
+							dependencies.add(dependency);
+							continue;
+						} else if (dependency instanceof ModuleDependency moduleDependency) {
+							ModuleDependency copy = moduleDependency.copy();
+							copy.setTransitive(false);
+							dependencies.add(copy);
+							continue;
+						}
+					}
+
+					dependencies.add(dependency);
+				}
+
+				return dependencies;
+			}));
+			configuration.attributes(attributes -> {
+				attributes.attribute(Usage.USAGE_ATTRIBUTE, getProject().getObjects().named(Usage.class, Usage.JAVA_RUNTIME));
+				attributes.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, getProject().getObjects().named(LibraryElements.class, LibraryElements.JAR));
+				attributes.attribute(Category.CATEGORY_ATTRIBUTE, getProject().getObjects().named(Category.class, Category.LIBRARY));
+				attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, getProject().getObjects().named(Bundling.class, Bundling.EXTERNAL));
+			});
+		});
+
 		registerNonTransitive(Constants.Configurations.MAPPING_CONSTANTS, Role.RESOLVABLE);
 
 		register(Constants.Configurations.NAMED_ELEMENTS, Role.CONSUMABLE).configure(configuration -> {
@@ -94,7 +138,6 @@ public abstract class LoomConfigurations implements Runnable {
 		register(Constants.Configurations.MAPPINGS, Role.RESOLVABLE);
 		register(Constants.Configurations.MAPPINGS_FINAL, Role.RESOLVABLE);
 		register(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, Role.RESOLVABLE);
-		register(Constants.Configurations.UNPICK_CLASSPATH, Role.RESOLVABLE);
 		register(Constants.Configurations.LOCAL_RUNTIME, Role.RESOLVABLE);
 		extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.LOCAL_RUNTIME);
 
@@ -106,10 +149,17 @@ public abstract class LoomConfigurations implements Runnable {
 		extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
 
 		// Add the dev time dependencies
-		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, Constants.Dependencies.DEV_LAUNCH_INJECTOR + Constants.Dependencies.Versions.DEV_LAUNCH_INJECTOR);
-		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, Constants.Dependencies.TERMINAL_CONSOLE_APPENDER + Constants.Dependencies.Versions.TERMINAL_CONSOLE_APPENDER);
-		getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS);
-		getDependencies().add(JavaPlugin.TEST_COMPILE_ONLY_CONFIGURATION_NAME, Constants.Dependencies.JETBRAINS_ANNOTATIONS + Constants.Dependencies.Versions.JETBRAINS_ANNOTATIONS);
+		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, LoomVersions.DEV_LAUNCH_INJECTOR.mavenNotation());
+		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, LoomVersions.TERMINAL_CONSOLE_APPENDER.mavenNotation());
+		getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
+		getDependencies().add(JavaPlugin.TEST_COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
+
+		register(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Role.RESOLVABLE);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.MINECRAFT_NATIVES);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.MINECRAFT_CLIENT_RUNTIME_LIBRARIES);
+		extendsFrom(Constants.Configurations.MINECRAFT_TEST_CLIENT_RUNTIME_LIBRARIES, Constants.Configurations.LOADER_DEPENDENCIES);
+
+		register(Constants.Configurations.PRODUCTION_RUNTIME_MODS, Role.RESOLVABLE);
 
 		GradleUtils.afterSuccessfulEvaluation(getProject(), () -> {
 			if (extension.shouldGenerateSrgTiny()) {
@@ -117,9 +167,16 @@ public abstract class LoomConfigurations implements Runnable {
 			}
 		});
 
-		if (extension.isForge()) {
-			// Set up Forge configurations
-			registerNonTransitive(Constants.Configurations.FORGE, Role.RESOLVABLE);
+		if (extension.isForgeLike()) {
+			// Set up Forge and NeoForge configurations
+			if (extension.isForge()) {
+				// Forge-specific configurations
+				registerNonTransitive(Constants.Configurations.FORGE, Role.RESOLVABLE);
+			} else if (extension.isNeoForge()) {
+				// NeoForge-specific configurations
+				registerNonTransitive(Constants.Configurations.NEOFORGE, Role.RESOLVABLE);
+			}
+
 			registerNonTransitive(Constants.Configurations.FORGE_USERDEV, Role.RESOLVABLE);
 			registerNonTransitive(Constants.Configurations.FORGE_INSTALLER, Role.RESOLVABLE);
 			registerNonTransitive(Constants.Configurations.FORGE_UNIVERSAL, Role.RESOLVABLE);
@@ -149,10 +206,16 @@ public abstract class LoomConfigurations implements Runnable {
 			extendsFrom(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA);
 			extendsFrom(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.FORGE_EXTRA);
 
-			// Add Forge dev-time dependencies
-			getDependencies().add(Constants.Configurations.FORGE_EXTRA, Constants.Dependencies.FORGE_RUNTIME + Constants.Dependencies.Versions.FORGE_RUNTIME);
-			getDependencies().add(Constants.Configurations.FORGE_EXTRA, Constants.Dependencies.UNPROTECT + Constants.Dependencies.Versions.UNPROTECT);
-			getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, Constants.Dependencies.JAVAX_ANNOTATIONS + Constants.Dependencies.Versions.JAVAX_ANNOTATIONS);
+			// Add Forge/NeoForge shared dev-time dependencies
+			getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.UNPROTECT.mavenNotation());
+			getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JAVAX_ANNOTATIONS.mavenNotation());
+
+			// Add Forge-only dev-time dependencies
+			if (extension.isForge()) {
+				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.NAMING_SERVICE.mavenNotation());
+				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.MIXIN_REMAPPER_SERVICE.mavenNotation());
+				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.MCP_ANNOTATIONS.mavenNotation());
+			}
 		}
 	}
 

@@ -24,40 +24,29 @@
 
 package net.fabricmc.loom.configuration.decompile;
 
-import java.io.File;
-
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.ConfigurationContainer;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
-import net.fabricmc.loom.task.GenerateSourcesTask;
-import net.fabricmc.loom.util.Constants;
 
 public abstract class DecompileConfiguration<T extends MappedMinecraftProvider> {
+	static final String DEFAULT_DECOMPILER = "Vineflower";
+
 	protected final Project project;
 	protected final T minecraftProvider;
 	protected final LoomGradleExtension extension;
 	protected final MappingConfiguration mappingConfiguration;
 
-	public DecompileConfiguration(ConfigContext configContext, T minecraftProvider) {
-		this.project = configContext.project();
+	public DecompileConfiguration(Project project, T minecraftProvider) {
+		this.project = project;
 		this.minecraftProvider = minecraftProvider;
-		this.extension = configContext.extension();
+		this.extension = LoomGradleExtension.get(project);
 		this.mappingConfiguration = extension.getMappingConfiguration();
 	}
 
+	public abstract String getTaskName(MinecraftJar.Type type);
+
 	public abstract void afterEvaluation();
-
-	protected final void configureUnpick(GenerateSourcesTask task, File unpickOutputJar) {
-		final ConfigurationContainer configurations = task.getProject().getConfigurations();
-
-		task.getUnpickDefinitions().set(mappingConfiguration.getUnpickDefinitionsFile());
-		task.getUnpickOutputJar().set(unpickOutputJar);
-		task.getUnpickConstantJar().setFrom(configurations.getByName(Constants.Configurations.MAPPING_CONSTANTS));
-		task.getUnpickClasspath().setFrom(configurations.getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
-		task.getUnpickClasspath().from(configurations.getByName(Constants.Configurations.MOD_COMPILE_CLASSPATH_MAPPED));
-	}
 }

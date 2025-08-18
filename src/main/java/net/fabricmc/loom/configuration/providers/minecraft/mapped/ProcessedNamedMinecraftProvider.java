@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2022 FabricMC
+ * Copyright (c) 2021-2023 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,18 +28,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.gradle.api.Project;
-
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.processors.MinecraftJarProcessorManager;
 import net.fabricmc.loom.configuration.processors.ProcessorContextImpl;
+import net.fabricmc.loom.configuration.providers.minecraft.LegacyMergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MergedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
@@ -60,17 +58,20 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 
 	@Override
 	public List<MinecraftJar> provide(ProvideContext context) throws Exception {
+		final List<MinecraftJar> parentMinecraftJars = parentMinecraftProvider.getMinecraftJars();
+		final Map<MinecraftJar, MinecraftJar> minecraftJarOutputMap = parentMinecraftJars.stream()
+				.collect(Collectors.toMap(Function.identity(), this::getProcessedJar));
+		final List<MinecraftJar> minecraftJars = List.copyOf(minecraftJarOutputMap.values());
+
 		parentMinecraftProvider.provide(context.withApplyDependencies(false));
 
-		boolean requiresProcessing = context.refreshOutputs() || parentMinecraftProvider.getMinecraftJars().stream()
+		boolean requiresProcessing = shouldRefreshOutputs(context) || parentMinecraftJars.stream()
 				.map(this::getProcessedPath)
 				.anyMatch(jarProcessorManager::requiresProcessingJar);
 
-		final Map<MinecraftJar, MinecraftJar> minecraftJarOutputMap = parentMinecraftProvider.getMinecraftJars().stream()
-				.collect(Collectors.toMap(Function.identity(), this::getProcessedJar));
-
 		if (requiresProcessing) {
 			processJars(minecraftJarOutputMap, context.configContext());
+			createBackupJars(minecraftJars);
 		}
 
 		if (context.applyDependencies()) {
@@ -78,6 +79,14 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 		}
 
 		return List.copyOf(minecraftJarOutputMap.values());
+	}
+
+	@Override
+	public List<? extends OutputJar> getOutputJars() {
+		return parentMinecraftProvider.getMinecraftJars().stream()
+				.map(this::getProcessedJar)
+				.map(SimpleOutputJar::new)
+				.toList();
 	}
 
 	@Override
@@ -91,7 +100,7 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 			final MinecraftJar outputJar = entry.getValue();
 			deleteSimilarJars(outputJar.getPath());
 
-			final LocalMavenHelper mavenHelper = getMavenHelper(minecraftJar.getName());
+			final LocalMavenHelper mavenHelper = getMavenHelper(minecraftJar.getType());
 			final Path outputPath = mavenHelper.copyToMaven(minecraftJar.getPath(), null);
 
 			assert outputJar.getPath().equals(outputPath);
@@ -100,8 +109,13 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 		}
 	}
 
+	@Override
+	public List<MinecraftJar.Type> getDependencyTypes() {
+		return parentMinecraftProvider.getDependencyTypes();
+	}
+
 	private void applyDependencies() {
-		final List<String> dependencyTargets = parentMinecraftProvider.getDependencyTargets();
+		final List<MinecraftJar.Type> dependencyTargets = getDependencyTypes();
 
 		if (dependencyTargets.isEmpty()) {
 			return;
@@ -128,20 +142,14 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 	}
 
 	@Override
-	protected String getName(String name) {
-		final Project project = getProject();
+	protected String getName(MinecraftJar.Type type) {
 		final String jarPrefix = parentMinecraftProvider.getMinecraftProvider().getJarPrefix();
-
-		if (project.getRootProject() == project) {
-			return jarPrefix + "minecraft-%s-project-root".formatted(name).toLowerCase(Locale.ROOT);
-		}
-
-		final String projectPath = project.getPath().replace(':', '@');
-		return jarPrefix + "minecraft-%s-project-%s".formatted(name, projectPath).toLowerCase(Locale.ROOT);
+		// Hash the cache value so that we don't have to process the same JAR multiple times for many projects
+		return jarPrefix + "minecraft-%s-%s".formatted(type.toString(), jarProcessorManager.getJarHash());
 	}
 
 	@Override
-	public Path getJar(String name) {
+	public Path getJar(MinecraftJar.Type type) {
 		// Something has gone wrong if this gets called.
 		throw new UnsupportedOperationException();
 	}
@@ -163,7 +171,7 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 	}
 
 	private Path getProcessedPath(MinecraftJar minecraftJar) {
-		final LocalMavenHelper mavenHelper = getMavenHelper(minecraftJar.getName());
+		final LocalMavenHelper mavenHelper = getMavenHelper(minecraftJar.getType());
 		return mavenHelper.getOutputFile(null);
 	}
 
@@ -174,6 +182,17 @@ public abstract class ProcessedNamedMinecraftProvider<M extends MinecraftProvide
 	public static final class MergedImpl extends ProcessedNamedMinecraftProvider<MergedMinecraftProvider, NamedMinecraftProvider.MergedImpl> implements Merged {
 		public MergedImpl(NamedMinecraftProvider.MergedImpl parentMinecraftProvide, MinecraftJarProcessorManager jarProcessorManager) {
 			super(parentMinecraftProvide, jarProcessorManager);
+		}
+
+		@Override
+		public MinecraftJar getMergedJar() {
+			return getProcessedJar(getParentMinecraftProvider().getMergedJar());
+		}
+	}
+
+	public static final class LegacyMergedImpl extends ProcessedNamedMinecraftProvider<LegacyMergedMinecraftProvider, NamedMinecraftProvider.LegacyMergedImpl> implements Merged {
+		public LegacyMergedImpl(NamedMinecraftProvider.LegacyMergedImpl parentMinecraftProvider, MinecraftJarProcessorManager jarProcessorManager) {
+			super(parentMinecraftProvider, jarProcessorManager);
 		}
 
 		@Override

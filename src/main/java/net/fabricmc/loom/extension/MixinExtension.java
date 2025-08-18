@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2012 FabricMC
+ * Copyright (c) 2016-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,9 +33,11 @@ import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.ExtraPropertiesExtension;
+import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.util.PatternSet;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -81,11 +83,13 @@ public interface MixinExtension extends MixinExtensionAPI {
 	Stream<Configuration> getApConfigurationsStream(Function<SourceSet, String> getApConfigNameFunc);
 
 	@NotNull
-	Stream<Map.Entry<SourceSet, Task>> getInvokerTasksStream(String compileTaskLanguage);
+	<T extends Task> Stream<Map.Entry<SourceSet, TaskProvider<T>>> getInvokerTasksStream(String compileTaskLanguage, Class<T> taskType);
 
 	@NotNull
 	@Input
 	Collection<SourceSet> getMixinSourceSets();
 
 	void init();
+
+	Property<Boolean> getInlineDependencyRefmaps();
 }

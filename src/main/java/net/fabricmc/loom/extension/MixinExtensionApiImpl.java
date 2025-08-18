@@ -36,6 +36,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.util.PatternSet;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.MixinExtensionAPI;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 
@@ -49,11 +50,10 @@ public abstract class MixinExtensionApiImpl implements MixinExtensionAPI {
 	public MixinExtensionApiImpl(Project project) {
 		this.project = Objects.requireNonNull(project);
 		this.useMixinAp = project.getObjects().property(Boolean.class)
-				// .convention(project.provider(() -> LoomGradleExtension.get(project).isForge()));
-				.convention(true);
+				.convention(project.provider(() -> !LoomGradleExtension.get(project).isNeoForge() && (!LoomGradleExtension.get(project).isForge() || !LoomGradleExtension.get(project).getForgeProvider().usesMojangAtRuntime())));
 
 		this.refmapTargetNamespace = project.getObjects().property(String.class)
-				.convention(project.provider(() -> IntermediaryNamespaces.intermediary(project)));
+				.convention(project.provider(() -> IntermediaryNamespaces.runtimeIntermediary(project)));
 		this.refmapTargetNamespace.finalizeValueOnRead();
 
 		this.messages = project.getObjects().mapProperty(String.class, String.class);
@@ -74,9 +74,20 @@ public abstract class MixinExtensionApiImpl implements MixinExtensionAPI {
 		return useMixinAp;
 	}
 
+	protected void checkMixinApEnabled() {
+		if (LoomGradleExtension.get(project).isForge()) {
+			// Arch: We need to access afterEvaluate state in useLegacyMixinAp's convention, so let's not query it.
+			// Otherwise, this extension can't be used in a buildscript without afterEvaluate.
+			// https://github.com/architectury/architectury-loom/issues/242
+			return;
+		}
+
+		if (!getUseLegacyMixinAp().get()) throw new IllegalStateException("You need to set useLegacyMixinAp = true to configure Mixin annotation processor.");
+	}
+
 	@Override
 	public Property<String> getRefmapTargetNamespace() {
-		if (!getUseLegacyMixinAp().get()) throw new IllegalStateException("You need to set useLegacyMixinAp = true to configure Mixin annotation processor.");
+		checkMixinApEnabled();
 
 		return refmapTargetNamespace;
 	}

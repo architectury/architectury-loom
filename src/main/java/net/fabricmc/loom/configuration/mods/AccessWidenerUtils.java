@@ -37,6 +37,7 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.fmj.FabricModJson;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
+import net.fabricmc.loom.util.fmj.ModMetadataFabricModJson;
 
 public class AccessWidenerUtils {
 	/**
@@ -63,6 +64,13 @@ public class AccessWidenerUtils {
 		}
 
 		final FabricModJson fabricModJson = FabricModJsonFactory.createFromZip(inputJar);
+
+		if (platform.isForgeLike() && !(fabricModJson instanceof ModMetadataFabricModJson)) {
+			// Ignore actual fabric.mod.json files on NeoForge and Forge.
+			// See https://github.com/architectury/architectury-loom/issues/165.
+			return null;
+		}
+
 		final List<String> classTweakers = List.copyOf(fabricModJson.getClassTweakers().keySet());
 
 		if (classTweakers.isEmpty()) {

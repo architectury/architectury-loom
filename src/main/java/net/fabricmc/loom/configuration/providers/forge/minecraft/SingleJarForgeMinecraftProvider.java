@@ -27,24 +27,28 @@ package net.fabricmc.loom.configuration.providers.forge.minecraft;
 import java.nio.file.Path;
 import java.util.List;
 
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.ConfigContext;
+import net.fabricmc.loom.configuration.providers.BundleMetadata;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProvider;
+import net.fabricmc.loom.configuration.providers.minecraft.SingleJarEnvType;
 import net.fabricmc.loom.configuration.providers.minecraft.SingleJarMinecraftProvider;
 
-public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftProvider implements ForgeMinecraftProvider {
+public abstract class SingleJarForgeMinecraftProvider extends SingleJarMinecraftProvider implements ForgeMinecraftProvider {
 	private final MinecraftPatchedProvider patchedProvider;
 
-	private SingleJarForgeMinecraftProvider(ConfigContext configContext, SingleJarMinecraftProvider.Environment environment) {
-		super(configContext, environment);
+	private SingleJarForgeMinecraftProvider(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+		super(metadataProvider, configContext, MappingsNamespace.OFFICIAL);
 		this.patchedProvider = new MinecraftPatchedProvider(configContext.project(), this, provideServer() ? MinecraftPatchedProvider.Type.SERVER_ONLY : MinecraftPatchedProvider.Type.CLIENT_ONLY);
 	}
 
-	public static SingleJarForgeMinecraftProvider server(ConfigContext configContext) {
-		return new SingleJarForgeMinecraftProvider(configContext, new Server());
+	public static SingleJarForgeMinecraftProvider.Server forgeServer(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+		return new SingleJarForgeMinecraftProvider.Server(metadataProvider, configContext);
 	}
 
-	public static SingleJarForgeMinecraftProvider client(ConfigContext configContext) {
-		return new SingleJarForgeMinecraftProvider(configContext, new Client());
+	public static SingleJarForgeMinecraftProvider.Client forgeClient(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+		return new SingleJarForgeMinecraftProvider.Client(metadataProvider, configContext);
 	}
 
 	@Override
@@ -71,5 +75,64 @@ public final class SingleJarForgeMinecraftProvider extends SingleJarMinecraftPro
 	@Override
 	public List<Path> getMinecraftJars() {
 		return List.of(patchedProvider.getMinecraftPatchedJar());
+	}
+
+	public static final class Server extends SingleJarForgeMinecraftProvider {
+		private Server(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+			super(metadataProvider, configContext);
+		}
+
+		@Override
+		public SingleJarEnvType type() {
+			return SingleJarEnvType.SERVER;
+		}
+
+		@Override
+		public Path getInputJar(SingleJarMinecraftProvider provider) throws Exception {
+			BundleMetadata serverBundleMetadata = provider.getServerBundleMetadata();
+
+			if (serverBundleMetadata == null) {
+				return provider.getMinecraftServerJar().toPath();
+			}
+
+			provider.extractBundledServerJar();
+			return provider.getMinecraftExtractedServerJar().toPath();
+		}
+
+		@Override
+		protected boolean provideServer() {
+			return true;
+		}
+
+		@Override
+		protected boolean provideClient() {
+			return false;
+		}
+	}
+
+	public static final class Client extends SingleJarForgeMinecraftProvider {
+		private Client(MinecraftMetadataProvider metadataProvider, ConfigContext configContext) {
+			super(metadataProvider, configContext);
+		}
+
+		@Override
+		public SingleJarEnvType type() {
+			return SingleJarEnvType.CLIENT;
+		}
+
+		@Override
+		public Path getInputJar(SingleJarMinecraftProvider provider) throws Exception {
+			return provider.getMinecraftClientJar().toPath();
+		}
+
+		@Override
+		protected boolean provideServer() {
+			return false;
+		}
+
+		@Override
+		protected boolean provideClient() {
+			return true;
+		}
 	}
 }
