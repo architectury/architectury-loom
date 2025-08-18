@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,14 @@
 
 package net.fabricmc.loom.configuration.providers.forge;
 
+import java.io.Serializable;
+
 import com.mojang.serialization.Codec;
 
 /**
  * A string or a variable in a Forge configuration file, or an MCPConfig step or function.
  */
-public sealed interface ConfigValue {
+public sealed interface ConfigValue extends Serializable {
 	/**
 	 * The variable that refers to the current MCP step's output path.
 	 */

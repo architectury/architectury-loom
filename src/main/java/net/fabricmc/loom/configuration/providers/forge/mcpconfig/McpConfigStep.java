@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
+import java.io.Serializable;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
@@ -31,7 +32,7 @@ import com.google.gson.JsonObject;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
 
-public record McpConfigStep(String type, String name, Map<String, ConfigValue> config) {
+public record McpConfigStep(String type, String name, Map<String, ConfigValue> config) implements Serializable {
 	private static final String TYPE_KEY = "type";
 	private static final String NAME_KEY = "name";
 

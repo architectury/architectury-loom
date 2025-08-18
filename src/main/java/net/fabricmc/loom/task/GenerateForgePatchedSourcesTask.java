@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,12 +25,12 @@
 package net.fabricmc.loom.task;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.PatchOperation;
@@ -38,32 +38,36 @@ import codechicken.diffpatch.util.LoggingOutputStream;
 import codechicken.diffpatch.util.PatchMode;
 import com.google.common.base.Stopwatch;
 import dev.architectury.loom.forge.ForgeSourcesService;
-import dev.architectury.loom.forge.tool.ForgeToolValueSource;
+import dev.architectury.loom.forge.tool.AccessTransformerService;
+import dev.architectury.loom.forge.tool.ForgeToolService;
 import dev.architectury.loom.forge.tool.ForgeTools;
 import dev.architectury.loom.util.TempFiles;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.logging.LogLevel;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
-import org.jetbrains.annotations.Nullable;
 
-import net.fabricmc.loom.configuration.processors.MinecraftJarProcessorManager;
-import net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider;
 import net.fabricmc.loom.configuration.providers.forge.MinecraftPatchedProvider;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutor;
+import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpExecutorBuilder;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.ConstantLogic;
+import net.fabricmc.loom.task.service.MappingsService;
+import net.fabricmc.loom.task.service.SourceRemapperService;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.FileSystemUtil;
-import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
 // TODO: NeoForge support
-// TODO: Config cache support
 public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 	/**
 	 * The SRG Minecraft file produced by the MCP executor.
@@ -83,35 +87,112 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 	@OutputFile
 	public abstract RegularFileProperty getOutputJar();
 
+	@OutputFile
+	protected abstract RegularFileProperty getSideAnnotationStrippedMinecraftJar();
+
 	@Nested
-	public abstract Property<ForgeSourcesService.Options> getForgeSourcesOptions();
+	protected abstract Property<ForgeSourcesService.Options> getForgeSourcesOptions();
+
+	@Nested
+	protected abstract Property<McpExecutor.Options> getMcpExecutorOptions();
+
+	@Nested
+	protected abstract Property<AccessTransformerService.Options> getAccessTransformerOptions();
+
+	@Nested
+	protected abstract Property<ForgeToolService.Options> getToolServiceOptions();
+
+	@Nested
+	protected abstract Property<SourceRemapperService.Options> getSourceRemapperOptions();
+
+	@Nested
+	protected abstract Property<SasOptions> getSasOptions();
+
+	@Input
+	protected abstract Property<String> getPatchPathInZip();
+
+	@Input
+	protected abstract Property<String> getPatchesOriginalPrefix();
+
+	@Input
+	protected abstract Property<String> getPatchesModifiedPrefix();
+
+	@Internal
+	protected abstract Property<TempFiles> getTempFiles();
 
 	public GenerateForgePatchedSourcesTask() {
 		getOutputs().upToDateWhen((o) -> false);
 		getOutputJar().fileProvider(getProject().provider(() -> GenerateSourcesTask.getJarFileWithSuffix(getRuntimeJar(), "-sources.jar")));
 		getForgeSourcesOptions().convention(ForgeSourcesService.createOptions(getProject()));
+
+		final TempFiles tempFiles = new TempFiles();
+		getTempFiles().value(tempFiles).finalizeValue();
+		final Path cache;
+
+		try {
+			cache = tempFiles.directory("mcp-cache");
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+
+		getSideAnnotationStrippedMinecraftJar().set(cache.resolve("side-annotation-stripped.jar").toFile());
+		getMcpExecutorOptions().convention(getProject().provider(() -> {
+			MinecraftPatchedProvider patchedProvider = MinecraftPatchedProvider.get(getProject());
+			McpExecutorBuilder mcp = patchedProvider.createMcpExecutor(cache);
+			mcp.setStepLogicProvider((setupContext, name, type) -> {
+				if (name.equals("rename")) {
+					return ConstantLogic.createOptions(setupContext, () -> getSideAnnotationStrippedMinecraftJar().get().getAsFile().toPath());
+				}
+
+				return null;
+			});
+			mcp.enqueue("decompile");
+			mcp.enqueue("patch");
+
+			try {
+				return mcp.build();
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}).flatMap(o -> o));
+		getAccessTransformerOptions().convention(AccessTransformerService.createOptionsForLoaderAts(getProject(), tempFiles));
+		getToolServiceOptions().convention(ForgeToolService.createOptions(getProject()));
+
+		final SasOptions sasOptions = getProject().getObjects().newInstance(SasOptions.class);
+		sasOptions.getUserdevJar().set(getExtension().getForgeUserdevProvider().getUserdevJar());
+		sasOptions.getSass().set(getExtension().getForgeUserdevProvider().getConfig().sass());
+		sasOptions.getClasspath().from(DependencyDownloader.download(getProject(), ForgeTools.SIDE_STRIPPER, false, false));
+		getSasOptions().set(sasOptions);
+
+		getPatchPathInZip().set(getExtension().getForgeUserdevProvider().getConfig().patches());
+		getPatchesOriginalPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesOriginalPrefix().orElseThrow());
+		getPatchesModifiedPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesModifiedPrefix().orElseThrow());
+
+		getSourceRemapperOptions().set(SourceRemapperService.TYPE.create(getProject(), sro -> {
+			sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(
+					getProject(),
+					getProject().provider(() -> "srg"),
+					getProject().provider(() -> "named")
+			));
+			sro.getJavaCompileRelease().set(SourceRemapperService.getJavaCompileRelease(getProject()));
+			sro.getClasspath().from(getProject().getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
+		}));
 	}
 
 	@TaskAction
 	public void run() throws IOException {
-		// Check that the jar is not processed
-		final @Nullable MinecraftJarProcessorManager jarProcessorManager = MinecraftJarProcessorManager.create(getProject());
-
-		if (jarProcessorManager != null) {
-			throw new UnsupportedOperationException("Cannot run Forge's patched decompilation with a processed Minecraft jar");
-		}
-
-		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
+		try (var tempFiles = getTempFiles().get(); var serviceFactory = new ScopedServiceFactory()) {
 			Path cache = tempFiles.directory("loom-decompilation");
 
 			// Transform game jar before decompiling
 			Path accessTransformed = cache.resolve("access-transformed.jar");
-			MinecraftPatchedProvider.accessTransform(getProject(), getInputJar().get().getAsFile().toPath(), accessTransformed);
-			Path sideAnnotationStripped = cache.resolve("side-annotation-stripped.jar");
-			stripSideAnnotations(accessTransformed, sideAnnotationStripped);
+			AccessTransformerService atService = serviceFactory.get(getAccessTransformerOptions());
+			atService.execute(getInputJar().get().getAsFile().toPath(), accessTransformed);
+			Path sideAnnotationStripped = getSideAnnotationStrippedMinecraftJar().get().getAsFile().toPath();
+			stripSideAnnotations(accessTransformed, sideAnnotationStripped, serviceFactory);
 
 			// Step 1: decompile and patch with MCP patches
-			Path rawDecompiled = decompileAndPatch(cache, sideAnnotationStripped);
+			Path rawDecompiled = decompileAndPatch(serviceFactory);
 			// Step 2: patch with Forge patches
 			getLogger().lifecycle(":applying Forge patches");
 			Path patched = sourcePatch(cache, rawDecompiled);
@@ -123,40 +204,26 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 		}
 	}
 
-	private Path decompileAndPatch(Path cache, Path gameJar) throws IOException {
-		Path mcpCache = cache.resolve("mcp");
-		Files.createDirectory(mcpCache);
-
-		MinecraftPatchedProvider patchedProvider = MinecraftPatchedProvider.get(getProject());
-		McpExecutor mcp = patchedProvider.createMcpExecutor(mcpCache);
-		mcp.setStepLogicProvider((name, type) -> {
-			if (name.equals("rename")) {
-				return Optional.of(new ConstantLogic(() -> gameJar));
-			}
-
-			return Optional.empty();
-		});
-		mcp.enqueue("decompile");
-		mcp.enqueue("patch");
-		return mcp.execute();
+	private Path decompileAndPatch(ScopedServiceFactory serviceFactory) throws IOException {
+		final McpExecutor executor = serviceFactory.get(getMcpExecutorOptions());
+		return executor.execute();
 	}
 
 	private Path sourcePatch(Path cache, Path rawDecompiled) throws IOException {
-		ForgeUserdevProvider userdev = getExtension().getForgeUserdevProvider();
-		String patchPathInZip = userdev.getConfig().patches();
+		String patchPathInZip = getPatchPathInZip().get();
 		Path output = cache.resolve("patched.jar");
 		Path rejects = cache.resolve("rejects");
 
 		CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
 				.logTo(new LoggingOutputStream(getLogger(), LogLevel.INFO))
 				.basePath(rawDecompiled)
-				.patchesPath(userdev.getUserdevJar().toPath())
+				.patchesPath(getSasOptions().get().getUserdevJar().get().getAsFile().toPath())
 				.patchesPrefix(patchPathInZip)
 				.outputPath(output)
 				.mode(PatchMode.ACCESS)
 				.rejectsPath(rejects)
-				.aPrefix(userdev.getConfig().patchesOriginalPrefix().orElseThrow())
-				.bPrefix(userdev.getConfig().patchesModifiedPrefix().orElseThrow())
+				.aPrefix(getPatchesOriginalPrefix().get())
+				.bPrefix(getPatchesModifiedPrefix().get())
 				.build()
 				.operate();
 
@@ -167,23 +234,20 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 		return output;
 	}
 
-	private void remap(Path input, ServiceFactory serviceFactory) {
-		SourceRemapper remapper = new SourceRemapper(getProject(), serviceFactory, "srg", "named");
-		remapper.scheduleRemapSources(input.toFile(), getOutputJar().get().getAsFile(), false, true, () -> {
-		});
-		remapper.remapAll();
+	private void remap(Path input, ServiceFactory serviceFactory) throws IOException {
+		final SourceRemapperService remapperService = serviceFactory.get(getSourceRemapperOptions());
+		remapperService.remapSourcesJar(input, getOutputJar().get().getAsFile().toPath());
 	}
 
-	private void stripSideAnnotations(Path input, Path output) throws IOException {
+	private void stripSideAnnotations(Path input, Path output, ServiceFactory serviceFactory) throws IOException {
 		final Stopwatch stopwatch = Stopwatch.createStarted();
 		getLogger().lifecycle(":stripping side annotations");
 
 		try (var tempFiles = new TempFiles()) {
-			final ForgeUserdevProvider userdevProvider = getExtension().getForgeUserdevProvider();
-			final List<String> sass = userdevProvider.getConfig().sass();
+			final List<String> sass = getSasOptions().get().getSass().get();
 			final List<Path> sasPaths = new ArrayList<>();
 
-			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(userdevProvider.getUserdevJar(), false)) {
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(getSasOptions().get().getUserdevJar().get().getAsFile(), false)) {
 				for (String sasPath : sass) {
 					try {
 						final Path from = fs.getPath(sasPath);
@@ -196,10 +260,9 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 				}
 			}
 
-			final FileCollection classpath = DependencyDownloader.download(getProject(), ForgeTools.SIDE_STRIPPER, false, true);
-
-			ForgeToolValueSource.exec(getProject(), spec -> {
-				spec.setClasspath(classpath);
+			final ForgeToolService toolService = serviceFactory.get(getToolServiceOptions());
+			toolService.exec(spec -> {
+				spec.setClasspath(getSasOptions().get().getClasspath());
 				spec.args(
 						"--strip",
 						"--input", input.toAbsolutePath().toString(),
@@ -213,5 +276,16 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 		}
 
 		getLogger().lifecycle(":side annotations stripped in " + stopwatch.stop());
+	}
+
+	public interface SasOptions {
+		@InputFile
+		RegularFileProperty getUserdevJar();
+
+		@Input
+		ListProperty<String> getSass();
+
+		@Classpath
+		ConfigurableFileCollection getClasspath();
 	}
 }

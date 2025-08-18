@@ -298,7 +298,8 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 		return builder;
 	}
 
-	private boolean manualRefreshDeps() {
+	@Override
+	public boolean manualRefreshDeps() {
 		return project.getGradle().getStartParameter().isRefreshDependencies() || Boolean.getBoolean("loom.refresh");
 	}
 

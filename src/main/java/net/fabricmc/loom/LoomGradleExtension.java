@@ -215,4 +215,6 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 	default Path getPlatformMappingFile() {
 		return getMappingConfiguration().getPlatformMappingFile(this);
 	}
+
+	boolean manualRefreshDeps();
 }

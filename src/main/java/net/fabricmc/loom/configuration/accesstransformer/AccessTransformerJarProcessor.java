@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,10 +42,9 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.MoreFiles;
 import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.io.AccessTransformFormats;
-import dev.architectury.loom.forge.tool.ForgeToolValueSource;
+import dev.architectury.loom.forge.tool.AccessTransformerService;
 import dev.architectury.loom.util.TempFiles;
 import org.gradle.api.Project;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
@@ -58,10 +57,10 @@ import net.fabricmc.loom.api.processor.SpecContext;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.DependencyDownloader;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.fmj.FabricModJson;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public class AccessTransformerJarProcessor implements MinecraftJarProcessor<AccessTransformerJarProcessor.Spec> {
 	private static final Logger LOGGER = Logging.getLogger(AccessTransformerJarProcessor.class);
@@ -114,16 +113,14 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 
 	@Override
 	public void processJar(Path jar, Spec spec, ProcessorContext context) throws IOException {
-		try (var tempFiles = new TempFiles()) {
+		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			LOGGER.lifecycle(":applying project access transformers");
 			final Path tempInput = tempFiles.file("input", ".jar");
 			Files.copy(jar, tempInput, StandardCopyOption.REPLACE_EXISTING);
 			final Path atPath = mergeAndRemapAccessTransformers(context, spec.accessTransformers(), tempFiles);
 
-			executeAt(project, tempInput, jar, args -> {
-				args.add("--atFile");
-				args.add(atPath.toAbsolutePath().toString());
-			});
+			final AccessTransformerService service = serviceFactory.get(AccessTransformerService.createOptions(project, atPath.toAbsolutePath()));
+			service.execute(tempInput, jar);
 		} catch (IOException e) {
 			throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Could not access transform " + jar.toAbsolutePath(), e);
 		}
@@ -156,30 +153,6 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 	@Override
 	public String getName() {
 		return name;
-	}
-
-	public static void executeAt(Project project, Path input, Path output, AccessTransformerConfiguration configuration) throws IOException {
-		LoomVersions accessTransformer = chooseAccessTransformer(project);
-		String mainClass = accessTransformer == LoomVersions.ACCESS_TRANSFORMERS_NEO ? "net.neoforged.accesstransformer.cli.TransformerProcessor"
-						: "net.minecraftforge.accesstransformer.TransformerProcessor";
-		FileCollection classpath = new DependencyDownloader(project)
-				.add(accessTransformer.mavenNotation())
-				.add(LoomVersions.ASM.mavenNotation())
-				.platform(LoomVersions.ACCESS_TRANSFORMERS_LOG4J_BOM.mavenNotation())
-				.download();
-		List<String> args = new ArrayList<>();
-		args.add("--inJar");
-		args.add(input.toAbsolutePath().toString());
-		args.add("--outJar");
-		args.add(output.toAbsolutePath().toString());
-
-		configuration.apply(args);
-
-		ForgeToolValueSource.exec(project, spec -> {
-			spec.getMainClass().set(mainClass);
-			spec.setArgs(args);
-			spec.setClasspath(classpath);
-		});
 	}
 
 	private static LoomVersions chooseAccessTransformer(Project project) {

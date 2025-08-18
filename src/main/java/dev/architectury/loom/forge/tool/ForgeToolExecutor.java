@@ -15,8 +15,10 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Optional;
 import org.gradle.process.ExecOperations;
 import org.gradle.process.ExecResult;
+import org.gradle.process.JavaExecSpec;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -42,6 +44,13 @@ public abstract class ForgeToolExecutor {
 		settings.getExecutable().set(JavaExecutableFetcher.getJavaToolchainExecutable(project));
 		settings.getShowVerboseStdout().set(shouldShowVerboseStdout(project));
 		settings.getShowVerboseStderr().set(shouldShowVerboseStderr(project));
+
+		// call this to ensure the fields aren't null
+		settings.getProgramArgs();
+		settings.getJvmArgs();
+		settings.getMainClass();
+		settings.getExecClasspath();
+
 		return settings;
 	}
 
@@ -66,39 +75,46 @@ public abstract class ForgeToolExecutor {
 	}
 
 	public static ExecResult exec(ExecOperations execOperations, Settings settings) {
-		return execOperations.javaexec(spec -> {
-			final @Nullable String executable = settings.getExecutable().getOrNull();
-			if (executable != null) spec.setExecutable(executable);
-			spec.getMainClass().set(settings.getMainClass());
-			spec.setArgs(settings.getProgramArgs().get());
-			spec.setJvmArgs(settings.getJvmArgs().get());
-			spec.setClasspath(settings.getExecClasspath());
+		return execOperations.javaexec(spec -> applyToSpec(settings, spec));
+	}
 
-			if (settings.getShowVerboseStdout().get()) {
-				spec.setStandardOutput(System.out);
-			} else {
-				spec.setStandardOutput(NullOutputStream.NULL_OUTPUT_STREAM);
-			}
+	static void applyToSpec(Settings settings, JavaExecSpec spec) {
+		final @Nullable String executable = settings.getExecutable().getOrNull();
+		if (executable != null) spec.setExecutable(executable);
+		final @Nullable String mainClass = settings.getMainClass().getOrNull();
+		if (mainClass != null) spec.getMainClass().set(mainClass);
+		spec.setArgs(settings.getProgramArgs().get());
+		spec.setJvmArgs(settings.getJvmArgs().get());
+		spec.setClasspath(settings.getExecClasspath());
 
-			if (settings.getShowVerboseStderr().get()) {
-				spec.setErrorOutput(System.err);
-			} else {
-				spec.setErrorOutput(NullOutputStream.NULL_OUTPUT_STREAM);
-			}
-		});
+		if (settings.getShowVerboseStdout().get()) {
+			spec.setStandardOutput(System.out);
+		} else {
+			spec.setStandardOutput(NullOutputStream.INSTANCE);
+		}
+
+		if (settings.getShowVerboseStderr().get()) {
+			spec.setErrorOutput(System.err);
+		} else {
+			spec.setErrorOutput(NullOutputStream.INSTANCE);
+		}
 	}
 
 	public interface Settings {
 		@Input
+		@Optional
 		Property<String> getExecutable();
 
 		@Input
+		@Optional
 		ListProperty<String> getProgramArgs();
 
 		@Input
+		@Optional
 		ListProperty<String> getJvmArgs();
 
 		@Input
+		@Optional
 		Property<String> getMainClass();
 
 		@Classpath

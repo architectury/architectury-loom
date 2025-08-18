@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -45,13 +46,13 @@ import net.fabricmc.loom.util.function.CollectionUtil;
  * @param jvmArgs the JVM arguments
  * @param repo    the Maven repository to download the dependency from, or {@code null} if not specified
  */
-public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, @Nullable String repo) {
+public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, @Nullable String repo) implements Serializable {
 	private static final String VERSION_KEY = "version";
 	private static final String ARGS_KEY = "args";
 	private static final String JVM_ARGS_KEY = "jvmargs";
 	private static final String REPO_KEY = "repo";
 
-	public Path download(StepLogic.ExecutionContext executionContext) throws IOException {
+	public Path download(StepLogic.SetupContext executionContext) throws IOException {
 		if (repo != null) {
 			return executionContext.downloadFile(getDownloadUrl());
 		} else {
