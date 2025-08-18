@@ -3,10 +3,7 @@ package dev.architectury.loom.forge.tool;
 import java.util.Collection;
 import java.util.List;
 
-import javax.inject.Inject;
-
 import org.apache.commons.io.output.NullOutputStream;
-import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.logging.LogLevel;
@@ -24,10 +21,13 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Contains helpers for executing Forge's command line tools
  * with suppressed output streams to prevent annoying log spam.
+ *
+ * <p>To execute Forge tools during project config, use {@link ForgeToolValueSource};
+ * to execute them during config or tasks, use {@link ForgeToolService}.
  */
-public abstract class ForgeToolExecutor {
-	@Inject
-	protected abstract ExecOperations getExecOperations();
+public final class ForgeToolExecutor {
+	private ForgeToolExecutor() {
+	}
 
 	public static boolean shouldShowVerboseStdout(Project project) {
 		// if running with INFO or DEBUG logging
@@ -45,7 +45,8 @@ public abstract class ForgeToolExecutor {
 		settings.getShowVerboseStdout().set(shouldShowVerboseStdout(project));
 		settings.getShowVerboseStderr().set(shouldShowVerboseStderr(project));
 
-		// call this to ensure the fields aren't null
+		// call this to ensure the fields aren't null when used in services
+		// (otherwise, the JSON serialization crashes)
 		settings.getProgramArgs();
 		settings.getJvmArgs();
 		settings.getMainClass();
@@ -54,31 +55,11 @@ public abstract class ForgeToolExecutor {
 		return settings;
 	}
 
-	/**
-	 * Executes an external Java process.
-	 *
-	 * <p>This method cannot be used during configuration.
-	 * Use {@link ForgeToolValueSource#exec(Project, Action)} for those cases.
-	 *
-	 * @param project      the project
-	 * @param configurator the {@code javaexec} configuration action
-	 * @return the execution result
-	 */
-	public static ExecResult exec(Project project, Action<? super Settings> configurator) {
-		final Settings settings = getDefaultSettings(project);
-		configurator.execute(settings);
-		return project.getObjects().newInstance(ForgeToolExecutor.class).exec(settings);
-	}
-
-	private ExecResult exec(Settings settings) {
-		return exec(getExecOperations(), settings);
-	}
-
-	public static ExecResult exec(ExecOperations execOperations, Settings settings) {
+	static ExecResult exec(ExecOperations execOperations, Settings settings) {
 		return execOperations.javaexec(spec -> applyToSpec(settings, spec));
 	}
 
-	static void applyToSpec(Settings settings, JavaExecSpec spec) {
+	private static void applyToSpec(Settings settings, JavaExecSpec spec) {
 		final @Nullable String executable = settings.getExecutable().getOrNull();
 		if (executable != null) spec.setExecutable(executable);
 		final @Nullable String mainClass = settings.getMainClass().getOrNull();
