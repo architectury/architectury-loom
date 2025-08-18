@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.cadixdev.mercury.Mercury;
@@ -35,11 +36,13 @@ import org.cadixdev.mercury.remapper.MercuryRemapper;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loom.task.RemapSourcesJarTask;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.service.Service;
@@ -64,6 +68,11 @@ public final class SourceRemapperService extends Service<SourceRemapperService.O
 		Property<Integer> getJavaCompileRelease();
 		@InputFiles
 		ConfigurableFileCollection getClasspath();
+
+		// Architectury: support additional class mappings for Forge sources remapping
+		@Input
+		@Optional
+		ListProperty<Pair<String, String>> getAdditionalClassMappings();
 	}
 
 	public static Provider<Options> createOptions(RemapSourcesJarTask task) {
@@ -125,6 +134,11 @@ public final class SourceRemapperService extends Service<SourceRemapperService.O
 
 		MappingsService mappingsService = getServiceFactory().get(getOptions().getMappings());
 		var tinyMappingsReader = new TinyMappingsReader(mappingsService.getMemoryMappingTree(), mappingsService.getFrom(), mappingsService.getTo()).read();
+
+		for (Pair<String, String> mapping : getOptions().getAdditionalClassMappings().getOrElse(List.of())) {
+			tinyMappingsReader.getOrCreateClassMapping(mapping.left()).setDeobfuscatedName(mapping.right());
+		}
+
 		mercury.getProcessors().add(MercuryRemapper.create(tinyMappingsReader));
 
 		for (File file : getOptions().getClasspath().getFiles()) {

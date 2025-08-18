@@ -50,6 +50,7 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
+import dev.architectury.loom.forge.ForgeSourcesService;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFileProperty;
@@ -79,7 +80,6 @@ import net.fabricmc.loom.api.decompilers.DecompilerOptions;
 import net.fabricmc.loom.api.decompilers.LoomDecompiler;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.AbstractMappedMinecraftProvider;
-import net.fabricmc.loom.configuration.sources.ForgeSourcesRemapper;
 import net.fabricmc.loom.decompilers.ClassLineNumbers;
 import net.fabricmc.loom.decompilers.LineNumberRemapper;
 import net.fabricmc.loom.decompilers.cache.CachedData;
@@ -180,6 +180,10 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	@Optional
 	protected abstract Property<UnpickService.Options> getUnpickOptions();
 
+	@Nested
+	@Optional
+	protected abstract Property<ForgeSourcesService.Options> getForgeSourcesOptions();
+
 	// Prevent Gradle from running two gen sources tasks in parallel
 	@ServiceReference(SyncTaskBuildService.NAME)
 	abstract Property<SyncTaskBuildService> getSyncTask();
@@ -234,6 +238,8 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		getDaemonUtilsContext().set(getProject().getObjects().newInstance(DaemonUtils.Context.class, getProject()));
 
 		getUnpickOptions().set(UnpickService.createOptions(this));
+
+		getForgeSourcesOptions().set(ForgeSourcesService.createOptions(getProject()));
 
 		mustRunAfter(getProject().getTasks().withType(AbstractRemapJarTask.class));
 	}
@@ -445,9 +451,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			doWork(null, inputJar, outputJar, lineMapFile, existingJar);
 
 			// Inject Forge's own sources
-			if (getModPlatform().get().isForgeLike()) {
-				try (var serviceFactory = new ScopedServiceFactory()) {
-					ForgeSourcesRemapper.addForgeSources(getProject(), serviceFactory, inputJar, outputJar);
+			try (var serviceFactory = new ScopedServiceFactory()) {
+				final @Nullable ForgeSourcesService service = serviceFactory.getOrNull(getForgeSourcesOptions());
+
+				if (service != null) {
+					service.addForgeSources(inputJar, outputJar);
 				}
 			}
 
@@ -468,9 +476,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		}
 
 		// Inject Forge's own sources
-		if (getModPlatform().get().isForgeLike()) {
-			try (var serviceFactory = new ScopedServiceFactory()) {
-				ForgeSourcesRemapper.addForgeSources(getProject(), serviceFactory, inputJar, outputJar);
+		try (var serviceFactory = new ScopedServiceFactory()) {
+			final @Nullable ForgeSourcesService service = serviceFactory.getOrNull(getForgeSourcesOptions());
+
+			if (service != null) {
+				service.addForgeSources(inputJar, outputJar);
 			}
 		}
 
