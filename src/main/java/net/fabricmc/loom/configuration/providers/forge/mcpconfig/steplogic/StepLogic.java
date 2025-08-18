@@ -28,12 +28,12 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import dev.architectury.loom.forge.tool.ForgeToolExecutor;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.provider.Provider;
-import org.gradle.process.JavaExecSpec;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
@@ -65,7 +65,7 @@ public abstract class StepLogic<O extends Service.Options> extends Service<O> {
 		Path mappings();
 		String resolve(ConfigValue value);
 		DownloadBuilder downloadBuilder(String url);
-		void javaexec(Action<? super JavaExecSpec> configurator);
+		void javaexec(Action<? super ForgeToolExecutor.Settings> configurator);
 
 		default List<String> resolve(List<ConfigValue> configValues) {
 			return CollectionUtil.map(configValues, this::resolve);

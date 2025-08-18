@@ -100,6 +100,16 @@ public abstract class ForgeToolExecutor {
 		}
 	}
 
+	static void copySettings(Settings source, Settings target) {
+		target.getExecutable().set(source.getExecutable());
+		target.getMainClass().set(source.getMainClass());
+		target.getProgramArgs().set(source.getProgramArgs());
+		target.getJvmArgs().set(source.getJvmArgs());
+		target.getExecClasspath().setFrom(source.getExecClasspath());
+		target.getShowVerboseStdout().set(source.getShowVerboseStdout());
+		target.getShowVerboseStderr().set(source.getShowVerboseStderr());
+	}
+
 	public interface Settings {
 		@Input
 		@Optional

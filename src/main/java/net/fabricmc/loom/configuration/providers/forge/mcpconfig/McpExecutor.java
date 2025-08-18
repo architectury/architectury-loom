@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Stopwatch;
+import dev.architectury.loom.forge.tool.ForgeToolExecutor;
 import dev.architectury.loom.forge.tool.ForgeToolService;
 import org.gradle.api.Action;
 import org.gradle.api.file.DirectoryProperty;
@@ -48,7 +49,6 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
-import org.gradle.process.JavaExecSpec;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
@@ -247,7 +247,7 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 		}
 
 		@Override
-		public void javaexec(Action<? super JavaExecSpec> configurator) {
+		public void javaexec(Action<? super ForgeToolExecutor.Settings> configurator) {
 			final ForgeToolService toolService = getServiceFactory().get(getOptions().getToolServiceOptions());
 			toolService.exec(configurator);
 		}
