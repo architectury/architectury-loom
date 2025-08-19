@@ -25,12 +25,20 @@
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedMap;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.Stopwatch;
 import dev.architectury.loom.forge.tool.ForgeToolExecutor;
@@ -68,8 +76,11 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 	private static final Logger LOGGER = Logging.getLogger(McpExecutor.class);
 	private static final LogLevel STEP_LOG_LEVEL = LogLevel.LIFECYCLE;
 	private final Path cache;
+
+	// The initial config set before executing
 	private final Map<String, String> config;
-	private final Map<String, String> extraConfig = new HashMap<>();
+
+	private final ConcurrentMap<String, String> outputsByStep = new ConcurrentHashMap<>();
 
 	public interface Options extends Service.Options {
 		// Steps
@@ -85,6 +96,12 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 		 */
 		@Input
 		ListProperty<McpConfigStep> getStepsToExecute();
+
+		/**
+		 * Each step's dependencies.
+		 */
+		@Input
+		MapProperty<String, Set<String>> getDependenciesByStep();
 
 		// Config data
 
@@ -117,7 +134,7 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 
 	public McpExecutor(Options options, ServiceFactory serviceFactory) {
 		super(options, serviceFactory);
-		this.config = new HashMap<>(options.getInitialConfig().get());
+		this.config = Map.copyOf(options.getInitialConfig().get());
 		this.cache = options.getCache().get().getAsFile().toPath();
 	}
 
@@ -145,8 +162,10 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 
 			if (config.containsKey(name)) {
 				return config.get(name);
-			} else if (extraConfig.containsKey(name)) {
-				return extraConfig.get(name);
+			} else if (name.equals(ConfigValue.OUTPUT)) {
+				return outputsByStep.get(step.name());
+			} else if (name.endsWith(ConfigValue.PREVIOUS_OUTPUT_SUFFIX)) {
+				return outputsByStep.get(name.substring(0, name.length() - ConfigValue.PREVIOUS_OUTPUT_SUFFIX.length()));
 			} else if (name.equals(ConfigValue.LOG)) {
 				return cache.resolve("log.log").toAbsolutePath().toString();
 			}
@@ -163,21 +182,48 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 	public Path execute() throws IOException {
 		List<McpConfigStep> steps = getOptions().getStepsToExecute().get();
 		int totalSteps = steps.size();
-		int currentStepIndex = 0;
 
 		LOGGER.log(STEP_LOG_LEVEL, ":executing {} MCP steps", totalSteps);
 
-		for (McpConfigStep currentStep : steps) {
-			currentStepIndex++;
-			StepLogic<?> stepLogic = getStepLogic(currentStep.name());
-			LOGGER.log(STEP_LOG_LEVEL, ":step {}/{} - {}", currentStepIndex, totalSteps, stepLogic.getDisplayName(currentStep.name()));
+		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			AtomicInteger currentStepIndex = new AtomicInteger(1); // used for progress counter
+			SequencedMap<String, CompletableFuture<?>> stepFutures = new LinkedHashMap<>();
 
-			Stopwatch stopwatch = Stopwatch.createStarted();
-			stepLogic.execute(new ExecutionContextImpl(currentStep));
-			LOGGER.log(STEP_LOG_LEVEL, ":{} done in {}", currentStep.name(), stopwatch.stop());
+			for (McpConfigStep currentStep : steps) {
+				StepLogic<?> stepLogic = getStepLogic(currentStep.name());
+
+				// Resolve all futures that need to complete before this one.
+				Set<String> dependencyNames = getOptions().getDependenciesByStep()
+						.getting(currentStep.name())
+						.getOrElse(Set.of());
+				CompletableFuture<?>[] dependencies = dependencyNames.stream()
+						.map(stepFutures::get)
+						.toArray(CompletableFuture[]::new);
+
+				// Create this step's future and store it.
+				CompletableFuture<?> future = CompletableFuture.allOf(dependencies)
+						.thenRunAsync(() -> {
+							try {
+								int index = currentStepIndex.getAndIncrement();
+								String displayName = stepLogic.getDisplayName(currentStep.name());
+								LOGGER.log(STEP_LOG_LEVEL, ":step {}/{} - {}", index, totalSteps, displayName);
+
+								Stopwatch stopwatch = Stopwatch.createStarted();
+								stepLogic.execute(new ExecutionContextImpl(currentStep));
+								LOGGER.log(STEP_LOG_LEVEL, ":{} done in {}", currentStep.name(), stopwatch.stop());
+							} catch (IOException e) {
+								throw new UncheckedIOException(e);
+							}
+						}, executor);
+				stepFutures.put(currentStep.name(), future);
+			}
+
+			// Wait for all the futures to complete. Closing the executor isn't enough
+			// since the unstarted ones haven't even reached the executor yet.
+			stepFutures.sequencedValues().reversed().forEach(CompletableFuture::join);
 		}
 
-		return Path.of(extraConfig.get(ConfigValue.OUTPUT));
+		return Path.of(outputsByStep.get(steps.getLast().name()));
 	}
 
 	private StepLogic<?> getStepLogic(String name) {
@@ -205,8 +251,7 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 		@Override
 		public Path setOutput(Path output) {
 			String absolutePath = output.toAbsolutePath().toString();
-			extraConfig.put(ConfigValue.OUTPUT, absolutePath);
-			extraConfig.put(step.name() + ConfigValue.PREVIOUS_OUTPUT_SUFFIX, absolutePath);
+			outputsByStep.put(step.name(), absolutePath);
 			return output;
 		}
 
