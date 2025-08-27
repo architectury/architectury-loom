@@ -57,7 +57,7 @@ class DependencySetTest extends Specification {
 	def "single child"() {
 		when:
 		dependencySet.add('childAB')
-		def executedSteps = dependencySet.buildExecutionSet().stepsToExecute()
+		def executedSteps = dependencySet.buildExecutionSet()
 		then:
 		executedSteps.toList() == [
 			'root',
@@ -72,7 +72,7 @@ class DependencySetTest extends Specification {
 		when:
 		dependencySet.add('childA1')
 		dependencySet.add('orphanB')
-		def executedSteps = dependencySet.buildExecutionSet().stepsToExecute()
+		def executedSteps = dependencySet.buildExecutionSet()
 		then:
 		executedSteps.toList() == ['orphanB', 'root', 'childA1']
 	}
@@ -81,7 +81,7 @@ class DependencySetTest extends Specification {
 		when:
 		dependencySet.add('childAB')
 		dependencySet.skip('childA2')
-		def executedSteps = dependencySet.buildExecutionSet().stepsToExecute()
+		def executedSteps = dependencySet.buildExecutionSet()
 		then:
 		executedSteps.toList() == ['root', 'childB', 'childAB']
 	}
@@ -90,7 +90,7 @@ class DependencySetTest extends Specification {
 		when:
 		dependencySet.add('childAB')
 		dependencySet.ignoreDependenciesFilter = { it.name() == 'childA2' }
-		def executedSteps = dependencySet.buildExecutionSet().stepsToExecute()
+		def executedSteps = dependencySet.buildExecutionSet()
 		then:
 		executedSteps.toList() == [
 			'root',

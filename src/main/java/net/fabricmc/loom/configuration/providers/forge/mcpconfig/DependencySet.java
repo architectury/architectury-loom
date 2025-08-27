@@ -29,7 +29,6 @@ import static net.fabricmc.loom.configuration.providers.forge.ConfigValue.PREVIO
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,9 +79,8 @@ public final class DependencySet {
 		this.ignoreDependenciesFilter = ignoreDependenciesFilter;
 	}
 
-	public BuiltDependencies buildExecutionSet() {
+	public SortedSet<String> buildExecutionSet() {
 		SortedSet<String> steps = new TreeSet<>(Comparator.comparingInt(stepNames::indexOf));
-		Map<String, Set<String>> dependenciesByStep = new HashMap<>();
 		Queue<String> queue = new ArrayDeque<>(this.steps);
 
 		while (!queue.isEmpty()) {
@@ -99,16 +97,12 @@ public final class DependencySet {
 						if (name.endsWith(PREVIOUS_OUTPUT_SUFFIX) && name.length() > PREVIOUS_OUTPUT_SUFFIX.length()) {
 							String substep = name.substring(0, name.length() - PREVIOUS_OUTPUT_SUFFIX.length());
 							queue.offer(substep);
-							dependenciesByStep.computeIfAbsent(step, x -> new HashSet<>()).add(substep);
 						}
 					}
 				});
 			}
 		}
 
-		return new BuiltDependencies(steps, dependenciesByStep);
-	}
-
-	public record BuiltDependencies(SortedSet<String> stepsToExecute, Map<String, Set<String>> dependenciesByStep) {
+		return steps;
 	}
 }

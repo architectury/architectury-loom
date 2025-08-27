@@ -177,8 +177,7 @@ public final class McpExecutorBuilder {
 	 * @return the options
 	 */
 	public Provider<McpExecutor.Options> build() throws IOException {
-		DependencySet.BuiltDependencies builtDependencies = dependencySet.buildExecutionSet();
-		SortedSet<String> stepNames = builtDependencies.stepsToExecute();
+		SortedSet<String> stepNames = dependencySet.buildExecutionSet();
 		dependencySet.clear();
 		List<McpConfigStep> toExecute = new ArrayList<>();
 
@@ -196,7 +195,6 @@ public final class McpExecutorBuilder {
 			}
 
 			options.getStepsToExecute().set(toExecute);
-			options.getDependenciesByStep().set(builtDependencies.dependenciesByStep());
 			options.getMappings().set(extension.getMcpConfigProvider().getMappings().toFile());
 			options.getInitialConfig().set(config);
 			options.getOffline().set(project.getGradle().getStartParameter().isOffline());
