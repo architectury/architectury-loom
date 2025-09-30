@@ -25,8 +25,8 @@
 package dev.architectury.loom.forge.dependency;
 
 import java.io.File;
+import java.nio.file.Files;
 
-import org.apache.commons.io.FileUtils;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
@@ -45,7 +45,7 @@ public class ForgeUniversalProvider extends DependencyProvider {
 
 		if (!forge.exists() || refreshDeps()) {
 			File dep = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge"));
-			FileUtils.copyFile(dep, forge);
+			Files.copy(dep.toPath(), forge.toPath());
 		}
 	}
 
