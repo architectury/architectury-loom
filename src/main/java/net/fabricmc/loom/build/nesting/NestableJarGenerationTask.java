@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,7 +41,6 @@ import java.util.regex.Pattern;
 import javax.inject.Inject;
 
 import com.google.gson.JsonObject;
-import org.apache.commons.io.FileUtils;
 import org.gradle.api.artifacts.ArtifactView;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.task.AbstractLoomTask;
 import net.fabricmc.loom.util.Checksum;
+import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.ZipUtils;
@@ -104,7 +105,7 @@ public abstract class NestableJarGenerationTask extends AbstractLoomTask {
 
 		try {
 			File targetDir = getOutputDirectory().get().getAsFile();
-			FileUtils.deleteDirectory(targetDir);
+			DeletingFileVisitor.deleteDirectory(targetDir.toPath());
 			targetDir.mkdirs();
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -239,7 +240,7 @@ public abstract class NestableJarGenerationTask extends AbstractLoomTask {
 
 	private void makeNestableJar(final File input, final File output, final @Nullable String modJsonFile, final @Nullable String nestingMetadata) {
 		try {
-			FileUtils.copyFile(input, output);
+			Files.copy(input.toPath(), output.toPath());
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to copy mod file %s".formatted(input), e);
 		}

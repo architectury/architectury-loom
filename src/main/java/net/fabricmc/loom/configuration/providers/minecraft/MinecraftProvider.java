@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2018-2021 FabricMC
+ * Copyright (c) 2018-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.common.base.Preconditions;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +43,7 @@ import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.providers.BundleMetadata;
 import net.fabricmc.loom.configuration.providers.minecraft.verify.MinecraftJarVerification;
 import net.fabricmc.loom.configuration.providers.minecraft.verify.SignatureVerificationFailure;
+import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.download.DownloadExecutor;
 import net.fabricmc.loom.util.download.GradleDownloadProgressListener;
@@ -194,7 +194,7 @@ public abstract class MinecraftProvider {
 	}
 
 	public final void extractBundledServerJar() throws IOException {
-		Preconditions.checkArgument(provideServer(), "Not configured to provide server jar");
+		Check.require(provideServer(), "Not configured to provide server jar");
 		Objects.requireNonNull(getServerBundleMetadata(), "Cannot bundled mc jar from none bundled server jar");
 
 		LOGGER.info(":Extracting server jar from bootstrap");
@@ -225,20 +225,20 @@ public abstract class MinecraftProvider {
 	}
 
 	public File getMinecraftClientJar() {
-		Preconditions.checkArgument(provideClient(), "Not configured to provide client jar");
+		Check.require(provideClient(), "Not configured to provide client jar");
 		return minecraftClientJar;
 	}
 
 	// May be null on older versions
 	@Nullable
 	public File getMinecraftExtractedServerJar() {
-		Preconditions.checkArgument(provideServer(), "Not configured to provide server jar");
+		Check.require(provideServer(), "Not configured to provide server jar");
 		return minecraftExtractedServerJar;
 	}
 
 	// This may be the server bundler jar on newer versions prob not what you want.
 	public File getMinecraftServerJar() {
-		Preconditions.checkArgument(provideServer(), "Not configured to provide server jar");
+		Check.require(provideServer(), "Not configured to provide server jar");
 		return minecraftServerJar;
 	}
 
@@ -254,7 +254,15 @@ public abstract class MinecraftProvider {
 	 * @return true if the minecraft version is older than 1.3.
 	 */
 	public boolean isLegacyVersion() {
-		return !getVersionInfo().isVersionOrNewer(Constants.RELEASE_TIME_1_3);
+		return getVersionInfo().isLegacyVersion();
+	}
+
+	/**
+	 * Returns true if the minecraft version is between Beta 1.0 (inclusive) and 1.3 (exclusive),
+	 * which splits the {@code official} mapping namespace into env-specific variants.
+	 */
+	public boolean isLegacySplitOfficialNamespaceVersion() {
+		return getVersionInfo().isLegacySplitOfficialNamespaceVersion();
 	}
 
 	public String getJarPrefix() {

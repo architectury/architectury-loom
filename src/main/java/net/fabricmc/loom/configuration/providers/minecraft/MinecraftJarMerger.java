@@ -67,7 +67,7 @@ public class MinecraftJarMerger implements AutoCloseable {
 		}
 	}
 
-	private static final MinecraftClassMerger CLASS_MERGER = new MinecraftClassMerger();
+	private final MinecraftClassMerger classMerger = new MinecraftClassMerger();
 	private final FileSystemUtil.Delegate inputClientFs, inputServerFs, outputFs;
 	private final Path inputClient, inputServer;
 	private final Map<String, Entry> entriesClient, entriesServer;
@@ -194,7 +194,7 @@ public class MinecraftJarMerger implements AutoCloseable {
 					result = entry1;
 				} else {
 					if (isClass) {
-						result = new Entry(entry1.path, entry1.metadata, CLASS_MERGER.merge(entry1.data, entry2.data));
+						result = new Entry(entry1.path, entry1.metadata, classMerger.merge(entry1.data, entry2.data));
 					} else {
 						// FIXME: More heuristics?
 						result = entry1;

@@ -32,7 +32,6 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -40,6 +39,7 @@ import org.gradle.api.UncheckedIOException;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
@@ -53,7 +53,7 @@ public class JarNester {
 			return;
 		}
 
-		Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(modJar, platform), "Cannot nest jars into none mod jar " + modJar.getName());
+		Check.require(FabricModJsonFactory.isNestableModJar(modJar, platform), "Cannot nest jars into none mod jar " + modJar.getName());
 
 		// Ensure deterministic ordering of entries in fabric.mod.json
 		Collection<File> sortedJars = jars.stream().sorted(Comparator.comparing(File::getName)).toList();
@@ -81,7 +81,7 @@ public class JarNester {
 
 				for (File file : sortedJars) {
 					String nestedJarPath = "META-INF/jars/" + file.getName();
-					Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
+					Check.require(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
 
 					for (JsonElement nestedJar : nestedJars) {
 						JsonObject jsonObject = nestedJar.getAsJsonObject();
@@ -138,7 +138,7 @@ public class JarNester {
 				return json;
 			}) : null));
 
-			Preconditions.checkState(count > 0, "Failed to transform fabric.mod.json");
+			Check.require(count > 0, "Failed to transform fabric.mod.json");
 		} catch (IOException e) {
 			throw new java.io.UncheckedIOException("Failed to nest jars into " + modJar.getName(), e);
 		}

@@ -53,6 +53,8 @@ import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.configuration.providers.mappings.TinyMappingsService;
+import net.fabricmc.loom.configuration.providers.mappings.extras.annotations.AnnotationsData;
+import net.fabricmc.loom.configuration.providers.minecraft.AnnotationsApplyVisitor;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
@@ -257,11 +259,16 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		Files.deleteIfExists(remappedJars.outputJarPath());
 
 		final Set<String> classNames = extension.isForgeLike() ? InnerClassRemapper.readClassNames(remappedJars.inputJar()) : Set.of();
+		final AnnotationsData remappedAnnotations = AnnotationsData.getRemappedAnnotations(getTargetNamespace(), mappingConfiguration, getProject(), configContext.serviceFactory(), toM);
 		final Map<String, String> remappedSignatures = SignatureFixerApplyVisitor.getRemappedSignatures(getTargetNamespace() == MappingsNamespace.INTERMEDIARY, mappingConfiguration, getProject(), configContext.serviceFactory(), toM);
 		final MinecraftVersionMeta.JavaVersion javaVersion = minecraftProvider.getVersionInfo().javaVersion();
 		final boolean fixRecords = javaVersion != null && javaVersion.majorVersion() >= 16;
 
 		TinyRemapper remapper = TinyRemapperHelper.getTinyRemapper(getProject(), configContext.serviceFactory(), fromM, toM, fixRecords, (builder) -> {
+			if (remappedAnnotations != null) {
+				builder.extraPostApplyVisitor(new AnnotationsApplyVisitor(remappedAnnotations));
+			}
+
 			builder.extraPostApplyVisitor(new SignatureFixerApplyVisitor(remappedSignatures));
 			if (extension.isNeoForge()) builder.extension(new MixinExtension(inputTag -> true));
 			configureRemapper(remappedJars, builder);
