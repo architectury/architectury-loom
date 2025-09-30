@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import dev.architectury.loom.util.Stopwatch;
@@ -117,10 +115,12 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 	}
 
 	public void updateFieldMigration(Project project, List<MappingsEntry> entries) throws IOException {
-		Table<String, String, String> fieldDescriptorMap = HashBasedTable.create();
+		// A map of class name -> field name -> actual descriptor
+		final Map<String, Map<String, String>> fieldDescriptorMap = new HashMap<>();
 
 		for (Map.Entry<FieldMember, String> entry : migratedFields) {
-			fieldDescriptorMap.put(entry.getKey().owner, entry.getKey().field, entry.getValue());
+			final Map<String, String> fieldMap = fieldDescriptorMap.computeIfAbsent(entry.getKey().owner, unused -> new HashMap<>());
+			fieldMap.put(entry.getKey().field, entry.getValue());
 		}
 
 		for (MappingsEntry entry : entries) {
@@ -128,7 +128,7 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 		}
 	}
 
-	private static void injectMigration(Project project, Table<String, String, String> fieldDescriptorMap, Path path) throws IOException {
+	private static void injectMigration(Project project, Map<String, Map<String, String>> fieldDescriptorMap, Path path) throws IOException {
 		MemoryMappingTree mappings = new MemoryMappingTree();
 
 		try (BufferedReader reader = Files.newBufferedReader(path)) {
@@ -136,11 +136,11 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 		}
 
 		for (MappingTree.ClassMapping classDef : new ArrayList<>(mappings.getClasses())) {
-			Map<String, String> row = fieldDescriptorMap.row(classDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
+			Map<String, String> fieldDescriptors = fieldDescriptorMap.get(classDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
 
-			if (!row.isEmpty()) {
+			if (fieldDescriptors != null) {
 				for (MappingTree.FieldMapping fieldDef : new ArrayList<>(classDef.getFields())) {
-					String newDescriptor = row.get(fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
+					String newDescriptor = fieldDescriptors.get(fieldDef.getName(MappingsNamespace.INTERMEDIARY.toString()));
 
 					if (newDescriptor != null) {
 						String prev = fieldDef.getDesc(MappingsNamespace.INTERMEDIARY.toString());
