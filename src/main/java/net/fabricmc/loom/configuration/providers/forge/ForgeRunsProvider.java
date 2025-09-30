@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,11 +34,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.MultimapBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.forge.UserdevConfig;
+import dev.architectury.loom.util.Multimap;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Project;
@@ -128,7 +127,7 @@ public class ForgeRunsProvider {
 			string = extension.getFiles().getNativesDirectory(project).getAbsolutePath();
 		} else if (key.equals("source_roots")) {
 			// Use a set-valued multimap for deduplicating paths.
-			Multimap<String, String> modClasses = MultimapBuilder.hashKeys().linkedHashSetValues().build();
+			Multimap<String, String> modClasses = Multimap.setMultimap();
 			NamedDomainObjectContainer<ModSettings> mods = extension.getMods();
 			String separator = getSourceRootsSeparator();
 
@@ -148,7 +147,7 @@ public class ForgeRunsProvider {
 				}
 			}
 
-			string = modClasses.entries().stream()
+			string = modClasses.entrySet().stream()
 					.map(entry -> entry.getKey() + "%%" + entry.getValue())
 					.collect(Collectors.joining(separator));
 		} else if (key.equals("mcp_mappings")) {

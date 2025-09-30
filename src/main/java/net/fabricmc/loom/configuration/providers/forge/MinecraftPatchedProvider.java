@@ -50,13 +50,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
 import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
 import dev.architectury.loom.forge.UserdevConfig;
 import dev.architectury.loom.forge.tool.AccessTransformerService;
 import dev.architectury.loom.forge.tool.ForgeToolValueSource;
 import dev.architectury.loom.neoforge.SidedJarIndexGenerator;
 import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.util.Stopwatch;
 import dev.architectury.loom.util.TempFiles;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
@@ -317,7 +317,7 @@ public class MinecraftPatchedProvider {
 			completer.complete();
 		}
 
-		logger.info(":fixed parameter annotations for " + jarFile.toAbsolutePath() + " in " + stopwatch);
+		logger.info(":fixed parameter annotations for " + jarFile.toAbsolutePath() + " in " + stopwatch.stop());
 	}
 
 	private void deleteParameterNames(Path jarFile) throws Exception {
@@ -371,7 +371,7 @@ public class MinecraftPatchedProvider {
 			completer.complete();
 		}
 
-		logger.info(":deleted parameter names for " + jarFile.toAbsolutePath() + " in " + stopwatch);
+		logger.info(":deleted parameter names for " + jarFile.toAbsolutePath() + " in " + stopwatch.stop());
 	}
 
 	private File getForgeJar() {

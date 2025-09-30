@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,11 +24,11 @@
 
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -57,25 +57,25 @@ public record McpConfigData(
 		boolean official = json.has("official") && json.getAsJsonPrimitive("official").getAsBoolean();
 
 		JsonObject stepsJson = json.getAsJsonObject("steps");
-		ImmutableMap.Builder<String, List<McpConfigStep>> stepsBuilder = ImmutableMap.builder();
+		Map<String, List<McpConfigStep>> steps = new HashMap<>();
 
 		for (String key : stepsJson.keySet()) {
-			ImmutableList.Builder<McpConfigStep> stepListBuilder = ImmutableList.builder();
+			List<McpConfigStep> stepList = new ArrayList<>();
 
 			for (JsonElement child : stepsJson.getAsJsonArray(key)) {
-				stepListBuilder.add(McpConfigStep.fromJson(child.getAsJsonObject()));
+				stepList.add(McpConfigStep.fromJson(child.getAsJsonObject()));
 			}
 
-			stepsBuilder.put(key, stepListBuilder.build());
+			steps.put(key, List.copyOf(stepList));
 		}
 
 		JsonObject functionsJson = json.getAsJsonObject("functions");
-		ImmutableMap.Builder<String, McpConfigFunction> functionsBuilder = ImmutableMap.builder();
+		Map<String, McpConfigFunction> functions = new HashMap<>();
 
 		for (String key : functionsJson.keySet()) {
-			functionsBuilder.put(key, McpConfigFunction.fromJson(functionsJson.getAsJsonObject(key)));
+			functions.put(key, McpConfigFunction.fromJson(functionsJson.getAsJsonObject(key)));
 		}
 
-		return new McpConfigData(version, data, mappingsPath, official, stepsBuilder.build(), functionsBuilder.build());
+		return new McpConfigData(version, data, mappingsPath, official, Map.copyOf(steps), Map.copyOf(functions));
 	}
 }

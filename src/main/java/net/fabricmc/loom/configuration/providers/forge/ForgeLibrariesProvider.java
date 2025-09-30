@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2024 FabricMC
+ * Copyright (c) 2022-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,13 +25,11 @@
 package net.fabricmc.loom.configuration.providers.forge;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.hash.Hashing;
 import dev.architectury.loom.forge.ModDirTransformerDiscovererPatch;
 import dev.architectury.loom.neoforge.LaunchHandlerPatcher;
 import dev.architectury.loom.util.ClassVisitorUtil;
@@ -49,12 +47,13 @@ import net.fabricmc.loom.configuration.mods.ModConfigurationRemapper;
 import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
+import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.PropertyUtil;
-import net.fabricmc.loom.util.srg.RemapObjectHolderVisitor;
 import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
+import net.fabricmc.loom.util.srg.RemapObjectHolderVisitor;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class ForgeLibrariesProvider {
@@ -157,9 +156,7 @@ public class ForgeLibrariesProvider {
 		// A hash of the current mapping configuration. The transformations only need to be done once per mapping set.
 		// While the mappings ID is definitely valid in file names, splitting MC versions parts into nested directories
 		// isn't good.
-		final String mappingHash = Hashing.sha256()
-				.hashString(mappingConfiguration.mappingsIdentifier(), StandardCharsets.UTF_8)
-				.toString();
+		final String mappingHash = Checksum.of(mappingConfiguration.mappingsIdentifier()).sha256().hex();
 
 		// Resolve the inputs and outputs.
 		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();

@@ -13,7 +13,6 @@ import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonGrammar;
 import blue.endless.jankson.api.SyntaxError;
-import com.google.common.collect.ImmutableMap;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -29,13 +28,13 @@ import net.fabricmc.loom.util.gradle.SourceSetHelper;
  */
 public final class ModMetadataFiles {
 	private static final Logger LOGGER = Logging.getLogger(ModMetadataFiles.class);
-	private static final Map<String, Function<byte[], ModMetadataFile>> SINGLE_FILE_METADATA_TYPES = ImmutableMap.<String, Function<byte[], ModMetadataFile>>builder()
-			.put(QuiltModJson.FILE_NAME, QuiltModJson::of)
-			.put(QuiltModJson.JSON5_FILE_NAME, convertJson5ToJson(QuiltModJson::of))
-			.put(ArchitecturyCommonJson.FILE_NAME, ArchitecturyCommonJson::of)
-			.put(ModsToml.FILE_PATH, onError(ModsToml::of, "Could not load mods.toml", () -> new ErroringModMetadataFile("mods.toml")))
-			.put(ModsToml.NEOFORGE_FILE_PATH, onError(ModsToml::of, "Could not load neoforge.mods.toml", () -> new ErroringModMetadataFile("neoforge.mods.toml")))
-			.build();
+	private static final Map<String, Function<byte[], ModMetadataFile>> SINGLE_FILE_METADATA_TYPES = Map.of(
+			QuiltModJson.FILE_NAME, QuiltModJson::of,
+			QuiltModJson.JSON5_FILE_NAME, convertJson5ToJson(QuiltModJson::of),
+			ArchitecturyCommonJson.FILE_NAME, ArchitecturyCommonJson::of,
+			ModsToml.FILE_PATH, onError(ModsToml::of, "Could not load mods.toml", () -> new ErroringModMetadataFile("mods.toml")),
+			ModsToml.NEOFORGE_FILE_PATH, onError(ModsToml::of, "Could not load neoforge.mods.toml", () -> new ErroringModMetadataFile("neoforge.mods.toml"))
+	);
 
 	private static <A, B> Function<A, B> onError(Function<A, B> fn, String message, Supplier<B> onError) {
 		return a -> {

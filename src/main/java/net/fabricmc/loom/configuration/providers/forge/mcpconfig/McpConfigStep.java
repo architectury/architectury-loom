@@ -25,9 +25,9 @@
 package net.fabricmc.loom.configuration.providers.forge.mcpconfig;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 
 import net.fabricmc.loom.configuration.providers.forge.ConfigValue;
@@ -39,7 +39,7 @@ public record McpConfigStep(String type, String name, Map<String, ConfigValue> c
 	public static McpConfigStep fromJson(JsonObject json) {
 		String type = json.get(TYPE_KEY).getAsString();
 		String name = json.has(NAME_KEY) ? json.get(NAME_KEY).getAsString() : type;
-		ImmutableMap.Builder<String, ConfigValue> config = ImmutableMap.builder();
+		Map<String, ConfigValue> config = new HashMap<>();
 
 		for (String key : json.keySet()) {
 			if (key.equals(TYPE_KEY) || key.equals(NAME_KEY)) continue;
@@ -47,6 +47,6 @@ public record McpConfigStep(String type, String name, Map<String, ConfigValue> c
 			config.put(key, ConfigValue.of(json.get(key).getAsString()));
 		}
 
-		return new McpConfigStep(type, name, config.build());
+		return new McpConfigStep(type, name, Map.copyOf(config));
 	}
 }

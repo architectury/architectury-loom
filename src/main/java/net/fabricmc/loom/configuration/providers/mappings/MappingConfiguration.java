@@ -42,10 +42,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Supplier;
 import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.util.Stopwatch;
 import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;

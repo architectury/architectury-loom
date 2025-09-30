@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021 FabricMC
+ * Copyright (c) 2021-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,12 +29,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -71,14 +69,14 @@ public class InnerClassRemapper {
 	}
 
 	private static void remapInnerClass(Set<String> classNames, MappingTree mappingsWithSrg, String from, String to, BiConsumer<String, String> action) {
-		BiMap<String, String> availableClasses = HashBiMap.create(mappingsWithSrg.getClasses().stream()
+		Map<String, String> availableClasses = mappingsWithSrg.getClasses().stream()
 				.collect(Collectors.groupingBy(classDef -> classDef.getName(from),
 						Collectors.<MappingTree.ClassMapping, String>reducing(
 								null,
 								classDef -> classDef.getName(to),
 								(first, last) -> last
 						))
-				));
+				);
 
 		for (String className : classNames) {
 			if (!availableClasses.containsKey(className)) {

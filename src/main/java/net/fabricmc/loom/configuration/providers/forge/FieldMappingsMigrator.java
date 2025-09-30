@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2023 FabricMC
+ * Copyright (c) 2021-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,11 +40,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Project;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -74,7 +74,7 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 		if (!minecraftProvider.refreshDeps() && Files.exists(migratedFieldsCache)) {
 			try (BufferedReader reader = Files.newBufferedReader(migratedFieldsCache)) {
 				Map<String, String> map = new Gson().fromJson(reader, new TypeToken<Map<String, String>>() {
-				}.getType());
+				});
 				migratedFields = new ArrayList<>();
 				map.forEach((key, newDescriptor) -> {
 					String[] split = key.split("#");

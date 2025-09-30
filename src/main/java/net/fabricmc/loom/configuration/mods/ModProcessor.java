@@ -42,10 +42,10 @@ import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Stopwatch;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.neoforge.NeoForgeModDependencies;
 import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;

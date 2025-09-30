@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2024 FabricMC
+ * Copyright (c) 2024-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,18 +33,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import dev.architectury.loom.util.Multimap;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.objectweb.asm.ClassReader;
@@ -78,7 +75,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 		if (!minecraftProvider.refreshDeps() && Files.exists(cacheFile)) {
 			try (BufferedReader reader = Files.newBufferedReader(cacheFile)) {
 				List<Pair<String, String>> list = new Gson().fromJson(reader, new TypeToken<List<Pair<String, String>>>() {
-				}.getType());
+				});
 				methodsToRemove = new HashSet<>(list);
 			}
 		} else {
@@ -131,7 +128,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 		Multimap<String, String> classInheritanceMap = collected.left();
 		Set<MethodKey> methods = collected.right();
 
-		Multimap<MethodKey, MethodKey> overriddenIntermediaries = Multimaps.newSetMultimap(new HashMap<>(), LinkedHashSet::new);
+		Multimap<MethodKey, MethodKey> overriddenIntermediaries = Multimap.setMultimap();
 
 		for (MethodKey method : methods) {
 			// First check if the method is in the mappings, and as a different intermediary name
@@ -167,7 +164,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 
 		Set<Pair<String, String>> methodsToRemove = new HashSet<>();
 
-		for (Map.Entry<MethodKey, Collection<MethodKey>> entry : overriddenIntermediaries.asMap().entrySet()) {
+		for (Map.Entry<MethodKey, ? extends Collection<MethodKey>> entry : overriddenIntermediaries.entrySet()) {
 			if (entry.getValue().size() >= 2) {
 				// We should remove these names from the mappings
 				// as the particular method is inherited by multiple different intermediary names
@@ -182,7 +179,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 	}
 
 	private static Pair<Multimap<String, String>, Set<MethodKey>> collectClassesAndMethods(Iterable<Path> jars) throws IOException {
-		Multimap<String, String> classInheritanceMap = Multimaps.newSetMultimap(new HashMap<>(), LinkedHashSet::new);
+		Multimap<String, String> classInheritanceMap = Multimap.setMultimap();
 		Set<MethodKey> methods = new HashSet<>();
 		Visitor visitor = new Visitor(Opcodes.ASM9, classInheritanceMap, methods);
 
@@ -197,9 +194,9 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 		}
 
 		// Populate class inheritance
-		Multimap<String, String> classes = Multimaps.newSetMultimap(new HashMap<>(), LinkedHashSet::new);
+		Multimap<String, String> classes = Multimap.setMultimap();
 
-		for (Map.Entry<String, Collection<String>> entry : classInheritanceMap.asMap().entrySet()) {
+		for (Map.Entry<String, ? extends Collection<String>> entry : classInheritanceMap.entrySet()) {
 			Set<String> allSuperClasses = new HashSet<>();
 
 			for (String superClass : entry.getValue()) {

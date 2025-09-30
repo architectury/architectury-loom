@@ -38,8 +38,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import com.google.common.hash.Hashing;
-import com.google.common.io.MoreFiles;
 import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.io.AccessTransformFormats;
 import dev.architectury.loom.forge.tool.AccessTransformerService;
@@ -56,6 +54,7 @@ import net.fabricmc.loom.api.processor.ProcessorContext;
 import net.fabricmc.loom.api.processor.SpecContext;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
+import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.LoomVersions;
@@ -81,14 +80,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 
 		for (File atFile : localAccessTransformers) {
 			final Path atPath = atFile.toPath();
-			final String hash;
-
-			try {
-				hash = MoreFiles.asByteSource(atPath).hash(Hashing.sha256()).toString();
-			} catch (IOException e) {
-				throw new UncheckedIOException("Could not compute AT hash", e);
-			}
-
+			final String hash = Checksum.of(atPath).sha256().hex();
 			entries.add(new AccessTransformerEntry.Standalone(atPath, hash));
 		}
 
@@ -104,7 +96,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 				throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Could not read accesstransformer.cfg", e);
 			}
 
-			final String hash = Hashing.sha256().hashBytes(bytes).toString();
+			final String hash = Checksum.of(bytes).sha256().hex();
 			entries.add(new AccessTransformerEntry.Mod(localMod, hash));
 		}
 

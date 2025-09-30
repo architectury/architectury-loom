@@ -32,9 +32,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Stopwatch;
 import dev.architectury.loom.forge.tool.ForgeToolExecutor;
 import dev.architectury.loom.forge.tool.ForgeToolService;
+import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Action;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;

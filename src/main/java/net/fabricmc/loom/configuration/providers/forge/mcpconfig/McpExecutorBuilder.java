@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -41,7 +40,6 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import com.google.common.base.Suppliers;
-import com.google.common.hash.Hashing;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.forge.tool.ForgeToolService;
@@ -64,6 +62,7 @@ import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.Patch
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.StepLogic;
 import net.fabricmc.loom.configuration.providers.forge.mcpconfig.steplogic.StripLogic;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.function.CollectionUtil;
 import net.fabricmc.loom.util.gradle.GradleUtils;
@@ -251,7 +250,7 @@ public final class McpExecutorBuilder {
 
 		@Override
 		public Path downloadFile(String url) throws IOException {
-			Path path = getDownloadCache().resolve(Hashing.sha256().hashString(url, StandardCharsets.UTF_8).toString().substring(0, 24));
+			Path path = getDownloadCache().resolve(Checksum.of(url).sha256().hex(24));
 
 			// If the file is already downloaded, we don't need to do anything.
 			if (Files.exists(path)) return path;

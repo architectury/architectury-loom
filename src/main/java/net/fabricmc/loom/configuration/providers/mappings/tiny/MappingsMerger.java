@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Stopwatch;
+import dev.architectury.loom.util.Stopwatch;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

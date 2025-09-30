@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2020-2023 FabricMC
+ * Copyright (c) 2020-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,8 +36,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
+import dev.architectury.loom.util.Multimap;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
@@ -72,7 +71,7 @@ public final class ForgeMappingsMerger {
 	private final FlatMappingVisitor flatOutput;
 	private final boolean lenient;
 	private final @Nullable MemoryMappingTree extra;
-	private final ListMultimap<MethodKey, MethodData> methodsByNewNs;
+	private final Multimap.Specialized<MethodKey, MethodData, List<MethodData>> methodsByNewNs;
 
 	private ForgeMappingsMerger(MemoryMappingTree newNs, MemoryMappingTree src, @Nullable ExtraMappings extraMappings, boolean lenient) throws IOException {
 		this.newNs = newNs;
@@ -81,7 +80,7 @@ public final class ForgeMappingsMerger {
 		this.output = new MemoryMappingTree();
 		this.flatOutput = new RegularAsFlatMappingVisitor(output);
 		this.lenient = lenient;
-		this.methodsByNewNs = ArrayListMultimap.create();
+		this.methodsByNewNs = Multimap.listMultimap();
 
 		if (extraMappings != null) {
 			this.extra = new MemoryMappingTree();

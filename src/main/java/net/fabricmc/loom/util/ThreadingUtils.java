@@ -37,7 +37,7 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Stopwatch;
+import dev.architectury.loom.util.Stopwatch;
 
 public class ThreadingUtils {
 	public static <T> void run(T[] values, UnsafeConsumer<T> action) {
