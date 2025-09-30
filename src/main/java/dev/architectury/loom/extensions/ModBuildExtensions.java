@@ -18,14 +18,14 @@ import java.util.jar.Manifest;
 
 import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.io.AccessTransformFormats;
+import dev.architectury.loom.accesstransformer.Aw2At;
+import dev.architectury.loom.util.LfWriter;
 import org.gradle.api.provider.Provider;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
-import net.fabricmc.loom.util.LfWriter;
-import net.fabricmc.loom.util.aw2at.Aw2At;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
 public final class ModBuildExtensions {

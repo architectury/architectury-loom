@@ -29,7 +29,7 @@ import java.io.UncheckedIOException;
 import java.util.function.Supplier;
 
 import com.google.common.base.Suppliers;
-import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.mappings.MappingOption;
 import org.cadixdev.lorenz.MappingSet;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Property;

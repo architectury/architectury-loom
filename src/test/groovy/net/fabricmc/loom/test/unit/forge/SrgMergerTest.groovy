@@ -27,10 +27,10 @@ package net.fabricmc.loom.test.unit.forge
 import java.nio.file.Files
 import java.nio.file.Path
 
+import dev.architectury.loom.mappings.ForgeMappingsMerger
 import spock.lang.Specification
 import spock.lang.TempDir
 
-import net.fabricmc.loom.util.srg.ForgeMappingsMerger
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.format.MappingFormat
 import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter

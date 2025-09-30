@@ -26,10 +26,10 @@ package net.fabricmc.loom.test.unit.forge
 
 import dev.architectury.at.AccessChange
 import dev.architectury.at.ModifierChange
+import dev.architectury.loom.accesstransformer.Aw2At
 import spock.lang.Specification
 
 import net.fabricmc.accesswidener.AccessWidenerReader
-import net.fabricmc.loom.util.aw2at.Aw2At
 
 class Aw2AtTest extends Specification {
 	def "test accessible"() {

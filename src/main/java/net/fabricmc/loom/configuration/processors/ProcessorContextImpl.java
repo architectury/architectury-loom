@@ -24,7 +24,7 @@
 
 package net.fabricmc.loom.configuration.processors;
 
-import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.mappings.MappingOption;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;

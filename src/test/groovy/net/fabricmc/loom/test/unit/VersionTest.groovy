@@ -24,9 +24,8 @@
 
 package net.fabricmc.loom.test.unit
 
+import dev.architectury.loom.util.Version
 import spock.lang.Specification
-
-import net.fabricmc.loom.util.Version
 
 class VersionTest extends Specification {
 	def "version comparison"() {

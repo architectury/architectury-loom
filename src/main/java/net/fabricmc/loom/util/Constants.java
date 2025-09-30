@@ -97,7 +97,7 @@ public class Constants {
 		 * The configuration used to create the Forge runtime classpath file list.
 		 * Users can also directly add files to this config.
 		 *
-		 * @see net.fabricmc.loom.configuration.providers.forge.ForgeUserdevProvider
+		 * @see dev.architectury.loom.forge.dependency.ForgeUserdevProvider
 		 */
 		public static final String FORGE_RUNTIME_LIBRARY = "forgeRuntimeLibrary";
 		public static final String MAPPING_CONSTANTS = "mappingsConstants";

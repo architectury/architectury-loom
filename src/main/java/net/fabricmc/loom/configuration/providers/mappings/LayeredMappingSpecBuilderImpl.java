@@ -28,17 +28,17 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import dev.architectury.loom.mappings.crane.CraneMappingsSpec;
 import org.gradle.api.Action;
 import org.jetbrains.annotations.Nullable;
 
+import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import net.fabricmc.loom.api.mappings.layered.spec.FileMappingsSpecBuilder;
 import net.fabricmc.loom.api.mappings.layered.spec.FileSpec;
 import net.fabricmc.loom.api.mappings.layered.spec.LayeredMappingSpecBuilder;
 import net.fabricmc.loom.api.mappings.layered.spec.MappingsSpec;
 import net.fabricmc.loom.api.mappings.layered.spec.MojangMappingsSpecBuilder;
 import net.fabricmc.loom.api.mappings.layered.spec.ParchmentMappingsSpecBuilder;
-import net.fabricmc.loom.api.LoomGradleExtensionAPI;
-import net.fabricmc.loom.configuration.providers.mappings.crane.CraneMappingsSpec;
 import net.fabricmc.loom.configuration.providers.mappings.extras.signatures.SignatureFixesSpec;
 import net.fabricmc.loom.configuration.providers.mappings.file.FileMappingsSpecBuilderImpl;
 import net.fabricmc.loom.configuration.providers.mappings.intermediary.IntermediaryMappingsSpec;

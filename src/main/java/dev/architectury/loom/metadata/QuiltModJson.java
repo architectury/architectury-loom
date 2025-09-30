@@ -14,6 +14,7 @@ import java.util.Set;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import dev.architectury.loom.util.collection.CollectionUtil;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.util.ModPlatform;
-import net.fabricmc.loom.util.function.CollectionUtil;
 
 public final class QuiltModJson implements JsonBackedModMetadataFile, SingleIdModMetadataFile {
 	public static final String FILE_NAME = "quilt.mod.json";

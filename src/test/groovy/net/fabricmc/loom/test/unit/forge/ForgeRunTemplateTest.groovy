@@ -30,11 +30,11 @@ import java.nio.file.Path
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
+import dev.architectury.loom.forge.config.ForgeRunTemplate
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.lang.Unroll
 
-import net.fabricmc.loom.configuration.providers.forge.ForgeRunTemplate
 import net.fabricmc.loom.util.ZipUtils
 import net.fabricmc.loom.util.download.Download
 

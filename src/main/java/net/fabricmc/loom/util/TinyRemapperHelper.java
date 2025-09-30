@@ -31,13 +31,14 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import dev.architectury.loom.util.MappingOption;
+import dev.architectury.loom.forge.InnerClassRemapper;
+import dev.architectury.loom.mappings.MappingException;
+import dev.architectury.loom.mappings.MappingOption;
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.service.ServiceFactory;
-import net.fabricmc.loom.util.srg.InnerClassRemapper;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MappingTreeView;

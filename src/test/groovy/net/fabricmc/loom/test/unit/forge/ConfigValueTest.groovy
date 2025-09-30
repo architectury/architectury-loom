@@ -24,9 +24,8 @@
 
 package net.fabricmc.loom.test.unit.forge
 
+import dev.architectury.loom.forge.config.ConfigValue
 import spock.lang.Specification
-
-import net.fabricmc.loom.configuration.providers.forge.ConfigValue
 
 class ConfigValueTest extends Specification {
 	def "bare value is constant"() {

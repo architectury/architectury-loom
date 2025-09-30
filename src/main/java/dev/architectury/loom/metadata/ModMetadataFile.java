@@ -3,11 +3,11 @@ package dev.architectury.loom.metadata;
 import java.util.List;
 import java.util.Set;
 
+import dev.architectury.loom.util.collection.CollectionUtil;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.util.ModPlatform;
-import net.fabricmc.loom.util.function.CollectionUtil;
 
 /**
  * The metadata file of a mod, such as {@link ArchitecturyCommonJson architectury.common.json} or

@@ -31,7 +31,7 @@ import java.nio.file.Path;
 
 import javax.inject.Inject;
 
-import dev.architectury.loom.util.ForgeLoggerConfig;
+import dev.architectury.loom.forge.ForgeLoggerConfig;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;

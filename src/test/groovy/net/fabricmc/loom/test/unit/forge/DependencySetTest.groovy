@@ -24,12 +24,11 @@
 
 package net.fabricmc.loom.test.unit.forge
 
+import dev.architectury.loom.forge.config.ConfigValue
+import dev.architectury.loom.mcpconfig.DependencySet
+import dev.architectury.loom.mcpconfig.McpConfigStep
 import spock.lang.Shared
 import spock.lang.Specification
-
-import net.fabricmc.loom.configuration.providers.forge.ConfigValue
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.DependencySet
-import net.fabricmc.loom.configuration.providers.forge.mcpconfig.McpConfigStep
 
 class DependencySetTest extends Specification {
 	/*

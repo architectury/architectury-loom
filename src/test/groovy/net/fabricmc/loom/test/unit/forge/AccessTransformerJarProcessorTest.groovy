@@ -27,12 +27,12 @@ package net.fabricmc.loom.test.unit.forge
 import java.nio.file.Files
 import java.nio.file.Path
 
+import dev.architectury.loom.accesstransformer.AccessTransformerJarProcessor
 import org.gradle.api.Project
 import spock.lang.Specification
 import spock.lang.TempDir
 
 import net.fabricmc.loom.api.processor.SpecContext
-import net.fabricmc.loom.configuration.accesstransformer.AccessTransformerJarProcessor
 import net.fabricmc.loom.util.ZipUtils
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory
 
