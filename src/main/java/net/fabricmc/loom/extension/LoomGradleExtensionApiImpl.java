@@ -36,7 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import com.google.common.base.Suppliers;
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
@@ -82,6 +81,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProv
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.util.DeprecationHelper;
+import net.fabricmc.loom.util.Lazy;
 import net.fabricmc.loom.util.MirrorUtil;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.fmj.FabricModJson;
@@ -217,7 +217,7 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		interfaceInjection(interfaceInjection -> {
 			interfaceInjection.getEnableDependencyInterfaceInjection().convention(true).finalizeValueOnRead();
 		});
-		this.platform = project.provider(Suppliers.memoize(() -> {
+		this.platform = project.provider(Lazy.of(() -> {
 			Object platformProperty = GradleUtils.getProperty(project, PLATFORM_PROPERTY);
 
 			if (platformProperty != null) {

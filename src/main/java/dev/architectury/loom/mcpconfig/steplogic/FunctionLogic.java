@@ -30,7 +30,6 @@ import java.io.UncheckedIOException;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 
-import com.google.common.base.Suppliers;
 import dev.architectury.loom.mcpconfig.McpConfigFunction;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
@@ -38,6 +37,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 
+import net.fabricmc.loom.util.Lazy;
 import net.fabricmc.loom.util.service.Service;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.service.ServiceType;
@@ -59,7 +59,7 @@ public final class FunctionLogic extends StepLogic<FunctionLogic.Options> {
 	public static Provider<Options> createOptions(SetupContext context, McpConfigFunction function) {
 		return TYPE.create(context.project(), options -> {
 			options.getFunction().set(function);
-			final Provider<File> jar = context.project().provider(Suppliers.memoize(() -> {
+			final Provider<File> jar = context.project().provider(Lazy.of(() -> {
 				try {
 					return function.download(context).toFile();
 				} catch (IOException e) {

@@ -39,7 +39,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedSet;
 
-import com.google.common.base.Suppliers;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.architectury.loom.forge.dependency.ForgeProvider;
@@ -65,6 +64,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.Lazy;
 import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.service.Service;
 
@@ -289,7 +289,7 @@ public final class McpExecutorBuilder {
 
 		@Override
 		public Provider<FileCollection> getMinecraftLibraries() {
-			return project().provider(Suppliers.memoize(() -> {
+			return project().provider(Lazy.of(() -> {
 				project.getLogger().lifecycle(":downloading minecraft libraries, this may take a while...");
 				// (1.2) minecraftRuntimeLibraries contains the compile-time libraries as well.
 				final Set<File> files = project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES).resolve();

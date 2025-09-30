@@ -35,7 +35,6 @@ import java.util.function.Supplier;
 
 import javax.inject.Inject;
 
-import com.google.common.base.Suppliers;
 import dev.architectury.loom.forge.dependency.DependencyProviders;
 import dev.architectury.loom.forge.dependency.ForgeRunsProvider;
 import org.gradle.api.Project;
@@ -63,6 +62,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.IntermediaryMi
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MojangMappedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftProvider;
+import net.fabricmc.loom.util.Lazy;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.download.Download;
 import net.fabricmc.loom.util.download.DownloadBuilder;
@@ -109,8 +109,8 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 		this.mixinApExtension = project.getObjects().newInstance(MixinExtensionImpl.class, project);
 		this.loomFiles = files;
 		this.unmappedMods = project.files();
-		this.forgeExtension = Suppliers.memoize(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
-		this.neoForgeExtension = Suppliers.memoize(() -> isNeoForge() ? project.getObjects().newInstance(NeoForgeExtensionImpl.class, project) : null);
+		this.forgeExtension = Lazy.of(() -> isForge() ? project.getObjects().newInstance(ForgeExtensionImpl.class, project, this) : null);
+		this.neoForgeExtension = Lazy.of(() -> isNeoForge() ? project.getObjects().newInstance(NeoForgeExtensionImpl.class, project) : null);
 
 		// Setup the default intermediate mappings provider.
 		setIntermediateMappingsProvider(IntermediaryMappingsProvider.class, provider -> {

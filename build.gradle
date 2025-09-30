@@ -73,6 +73,12 @@ configurations.configureEach {
 	}
 }
 
+// Arch: Prevent compiling against Guava.
+// The dependency is still leaked from DFU, but it shouldn't be used to keep up with upstream standards.
+configurations.named('compileClasspath') {
+	exclude group: 'com.google.guava'
+}
+
 sourceSets {
 	commonDecompiler {
 		java {

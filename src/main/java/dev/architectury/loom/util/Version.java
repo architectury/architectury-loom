@@ -25,11 +25,10 @@
 package dev.architectury.loom.util;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Ordering;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,12 +57,16 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 		}
 
 		int major = Integer.parseInt(matcher.group(1));
-		int minor = !Strings.isNullOrEmpty(matcher.group(2)) ? Integer.parseInt(matcher.group(2)) : 0;
-		int micro = !Strings.isNullOrEmpty(matcher.group(3)) ? Integer.parseInt(matcher.group(3)) : 0;
-		int patch = !Strings.isNullOrEmpty(matcher.group(4)) ? Integer.parseInt(matcher.group(4)) : 0;
+		int minor = !isNullOrEmpty(matcher.group(2)) ? Integer.parseInt(matcher.group(2)) : 0;
+		int micro = !isNullOrEmpty(matcher.group(3)) ? Integer.parseInt(matcher.group(3)) : 0;
+		int patch = !isNullOrEmpty(matcher.group(4)) ? Integer.parseInt(matcher.group(4)) : 0;
 		String qualifier = matcher.group(5);
 
 		return new Version(major, minor, micro, patch, qualifier == null ? null : qualifier.toLowerCase(Locale.ROOT));
+	}
+
+	private static boolean isNullOrEmpty(@Nullable String s) {
+		return s == null || s.isEmpty();
 	}
 
 	public Version asBaseVersion() {
@@ -80,9 +83,16 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 			return this.micro - other.micro;
 		} else if (this.patch != other.patch) {
 			return this.patch - other.patch;
+		} else if (!Objects.equals(this.qualifier, other.qualifier)) {
+			if (this.qualifier == null) {
+				return 1;
+			} else if (other.qualifier == null) {
+				return -1;
+			}
+
+			return this.qualifier.compareTo(other.qualifier);
 		} else {
-			return Ordering.natural().nullsLast()
-					.compare(this.qualifier, other.qualifier);
+			return 0;
 		}
 	}
 }

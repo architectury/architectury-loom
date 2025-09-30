@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import com.google.common.base.Preconditions;
 import dev.architectury.loom.forge.dependency.SrgProvider;
 import dev.architectury.loom.util.collection.CollectionUtil;
 import dev.architectury.loom.util.collection.Multimap;
@@ -43,6 +42,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.util.Check;
 import net.fabricmc.mappingio.FlatMappingVisitor;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingVisitor;
@@ -58,8 +58,6 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 /**
  * Merges a Tiny file with a new namespace.
- *
- * @author Juuz
  */
 public final class ForgeMappingsMerger {
 	private static final List<String> INPUT_NAMESPACES = List.of("official", "intermediary", "named");
@@ -74,7 +72,7 @@ public final class ForgeMappingsMerger {
 
 	private ForgeMappingsMerger(MemoryMappingTree newNs, MemoryMappingTree src, @Nullable ExtraMappings extraMappings, boolean lenient) throws IOException {
 		this.newNs = newNs;
-		Preconditions.checkArgument(this.newNs.getDstNamespaces().size() == 1, "New namespace must have exactly one destination namespace");
+		Check.require(this.newNs.getDstNamespaces().size() == 1, "New namespace must have exactly one destination namespace");
 		this.src = src;
 		this.output = new MemoryMappingTree();
 		this.flatOutput = new RegularAsFlatMappingVisitor(output);

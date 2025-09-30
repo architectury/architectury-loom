@@ -49,7 +49,6 @@ import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import com.google.common.base.Preconditions;
 import de.oceanlabs.mcp.mcinjector.adaptors.ParameterAnnotationFixer;
 import dev.architectury.loom.accesstransformer.AccessTransformerService;
 import dev.architectury.loom.forge.CoreModClassRemapper;
@@ -84,6 +83,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.mappings.TinyMappingsService;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.TinyRemapperHelper;
@@ -614,7 +614,7 @@ public class MinecraftPatchedProvider {
 		try (FileSystemUtil.Delegate delegate = FileSystemUtil.getJarFileSystem(target, false)) {
 			Path manifestPath = delegate.get().getPath("META-INF/MANIFEST.MF");
 
-			Preconditions.checkArgument(Files.exists(manifestPath), "META-INF/MANIFEST.MF does not exist in patched srg jar!");
+			Check.require(Files.exists(manifestPath), "META-INF/MANIFEST.MF does not exist in patched srg jar!");
 			Manifest manifest = new Manifest();
 
 			if (Files.exists(manifestPath)) {
