@@ -48,13 +48,13 @@ import org.gradle.api.Project;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter;
@@ -183,7 +183,7 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 			}
 		}
 
-		Visitor visitor = new Visitor(Opcodes.ASM9);
+		Visitor visitor = new Visitor(Constants.ASM_VERSION);
 		FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(patchedJar, false);
 		completer.onComplete(value -> system.close());
 

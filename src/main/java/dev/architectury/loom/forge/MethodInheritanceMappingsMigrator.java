@@ -48,11 +48,11 @@ import org.gradle.api.logging.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.mappingio.MappingReader;
@@ -182,7 +182,7 @@ public final class MethodInheritanceMappingsMigrator implements MappingsMigrator
 	private static Pair<Multimap<String, String>, Set<MethodKey>> collectClassesAndMethods(Iterable<Path> jars) throws IOException {
 		Multimap<String, String> classInheritanceMap = Multimap.setMultimap();
 		Set<MethodKey> methods = new HashSet<>();
-		Visitor visitor = new Visitor(Opcodes.ASM9, classInheritanceMap, methods);
+		Visitor visitor = new Visitor(Constants.ASM_VERSION, classInheritanceMap, methods);
 
 		for (Path jar : jars) {
 			try (FileSystemUtil.Delegate system = FileSystemUtil.getJarFileSystem(jar, false)) {

@@ -78,7 +78,6 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -339,10 +338,10 @@ public class MinecraftPatchedProvider {
 					ClassReader reader = new ClassReader(bytes);
 					ClassWriter writer = new ClassWriter(0);
 
-					reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
+					reader.accept(new ClassVisitor(Constants.ASM_VERSION, writer) {
 						@Override
 						public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-							return new MethodVisitor(Opcodes.ASM9, super.visitMethod(access, name, descriptor, signature, exceptions)) {
+							return new MethodVisitor(Constants.ASM_VERSION, super.visitMethod(access, name, descriptor, signature, exceptions)) {
 								@Override
 								public void visitParameter(String name, int access) {
 									if (name != null && vignetteParameters.matcher(name).matches()) {

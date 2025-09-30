@@ -5,6 +5,8 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import net.fabricmc.loom.util.Constants;
+
 /**
  * Patches {@code ModDirTransformerDiscovererPatch} in Forge 49.0.50+ so that it doesn't try to create modules
  * directly out of UnionFS root paths created by Union Relauncher. SecureModules can't infer the module names
@@ -12,7 +14,7 @@ import org.objectweb.asm.Opcodes;
  */
 public final class ModDirTransformerDiscovererPatch extends ClassVisitor {
 	public ModDirTransformerDiscovererPatch(ClassVisitor classVisitor) {
-		super(Opcodes.ASM9, classVisitor);
+		super(Constants.ASM_VERSION, classVisitor);
 	}
 
 	@Override
@@ -20,7 +22,7 @@ public final class ModDirTransformerDiscovererPatch extends ClassVisitor {
 		MethodVisitor next = super.visitMethod(access, name, descriptor, signature, exceptions);
 
 		if (name.equals("isServiceProvider") && descriptor.equals("(Ljava/nio/file/Path;)Z")) {
-			return new MethodVisitor(Opcodes.ASM9, next) {
+			return new MethodVisitor(Constants.ASM_VERSION, next) {
 				@Override
 				public void visitCode() {
 					super.visitCode();
