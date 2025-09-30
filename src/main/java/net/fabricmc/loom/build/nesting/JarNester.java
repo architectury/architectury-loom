@@ -39,8 +39,8 @@ import org.gradle.api.UncheckedIOException;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
-import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Pair;
 import net.fabricmc.loom.util.ZipUtils;
@@ -118,7 +118,7 @@ public class JarNester {
 
 				for (File file : jars) {
 					String nestedJarPath = "META-INF/jars/" + file.getName();
-					Preconditions.checkArgument(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
+					Check.require(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
 
 					for (JsonElement nestedJar : nestedJars) {
 						String nestedJarString = nestedJar.getAsString();

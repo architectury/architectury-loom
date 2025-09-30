@@ -50,7 +50,7 @@ public abstract class MixinExtensionApiImpl implements MixinExtensionAPI {
 	public MixinExtensionApiImpl(Project project) {
 		this.project = Objects.requireNonNull(project);
 		this.useMixinAp = project.getObjects().property(Boolean.class)
-				.convention(false);
+				.convention(project.provider(() -> shouldUseMixinApByDefault(project)));
 
 		this.refmapTargetNamespace = project.getObjects().property(String.class)
 				.convention(project.provider(() -> IntermediaryNamespaces.runtimeIntermediary(project)));
@@ -61,6 +61,10 @@ public abstract class MixinExtensionApiImpl implements MixinExtensionAPI {
 
 		this.showMessageTypes = project.getObjects().property(Boolean.class);
 		this.showMessageTypes.convention(false).finalizeValueOnRead();
+	}
+
+	private static boolean shouldUseMixinApByDefault(Project project) {
+		return LoomGradleExtension.get(project).isForge() && !LoomGradleExtension.get(project).getForgeProvider().usesMojangAtRuntime();
 	}
 
 	protected final PatternSet add0(SourceSet sourceSet, String refmapName) {

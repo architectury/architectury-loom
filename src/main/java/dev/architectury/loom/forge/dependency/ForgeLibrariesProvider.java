@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import dev.architectury.loom.forge.ModDirTransformerDiscovererPatch;
 import dev.architectury.loom.forge.RemapObjectHolderVisitor;
@@ -197,7 +199,8 @@ public class ForgeLibrariesProvider {
 
 			// Copy sources when not running under CI.
 			if (!ModConfigurationRemapper.isCIBuild()) {
-				final Path sourcesJar = ModConfigurationRemapper.findSources(project, artifact);
+				final Map<ResolvedArtifact, Path> sourcesByArtifact = ModConfigurationRemapper.downloadAllSources(project, Set.of(artifact));
+				final Path sourcesJar = sourcesByArtifact.get(artifact);
 
 				if (sourcesJar != null) {
 					mavenHelper.copyToMaven(sourcesJar, "sources");

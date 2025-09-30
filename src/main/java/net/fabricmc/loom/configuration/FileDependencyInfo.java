@@ -117,7 +117,7 @@ public class FileDependencyInfo extends DependencyInfo {
 					}
 
 					version = json.get("version").getAsString();
-				} else if ("jar".equals(FilenameUtils.getExtension(root.getName())) && (modJson = ZipUtils.unpackNullable(root.toPath(), "quilt.mod.json")) != null) {
+				} else if ("jar".equals(getExtension(root)) && (modJson = ZipUtils.unpackNullable(root.toPath(), "quilt.mod.json")) != null) {
 					//It's a Fabric mod, see how much we can extract out
 					JsonObject json = new Gson().fromJson(new String(modJson, StandardCharsets.UTF_8), JsonObject.class);
 

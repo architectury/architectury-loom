@@ -70,11 +70,12 @@ import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependencyFactory;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependencyOptions;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
+import net.fabricmc.loom.util.AsyncCache;
 import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.SourceRemapper;
-import net.fabricmc.loom.util.AsyncCache;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
@@ -164,7 +165,8 @@ public class ModConfigurationRemapper {
 			 */
 			final Configuration clientRemappedConfig = clientConfigsToRemap.get(sourceConfig);
 			List<ArtifactRef> artifactRefs = resolveArtifacts(project, sourceConfig);
-			Map<ArtifactRef, ArtifactMetadata> metadataMap = getMetadata(artifactRefs, metaCache);
+			@Nullable Boolean forcesStaticMixinRemap = extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime() ? true : null;
+			Map<ArtifactRef, ArtifactMetadata> metadataMap = getMetadata(artifactRefs, metaCache, project, extension.getPlatform().get(), forcesStaticMixinRemap);
 			final List<ModDependency> modDependencies = new ArrayList<>();
 
 			for (ArtifactRef artifact : artifactRefs) {
@@ -232,13 +234,13 @@ public class ModConfigurationRemapper {
 		});
 	}
 
-	private static Map<ArtifactRef, ArtifactMetadata> getMetadata(List<ArtifactRef> artifacts, AsyncCache<ArtifactMetadata> cache) {
+	private static Map<ArtifactRef, ArtifactMetadata> getMetadata(List<ArtifactRef> artifacts, AsyncCache<ArtifactMetadata> cache, @Nullable Project project, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap) {
 		var futures = new HashMap<ArtifactRef, CompletableFuture<ArtifactMetadata>>();
 
 		for (ArtifactRef artifact : artifacts) {
 			CompletableFuture<ArtifactMetadata> future = cache.get(artifact, () -> {
 				try {
-					return ArtifactMetadata.create(artifact, LoomGradlePlugin.LOOM_VERSION);
+					return ArtifactMetadata.create(project, artifact, LoomGradlePlugin.LOOM_VERSION, platform, forcesStaticMixinRemap);
 				} catch (IOException e) {
 					throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Failed to read metadata from " + artifact.path(), e);
 				}
@@ -304,7 +306,7 @@ public class ModConfigurationRemapper {
 		return (dotIndex == -1) ? fileName : fileName.substring(0, dotIndex);
 	}
 
-	private static Map<ResolvedArtifact, Path> downloadAllSources(Project project, Set<ResolvedArtifact> resolvedArtifacts) {
+	public static Map<ResolvedArtifact, Path> downloadAllSources(Project project, Set<ResolvedArtifact> resolvedArtifacts) {
 		if (isCIBuild()) {
 			return Map.of();
 		}
