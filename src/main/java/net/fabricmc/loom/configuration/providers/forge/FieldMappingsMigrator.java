@@ -37,7 +37,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
@@ -48,6 +47,8 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Opcodes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
@@ -61,6 +62,8 @@ import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public final class FieldMappingsMigrator implements MappingsMigrator {
+	private static final Logger LOGGER = LoggerFactory.getLogger(FieldMappingsMigrator.class);
+
 	private List<Map.Entry<FieldMember, String>> migratedFields = new ArrayList<>();
 	public Path migratedFieldsCache;
 
@@ -84,9 +87,9 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 			migratedFields.clear();
 
 			if (hasSrg) {
-				migratedFields.addAll(generateNewFieldMigration(project, MinecraftPatchedProvider.get(project).getMinecraftPatchedIntermediateJar(), MappingsNamespace.SRG.toString(), rawMappings).entrySet());
+				migratedFields.addAll(generateNewFieldMigration(MinecraftPatchedProvider.get(project).getMinecraftPatchedIntermediateJar(), MappingsNamespace.SRG.toString(), rawMappings).entrySet());
 			} else if (hasMojang) {
-				migratedFields.addAll(generateNewFieldMigration(project, MinecraftPatchedProvider.get(project).getMinecraftPatchedIntermediateJar(), MappingsNamespace.MOJANG.toString(), rawMappings).entrySet());
+				migratedFields.addAll(generateNewFieldMigration(MinecraftPatchedProvider.get(project).getMinecraftPatchedIntermediateJar(), MappingsNamespace.MOJANG.toString(), rawMappings).entrySet());
 			}
 
 			Map<String, String> map = new HashMap<>();
@@ -111,7 +114,7 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 			throw new UncheckedIOException(e);
 		}
 
-		project.getLogger().info(":migrated {} fields in " + stopwatch.stop(), extension.getPlatform().get().id());
+		LOGGER.info(":migrated {} fields in {}", extension.getPlatform().get().id(), stopwatch.stop());
 	}
 
 	public void updateFieldMigration(Project project, List<MappingsEntry> entries) throws IOException {
@@ -156,9 +159,8 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 		}
 	}
 
-	private static Map<FieldMember, String> generateNewFieldMigration(Project project, Path patchedJar, String patchedJarNamespace, Path mappingsPath) throws IOException {
+	private static Map<FieldMember, String> generateNewFieldMigration(Path patchedJar, String patchedJarNamespace, Path mappingsPath) throws IOException {
 		Map<FieldMember, String> fieldDescriptorMap = new ConcurrentHashMap<>();
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		ThreadingUtils.TaskCompleter completer = ThreadingUtils.taskCompleter();
 
 		class Visitor extends ClassVisitor {
@@ -212,7 +214,7 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 						String newDescriptorIntermediary = mappings.mapDesc(newDescriptor, mappings.getNamespaceId(patchedJarNamespace),
 								mappings.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString()));
 						migratedFields.put(new FieldMember(ownerIntermediary, fieldIntermediary), newDescriptorIntermediary);
-						project.getLogger().info("Found migration of " + ownerIntermediary + "#" + fieldIntermediary + ": " + descriptorIntermediary + " -> " + newDescriptorIntermediary);
+						LOGGER.info("Found migration of {}#{}: {} -> {}", ownerIntermediary, fieldIntermediary, descriptorIntermediary, newDescriptorIntermediary);
 					}
 				}
 			}
@@ -221,26 +223,6 @@ public final class FieldMappingsMigrator implements MappingsMigrator {
 		return migratedFields;
 	}
 
-	public static class FieldMember {
-		public String owner;
-		public String field;
-
-		public FieldMember(String owner, String field) {
-			this.owner = owner;
-			this.field = field;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (o == null || getClass() != o.getClass()) return false;
-			FieldMember that = (FieldMember) o;
-			return Objects.equals(owner, that.owner) && Objects.equals(field, that.field);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(owner, field);
-		}
+	private record FieldMember(String owner, String field) {
 	}
 }
