@@ -19,7 +19,6 @@ checkstyle = "10.26.1"
 codenarc = "3.6.0"
 
 # Architectury libraries
-forge-installer-tools = "1.2.0"
 lorenz = "0.5.3"
 mcinjector = "3.8.0"
 opencsv = "5.4"
@@ -54,7 +53,6 @@ kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", v
 kotlin-metadata = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
 
 # Architectury
-forge-installer-tools = { module = "net.minecraftforge:installertools", version.ref = "forge-installer-tools" }
 lorenz = { module = "org.cadixdev:lorenz", version.ref = "lorenz" }
 mcinjector = { module = "de.oceanlabs.mcp:mcinjector", version.ref = "mcinjector" }
 opencsv = { module = "com.opencsv:opencsv", version.ref = "opencsv" }

@@ -160,7 +160,6 @@ dependencies {
 	compileOnly libs.kotlin.gradle.plugin
 
 	// Forge patches
-	implementation libs.forge.installer.tools
 	implementation libs.lorenz
 	implementation libs.mcinjector
 	implementation libs.opencsv

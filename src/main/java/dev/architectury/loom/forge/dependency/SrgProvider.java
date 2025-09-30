@@ -27,17 +27,16 @@ package dev.architectury.loom.forge.dependency;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-import dev.architectury.loom.util.NullOutputStream;
+import dev.architectury.loom.forge.tool.ForgeToolValueSource;
+import dev.architectury.loom.util.DependencyDownloader;
 import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Project;
-import org.gradle.api.logging.LogLevel;
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -47,6 +46,7 @@ import net.fabricmc.loom.configuration.providers.mappings.GradleMappingContext;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingLayer;
 import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.mappingio.MappingReader;
 import net.fabricmc.mappingio.MappingVisitor;
@@ -57,6 +57,8 @@ import net.fabricmc.mappingio.tree.MappingTree;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
 public class SrgProvider extends DependencyProvider {
+	private static final String INSTALLER_TOOLS_MAIN_CLASS = "net.minecraftforge.installertools.ConsoleTool";
+
 	private Path srg;
 	private Boolean isTsrgV2;
 	private Path mergedMojangRaw;
@@ -84,25 +86,23 @@ public class SrgProvider extends DependencyProvider {
 			if (!Files.exists(mergedMojangRaw) || !Files.exists(mergedMojangTrimmed) || refreshDeps()) {
 				Stopwatch stopwatch = Stopwatch.createStarted();
 				getProject().getLogger().lifecycle(":merging mappings (InstallerTools, srg + mojmap)");
-				PrintStream out = System.out;
-				PrintStream err = System.err;
-
-				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
-					System.setOut(new PrintStream(NullOutputStream.INSTANCE));
-					System.setErr(new PrintStream(NullOutputStream.INSTANCE));
-				}
 
 				Files.deleteIfExists(mergedMojangRaw);
-				net.minecraftforge.installertools.ConsoleTool.main(new String[] {
-						"--task",
-						"MERGE_MAPPING",
-						"--left",
-						getSrg().toAbsolutePath().toString(),
-						"--right",
-						getMojmapTsrg2(getProject(), getExtension()).toAbsolutePath().toString(),
-						"--classes",
-						"--output",
-						mergedMojangRaw.toAbsolutePath().toString()
+				Path mojmapTsrg2 = getMojmapTsrg2(getProject(), getExtension());
+				ForgeToolValueSource.exec(getProject(), settings -> {
+					settings.classpath(DependencyDownloader.download(getProject(), LoomVersions.FORGE_INSTALLER_TOOLS.mavenNotation()));
+					settings.getMainClass().set(INSTALLER_TOOLS_MAIN_CLASS);
+					settings.args(
+							"--task",
+							"MERGE_MAPPING",
+							"--left",
+							getSrg().toAbsolutePath().toString(),
+							"--right",
+							mojmapTsrg2.toAbsolutePath().toString(),
+							"--classes",
+							"--output",
+							mergedMojangRaw.toAbsolutePath().toString()
+					);
 				});
 
 				MemoryMappingTree tree = new MemoryMappingTree();
@@ -111,11 +111,6 @@ public class SrgProvider extends DependencyProvider {
 
 				try (MappingWriter writer = MappingWriter.create(mergedMojangTrimmed, MappingFormat.TSRG_2_FILE)) {
 					tree.accept(writer);
-				}
-
-				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
-					System.setOut(out);
-					System.setErr(err);
 				}
 
 				getProject().getLogger().lifecycle(":merged mappings (InstallerTools, srg + mojmap) in " + stopwatch.stop());
