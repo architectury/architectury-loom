@@ -14,11 +14,22 @@ import net.fabricmc.loom.util.ExceptionUtil;
 
 public final class ClassVisitorUtil {
 	public static void rewriteClassFile(Path path, UnaryOperator<ClassVisitor> visitorFactory) throws IOException {
+		rewriteClassFile(path, false, visitorFactory);
+	}
+
+	public static void rewriteClassFile(Path path, boolean recomputeFrames, UnaryOperator<ClassVisitor> visitorFactory) throws IOException {
 		try {
 			final byte[] inputBytes = Files.readAllBytes(path);
 			final var reader = new ClassReader(inputBytes);
-			final var writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-			reader.accept(visitorFactory.apply(writer), 0);
+			final var writer = new ClassWriter(recomputeFrames ? ClassWriter.COMPUTE_FRAMES : 0);
+			final ClassVisitor visitor = visitorFactory.apply(writer);
+
+			// If we're not doing any changes to the file, no need to process it.
+			if (visitor == writer) {
+				return;
+			}
+
+			reader.accept(visitor, 0);
 			final byte[] outputBytes = writer.toByteArray();
 
 			if (!Arrays.equals(inputBytes, outputBytes)) {
