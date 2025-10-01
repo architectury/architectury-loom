@@ -6,7 +6,6 @@ import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.Constants;
@@ -106,7 +105,7 @@ public final class StringConstantPatcher extends ClassVisitor {
 
 	private final class MethodPatcher extends MethodVisitor {
 		MethodPatcher(MethodVisitor next) {
-			super(Opcodes.ASM9, next);
+			super(Constants.ASM_VERSION, next);
 		}
 
 		@Override
