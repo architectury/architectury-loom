@@ -35,7 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Stopwatch;
-import org.apache.commons.io.output.NullOutputStream;
+import dev.architectury.loom.util.NullOutputStream;
 import org.gradle.api.Project;
 import org.gradle.api.logging.LogLevel;
 import org.jetbrains.annotations.Nullable;
@@ -88,8 +88,8 @@ public class SrgProvider extends DependencyProvider {
 				PrintStream err = System.err;
 
 				if (getProject().getGradle().getStartParameter().getLogLevel().compareTo(LogLevel.LIFECYCLE) >= 0) {
-					System.setOut(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM));
-					System.setErr(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM));
+					System.setOut(new PrintStream(NullOutputStream.INSTANCE));
+					System.setErr(new PrintStream(NullOutputStream.INSTANCE));
 				}
 
 				Files.deleteIfExists(mergedMojangRaw);

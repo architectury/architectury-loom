@@ -3,7 +3,7 @@ package dev.architectury.loom.forge.tool;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.io.output.NullOutputStream;
+import dev.architectury.loom.util.NullOutputStream;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.logging.LogLevel;

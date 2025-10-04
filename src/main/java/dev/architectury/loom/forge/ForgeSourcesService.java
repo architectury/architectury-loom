@@ -16,8 +16,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 import dev.architectury.loom.forge.tool.ForgeToolExecutor;
+import dev.architectury.loom.util.NullOutputStream;
 import dev.architectury.loom.util.TempFiles;
-import org.apache.commons.io.output.NullOutputStream;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.logging.Logger;
