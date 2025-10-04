@@ -5,7 +5,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import org.apache.commons.io.output.NullOutputStream;
+import dev.architectury.loom.util.NullOutputStream;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -77,13 +77,13 @@ public abstract class ForgeToolExecutor {
 			if (settings.getShowVerboseStdout().get()) {
 				spec.setStandardOutput(System.out);
 			} else {
-				spec.setStandardOutput(NullOutputStream.NULL_OUTPUT_STREAM);
+				spec.setStandardOutput(NullOutputStream.INSTANCE);
 			}
 
 			if (settings.getShowVerboseStderr().get()) {
 				spec.setErrorOutput(System.err);
 			} else {
-				spec.setErrorOutput(NullOutputStream.NULL_OUTPUT_STREAM);
+				spec.setErrorOutput(NullOutputStream.INSTANCE);
 			}
 		});
 	}

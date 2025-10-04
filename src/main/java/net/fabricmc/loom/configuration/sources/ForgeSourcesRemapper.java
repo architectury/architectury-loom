@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 
 import dev.architectury.loom.forge.tool.ForgeToolExecutor;
 import dev.architectury.loom.util.MappingOption;
-import org.apache.commons.io.output.NullOutputStream;
+import dev.architectury.loom.util.NullOutputStream;
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.mercury.Mercury;
 import org.cadixdev.mercury.remapper.MercuryRemapper;
@@ -171,8 +171,8 @@ public class ForgeSourcesRemapper {
 		PrintStream err = System.err;
 
 		if (!ForgeToolExecutor.shouldShowVerboseStderr(project)) {
-			System.setOut(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM));
-			System.setErr(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM));
+			System.setOut(new PrintStream(NullOutputStream.INSTANCE));
+			System.setErr(new PrintStream(NullOutputStream.INSTANCE));
 		}
 
 		remapForgeSourcesInner(project, serviceFactory, tmpInput.toPath(), tmpOutput.toPath());
