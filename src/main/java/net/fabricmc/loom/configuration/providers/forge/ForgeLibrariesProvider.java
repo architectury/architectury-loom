@@ -64,10 +64,7 @@ public class ForgeLibrariesProvider {
 	private static final String FML_LOADER_NAME = "fmlloader";
 	private static final String FANCYML_LOADER_GROUP = "net.neoforged.fancymodloader";
 	private static final String FANCYML_LOADER_NAME = "loader";
-
-	// Versions in this range will use Unprotect's FancyModLoader backend.
 	private static final Version FANCYML_LOADER_UNPROTECT_BACKEND_VERSION = Version.parse("10.0.14");
-	private static final Version FANCYML_LOADER_LEGACY_VERSION_START = Version.parse("47.0.0");
 
 	private static final String FORGE_OBJECT_HOLDER_FILE = "net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class";
 	private static final String FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE = "net/minecraftforge/fml/loading/ModDirTransformerDiscoverer.class";
@@ -131,12 +128,10 @@ public class ForgeLibrariesProvider {
 			final boolean isFML = FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName());
 			final boolean isFancyML = FANCYML_LOADER_GROUP.equals(id.getGroup()) && FANCYML_LOADER_NAME.equals(id.getName());
 
-			if (isFancyML) {
-				final Version version = Version.parse(id.getVersion());
-
-				if (version.compareTo(FANCYML_LOADER_UNPROTECT_BACKEND_VERSION) >= 0 && version.compareTo(FANCYML_LOADER_LEGACY_VERSION_START) < 0) {
-					isFancyModLoader10OrNewer = true;
-				}
+			if (isFancyML && extension.isNeoForge() && Version.parse(id.getVersion()).compareTo(FANCYML_LOADER_UNPROTECT_BACKEND_VERSION) >= 0) {
+				// Note: check extension.isNeoForge() to prevent this check triggering on legacy "47.x" versions of FML
+				// from before Neo replaced the versioning scheme.
+				isFancyModLoader10OrNewer = true;
 			}
 
 			if (isFML || isFancyML) {
