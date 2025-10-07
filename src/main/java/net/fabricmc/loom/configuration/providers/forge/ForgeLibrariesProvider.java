@@ -53,7 +53,9 @@ import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.PropertyUtil;
+import net.fabricmc.loom.util.Version;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.srg.ForgeMappingsMerger;
@@ -68,6 +70,7 @@ public class ForgeLibrariesProvider {
 	private static final String FML_LOADER_NAME = "fmlloader";
 	private static final String FANCYML_LOADER_GROUP = "net.neoforged.fancymodloader";
 	private static final String FANCYML_LOADER_NAME = "loader";
+	private static final Version FANCYML_LOADER_UNPROTECT_BACKEND_VERSION = Version.parse("10.0.14");
 
 	private static final String FORGE_OBJECT_HOLDER_FILE = "net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class";
 	private static final String FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE = "net/minecraftforge/fml/loading/ModDirTransformerDiscoverer.class";
@@ -126,11 +129,17 @@ public class ForgeLibrariesProvider {
 				.detachedConfiguration(dependencies.toArray(new Dependency[0]))
 				.getResolvedConfiguration();
 
+		boolean isFancyModLoader10OrNewer = false;
+
 		for (ResolvedArtifact artifact : config.getResolvedArtifacts()) {
 			final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
 			final Object dep;
 			final boolean isFML = FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName());
 			final boolean isFancyML = FANCYML_LOADER_GROUP.equals(id.getGroup()) && FANCYML_LOADER_NAME.equals(id.getName());
+
+			if (isFancyML && Version.parse(id.getVersion()).compareTo(FANCYML_LOADER_UNPROTECT_BACKEND_VERSION) >= 0) {
+				isFancyModLoader10OrNewer = true;
+			}
 
 			if (isFML || isFancyML) {
 				// If FML, remap it.
@@ -157,6 +166,9 @@ public class ForgeLibrariesProvider {
 
 			DependencyProvider.addDependency(project, dep, Constants.Configurations.FORGE_DEPENDENCIES);
 		}
+
+		LoomVersions unprotect = isFancyModLoader10OrNewer ? LoomVersions.UNPROTECT_FANCYMODLOADER10 : LoomVersions.UNPROTECT_MODLAUNCHER;
+		DependencyProvider.addDependency(project, unprotect.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
 	}
 
 	// Returns a Gradle dependency notation.
