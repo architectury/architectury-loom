@@ -137,7 +137,9 @@ public class ForgeLibrariesProvider {
 			final boolean isFML = FML_LOADER_GROUP.equals(id.getGroup()) && FML_LOADER_NAME.equals(id.getName());
 			final boolean isFancyML = FANCYML_LOADER_GROUP.equals(id.getGroup()) && FANCYML_LOADER_NAME.equals(id.getName());
 
-			if (isFancyML && Version.parse(id.getVersion()).compareTo(FANCYML_LOADER_UNPROTECT_BACKEND_VERSION) >= 0) {
+			if (isFancyML && extension.isNeoForge() && Version.parse(id.getVersion()).compareTo(FANCYML_LOADER_UNPROTECT_BACKEND_VERSION) >= 0) {
+				// Note: check extension.isNeoForge() to prevent this check triggering on legacy "47.x" versions of FML
+				// from before Neo replaced the versioning scheme.
 				isFancyModLoader10OrNewer = true;
 			}
 
