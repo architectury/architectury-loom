@@ -28,20 +28,28 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 
 public abstract class AbstractLoomTask extends DefaultTask {
 	@Input
+	@Optional
 	@ApiStatus.Internal
 	protected abstract Property<ModPlatform> getModPlatform();
 
 	public AbstractLoomTask() {
 		setGroup(Constants.TaskGroup.FABRIC);
-		getModPlatform().value(getExtension().getPlatform()).finalizeValue();
+
+		// Store the platform if Loom is applied.
+		// This code might run in projects without Loom, such as Loom Companion projects.
+		if (getProject().getPluginManager().hasPlugin(LoomGradlePlugin.NAME)) {
+			getModPlatform().value(getExtension().getPlatform()).finalizeValue();
+		}
 	}
 
 	@Internal
