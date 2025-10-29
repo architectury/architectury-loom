@@ -274,7 +274,7 @@ gradlePlugin {
 			implementationClass = 'net.fabricmc.loom.LoomGradlePlugin'
 		}
 		fabricLoomCompanion {
-			id = 'net.fabricmc.fabric-loom-companion'
+			id = 'dev.architectury.loom-companion'
 			implementationClass = 'net.fabricmc.loom.LoomCompanionGradlePlugin'
 		}
 	}

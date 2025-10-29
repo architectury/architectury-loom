@@ -33,7 +33,7 @@ import net.fabricmc.loom.task.launch.ExportClasspathTask;
 import net.fabricmc.loom.util.Constants;
 
 public class LoomCompanionGradlePlugin implements Plugin<Project> {
-	public static final String NAME = "net.fabricmc.fabric-loom-companion";
+	public static final String NAME = "dev.architectury.loom-companion";
 
 	@Override
 	public void apply(@NotNull Project project) {
