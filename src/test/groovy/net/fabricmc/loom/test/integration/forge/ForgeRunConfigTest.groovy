@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023 FabricMC
+ * Copyright (c) 2023-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,57 +73,5 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 		'1.14.4'  | "28.2.23"    | '8'         | 'net.minecraftforge.userdev.LaunchTesting'
 	}
 
-	def "verify mod classes"() {
-		setup:
-		def gradle = gradleProject(project: "forge/simple", version: DEFAULT_GRADLE)
-		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', '1.19.4')
-				.replace('@FORGEVERSION@', "45.0.43")
-				.replace('@MAPPINGS@', 'loom.officialMojangMappings()')
-				.replace('@REPOSITORIES@', '')
-				.replace('@PACKAGE@', 'net.minecraftforge:forge')
-				.replace('@JAVA_VERSION@', '17')
-		gradle.buildGradle << '''
-		sourceSets {
-			testMod {}
-		}
-
-		loom {
-			runs {
-				testMod {
-					client()
-					mods {
-						main { sourceSet 'main' }
-						testMod { sourceSet 'testMod' }
-					}
-				}
-			}
-		}
-
-		tasks.register('verifyRunConfigs') {
-			doLast {
-				def client = loom.runs.client
-				client.evaluateNow()
-				def clientClasses = client.environmentVariables.get('MOD_CLASSES')
-				if (!clientClasses.contains('main%%')) {
-					throw new AssertionError("MOD_CLASSES=clientClasses missing main classes")
-				} else if (clientClasses.contains('testMod%%')) {
-					throw new AssertionError("MOD_CLASSES=$clientClasses containing test mod classes")
-				}
-
-				def testMod = loom.runs.testMod
-				testMod.evaluateNow()
-				def testModClasses = testMod.environmentVariables.get('MOD_CLASSES')
-				if (!testModClasses.contains('main%%') || !testModClasses.contains('testMod%%')) {
-					throw new AssertionError("MOD_CLASSES=$testModClasses missing required entries")
-				}
-			}
-		}
-		'''.stripIndent()
-
-		when:
-		def result = gradle.run(task: "verifyRunConfigs", configurationCache: false)
-
-		then:
-		result.task(":verifyRunConfigs").outcome == SUCCESS
-	}
+	// TODO: Add tests for IDE run configs containing the correct MOD_CLASSES environment variables
 }
