@@ -39,8 +39,9 @@ import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.jetbrains.annotations.VisibleForTesting;
 
-import net.fabricmc.accesswidener.AccessWidenerReader;
-import net.fabricmc.accesswidener.AccessWidenerVisitor;
+import net.fabricmc.classtweaker.api.ClassTweakerReader;
+import net.fabricmc.classtweaker.api.visitor.AccessWidenerVisitor;
+import net.fabricmc.classtweaker.api.visitor.ClassTweakerVisitor;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.task.RemapJarTask;
 
@@ -88,28 +89,33 @@ public final class Aw2At {
 	public static AccessTransformSet toAccessTransformSet(BufferedReader reader) throws IOException {
 		AccessTransformSet atSet = AccessTransformSet.create();
 
-		new AccessWidenerReader(new AccessWidenerVisitor() {
+		ClassTweakerReader.create(new ClassTweakerVisitor() {
 			@Override
-			public void visitClass(String name, AccessWidenerReader.AccessType access, boolean transitive) {
-				atSet.getOrCreateClass(name).merge(toAt(access));
-			}
+			public AccessWidenerVisitor visitAccessWidener(String owner) {
+				return new AccessWidenerVisitor() {
+					@Override
+					public void visitClass(AccessType access, boolean transitive) {
+						atSet.getOrCreateClass(owner).merge(toAt(access));
+					}
 
-			@Override
-			public void visitMethod(String owner, String name, String descriptor, AccessWidenerReader.AccessType access, boolean transitive) {
-				atSet.getOrCreateClass(owner).mergeMethod(MethodSignature.of(name, descriptor), toAt(access));
-			}
+					@Override
+					public void visitMethod(String name, String descriptor, AccessType access, boolean transitive) {
+						atSet.getOrCreateClass(owner).mergeMethod(MethodSignature.of(name, descriptor), toAt(access));
+					}
 
-			@Override
-			public void visitField(String owner, String name, String descriptor, AccessWidenerReader.AccessType access, boolean transitive) {
-				atSet.getOrCreateClass(owner).mergeField(name, toAt(access));
+					@Override
+					public void visitField(String name, String descriptor, AccessType access, boolean transitive) {
+						atSet.getOrCreateClass(owner).mergeField(name, toAt(access));
+					}
+				};
 			}
-		}).read(reader);
+		}).read(reader, "unused"); // the mod ID is unused as of CT 0.1.1
 
 		return atSet;
 	}
 
 	@VisibleForTesting
-	public static AccessTransform toAt(AccessWidenerReader.AccessType access) {
+	public static AccessTransform toAt(AccessWidenerVisitor.AccessType access) {
 		return switch (access) {
 		// This behaviour doesn't match what the actual AW does for methods.
 		//   - accessible makes the method final if it was private
