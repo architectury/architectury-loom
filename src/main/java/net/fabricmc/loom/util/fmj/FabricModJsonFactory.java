@@ -144,14 +144,18 @@ public final class FabricModJsonFactory {
 		File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, project, sourceSets);
 
 		if (file == null) {
-			// Try another mod metadata file if fabric.mod.json wasn't found.
-			final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(project, sourceSets);
+			try {
+				// Try another mod metadata file if fabric.mod.json wasn't found.
+				final @Nullable ModMetadataFile modMetadata = ModMetadataFiles.fromSourceSets(project, sourceSets);
 
-			if (modMetadata != null) {
-				return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(project, sourceSets));
+				if (modMetadata != null) {
+					return new ModMetadataFabricModJson(modMetadata, new FabricModJsonSource.SourceSetSource(project, sourceSets));
+				}
+
+				return null;
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
 			}
-
-			return null;
 		}
 
 		try {
