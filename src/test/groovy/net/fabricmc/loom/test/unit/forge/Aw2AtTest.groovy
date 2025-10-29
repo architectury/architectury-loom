@@ -29,12 +29,12 @@ import dev.architectury.at.ModifierChange
 import dev.architectury.loom.accesstransformer.Aw2At
 import spock.lang.Specification
 
-import net.fabricmc.accesswidener.AccessWidenerReader
+import net.fabricmc.classtweaker.api.visitor.AccessWidenerVisitor
 
 class Aw2AtTest extends Specification {
 	def "test accessible"() {
 		when:
-		def at = Aw2At.toAt(AccessWidenerReader.AccessType.ACCESSIBLE)
+		def at = Aw2At.toAt(AccessWidenerVisitor.AccessType.ACCESSIBLE)
 
 		then:
 		at.access == AccessChange.PUBLIC
@@ -45,7 +45,7 @@ class Aw2AtTest extends Specification {
 
 	def "test extendable"() {
 		when:
-		def at = Aw2At.toAt(AccessWidenerReader.AccessType.EXTENDABLE)
+		def at = Aw2At.toAt(AccessWidenerVisitor.AccessType.EXTENDABLE)
 
 		then:
 		// AW makes previously private methods protected and does not change the visibility
@@ -56,7 +56,7 @@ class Aw2AtTest extends Specification {
 
 	def "test mutable"() {
 		when:
-		def at = Aw2At.toAt(AccessWidenerReader.AccessType.MUTABLE)
+		def at = Aw2At.toAt(AccessWidenerVisitor.AccessType.MUTABLE)
 
 		then:
 		// The access change to public is needed because the Forge AT format cannot
