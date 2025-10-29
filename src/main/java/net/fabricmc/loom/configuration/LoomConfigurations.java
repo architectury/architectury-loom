@@ -150,7 +150,7 @@ public abstract class LoomConfigurations implements Runnable {
 
 		// Add the dev time dependencies
 		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, LoomVersions.DEV_LAUNCH_INJECTOR.mavenNotation());
-		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, LoomVersions.TERMINAL_CONSOLE_APPENDER.mavenNotation());
+		getDependencies().add(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES, LoomVersions.FABRIC_LOG4J_UTIL.mavenNotation());
 		getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
 		getDependencies().add(JavaPlugin.TEST_COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation());
 
@@ -233,7 +233,7 @@ public abstract class LoomConfigurations implements Runnable {
 		getConfigurations().getByName(a, configuration -> configuration.extendsFrom(getConfigurations().getByName(b)));
 	}
 
-	enum Role {
+	public enum Role {
 		NONE(false, false),
 		CONSUMABLE(true, false),
 		RESOLVABLE(false, true);
@@ -246,7 +246,7 @@ public abstract class LoomConfigurations implements Runnable {
 			this.canBeResolved = canBeResolved;
 		}
 
-		void apply(Configuration configuration) {
+		public void apply(Configuration configuration) {
 			configuration.setCanBeConsumed(canBeConsumed);
 			configuration.setCanBeResolved(canBeResolved);
 		}

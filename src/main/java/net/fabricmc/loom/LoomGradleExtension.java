@@ -130,8 +130,6 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 
 	FileCollection getMinecraftJarsCollection(MappingsNamespace mappingsNamespace);
 
-	boolean isRootProject();
-
 	@Override
 	MixinExtension getMixin();
 

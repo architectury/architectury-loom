@@ -52,6 +52,7 @@ import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -66,6 +67,8 @@ import net.fabricmc.loom.task.AbstractLoomTask;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
+import net.fabricmc.loom.task.service.ClasspathGroupService;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@Input
@@ -82,10 +85,6 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 
 	@Input
 	protected abstract Property<Boolean> getANSISupportedIDE();
-
-	@Input
-	@Optional
-	protected abstract Property<String> getClassPathGroups();
 
 	@Input
 	protected abstract Property<String> getLog4jConfigPaths();
@@ -110,6 +109,9 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@OutputFile
 	protected abstract RegularFileProperty getDevLauncherConfig();
 
+	@Nested
+	protected abstract Property<ClasspathGroupService.Options> getClasspathGroupOptions();
+
 	@ApiStatus.Internal
 	@Input
 	@Optional
@@ -133,10 +135,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		getSplitSourceSets().set(getExtension().areEnvironmentSourceSetsSplit());
 		getANSISupportedIDE().set(ansiSupportedIde(getProject()));
 		getPlainConsole().set(getProject().getGradle().getStartParameter().getConsoleOutput() == ConsoleOutput.Plain);
-
-		if (!getExtension().getMods().isEmpty()) {
-			getClassPathGroups().set(buildClassPathGroups(getProject()));
-		}
+		getClasspathGroupOptions().set(ClasspathGroupService.create(getProject()));
 
 		getLog4jConfigPaths().set(getAllLog4JConfigFiles(getProject()));
 
@@ -208,8 +207,12 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 				launchConfig.property(!quilt ? "fabric.gameJarPath" : "loader.gameJarPath", getCommonGameJarPath().get());
 			}
 
-			if (getClassPathGroups().isPresent()) {
-				launchConfig.property(!quilt ? "fabric.classPathGroups" : "loader.classPathGroups", getClassPathGroups().get());
+			try (ScopedServiceFactory serviceFactory = new ScopedServiceFactory()) {
+				ClasspathGroupService classpathGroupService = serviceFactory.get(getClasspathGroupOptions());
+
+				if (classpathGroupService.hasGroups()) {
+					launchConfig.property(!quilt ? "fabric.classPathGroups" : "loader.classPathGroups", classpathGroupService.getClasspathGroupsPropertyValue());
+				}
 			}
 		}
 
@@ -310,19 +313,6 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		case "common" -> split.getCommonJar().getPath().toAbsolutePath().toString();
 		default -> throw new UnsupportedOperationException();
 		};
-	}
-
-	/**
-	 * See: https://github.com/FabricMC/fabric-loader/pull/585.
-	 */
-	private static String buildClassPathGroups(Project project) {
-		return LoomGradleExtension.get(project).getMods().stream()
-				.map(modSettings ->
-						SourceSetHelper.getClasspath(modSettings, project).stream()
-							.map(File::getAbsolutePath)
-							.collect(Collectors.joining(File.pathSeparator))
-				)
-				.collect(Collectors.joining(File.pathSeparator+File.pathSeparator));
 	}
 
 	private static boolean ansiSupportedIde(Project project) {

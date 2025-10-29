@@ -46,7 +46,7 @@ public record GenericAnnotationData(
 		Set<TypeAnnotationKey> typeAnnotationsToRemove,
 		@SerializedName("type_add")
 		List<TypeAnnotationNode> typeAnnotationsToAdd
-) {
+) implements BaseAnnotationData {
 	public GenericAnnotationData {
 		if (annotationsToRemove == null) {
 			annotationsToRemove = new LinkedHashSet<>();
@@ -63,6 +63,19 @@ public record GenericAnnotationData(
 		if (typeAnnotationsToAdd == null) {
 			typeAnnotationsToAdd = new ArrayList<>();
 		}
+	}
+
+	public GenericAnnotationData() {
+		this(new LinkedHashSet<>(), new ArrayList<>(), new LinkedHashSet<>(), new ArrayList<>());
+	}
+
+	public GenericAnnotationData(GenericAnnotationData other) {
+		this(
+				new LinkedHashSet<>(other.annotationsToRemove),
+				AnnotationsData.copyAnnotations(other.annotationsToAdd),
+				new LinkedHashSet<>(other.typeAnnotationsToRemove),
+				AnnotationsData.copyTypeAnnotations(other.typeAnnotationsToAdd)
+		);
 	}
 
 	GenericAnnotationData merge(GenericAnnotationData other) {

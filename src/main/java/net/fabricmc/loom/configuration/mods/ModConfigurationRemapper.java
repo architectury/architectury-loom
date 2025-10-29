@@ -363,7 +363,9 @@ public class ModConfigurationRemapper {
 			return;
 		}
 
-		if (dependency.isCacheInvalid(project, "sources")) {
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (dependency.isCacheInvalid(project, "sources") || extension.refreshDeps()) {
 			final Path output = dependency.getWorkingFile(project, "sources");
 
 			sourceRemapper.scheduleRemapSources(sourcesInput.toFile(), output.toFile(), false, true, () -> {

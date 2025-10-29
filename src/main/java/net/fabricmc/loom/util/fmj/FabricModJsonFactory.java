@@ -134,9 +134,14 @@ public final class FabricModJsonFactory {
 		return Optional.ofNullable(createFromZipNullable(zipPath));
 	}
 
+	public static FabricModJson createFromFile(File file) {
+		JsonObject modJson = readFmjJsonObject(file);
+		return create(modJson, new FabricModJsonSource.DirectorySource(file.toPath().getParent()));
+	}
+
 	@Nullable
-	public static FabricModJson createFromSourceSetsNullable(Project project, SourceSet... sourceSets) throws IOException {
-		final File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, project, sourceSets);
+	public static FabricModJson createFromSourceSetsNullable(Project project, SourceSet... sourceSets) {
+		File file = SourceSetHelper.findFirstFileInResource(FABRIC_MOD_JSON, project, sourceSets);
 
 		if (file == null) {
 			// Try another mod metadata file if fabric.mod.json wasn't found.
@@ -149,19 +154,25 @@ public final class FabricModJsonFactory {
 			return null;
 		}
 
+		try {
+			JsonObject modJson = readFmjJsonObject(file);
+			return create(modJson, new FabricModJsonSource.SourceSetSource(project, sourceSets));
+		} catch (JsonSyntaxException e) {
+			LOGGER.warn("Failed to parse fabric.mod.json: {}", file.getAbsolutePath());
+			return null;
+		}
+	}
+
+	private static JsonObject readFmjJsonObject(File file) {
 		try (Reader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
 			final JsonObject modJson = LoomGradlePlugin.GSON.fromJson(reader, JsonObject.class);
 
 			if (modJson == null) {
 				// fromJson returns null if the file is empty
 				LOGGER.warn("Failed to parse empty fabric.mod.json: {}", file.getAbsolutePath());
-				return null;
 			}
 
-			return create(modJson, new FabricModJsonSource.SourceSetSource(project, sourceSets));
-		} catch (JsonSyntaxException e) {
-			LOGGER.warn("Failed to parse fabric.mod.json: {}", file.getAbsolutePath());
-			return null;
+			return modJson;
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to read " + file.getAbsolutePath(), e);
 		}

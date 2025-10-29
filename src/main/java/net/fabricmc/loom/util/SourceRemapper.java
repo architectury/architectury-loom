@@ -75,6 +75,7 @@ public class SourceRemapper {
 		remapTasks.add((logger) -> {
 			try {
 				logger.progress("remapping sources - " + source.getName());
+				Files.deleteIfExists(destination.toPath());
 				remapSourcesInner(source, destination);
 				ZipReprocessorUtil.reprocessZip(destination.toPath(), reproducibleFileOrder, preserveFileTimestamps);
 

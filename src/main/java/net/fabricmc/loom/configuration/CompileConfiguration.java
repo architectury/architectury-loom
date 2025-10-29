@@ -26,7 +26,6 @@ package net.fabricmc.loom.configuration;
 
 import static net.fabricmc.loom.util.Constants.Configurations;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +35,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -52,9 +50,11 @@ import dev.architectury.loom.forge.dependency.PatchProvider;
 import dev.architectury.loom.forge.dependency.SrgProvider;
 import dev.architectury.loom.forge.minecraft.ForgeMinecraftProvider;
 import dev.architectury.loom.mcpconfig.McpConfigProvider;
+import org.gradle.api.Action;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.Task;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -88,6 +88,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.MojangMappedMi
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.NamedMinecraftProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftProvider;
 import net.fabricmc.loom.extension.MixinExtension;
+import net.fabricmc.loom.task.service.ClasspathGroupService;
 import net.fabricmc.loom.util.Checksum;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.ProcessUtil;
@@ -358,15 +359,22 @@ public abstract class CompileConfiguration implements Runnable {
 		}
 
 		getProject().getTasks().named(JavaPlugin.TEST_TASK_NAME, Test.class, test -> {
-			String classPathGroups = extension.getMods().stream()
-					.map(modSettings ->
-							SourceSetHelper.getClasspath(modSettings, getProject()).stream()
-									.map(File::getAbsolutePath)
-									.collect(Collectors.joining(File.pathSeparator))
-					)
-					.collect(Collectors.joining(File.pathSeparator+File.pathSeparator));;
+			test.getInputs().property("LoomClassPathGroups", ClasspathGroupService.create(getProject()));
+			test.doFirst(new Action<Task>() {
+				@Override
+				public void execute(Task task) {
+					try (ScopedServiceFactory serviceFactory = new ScopedServiceFactory()) {
+						var options = (ClasspathGroupService.Options) task.getInputs().getProperties().get("LoomClassPathGroups");
+						ClasspathGroupService classpathGroupService = serviceFactory.get(options);
 
-			test.systemProperty("fabric.classPathGroups", classPathGroups);
+						if (classpathGroupService.hasGroups()) {
+							test.systemProperty("fabric.classPathGroups", classpathGroupService.getClasspathGroupsPropertyValue());
+						}
+					} catch (IOException e) {
+						throw new UncheckedIOException("Failed to get classpath groups", e);
+					}
+				}
+			});
 		});
 	}
 
