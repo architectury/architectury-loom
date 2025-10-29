@@ -30,15 +30,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.gradle.api.file.FileSystemLocation;
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loom.api.ModSettings;
 
-public record ClasspathGroup(List<String> paths, List<ExternalClasspathGroup> externalGroups) implements Serializable {
+public record ClasspathGroup(String name, @Nullable String resourceDir, List<String> paths, List<ExternalClasspathGroup> externalGroups) implements Serializable {
 	public static List<ClasspathGroup> fromModSettings(Set<ModSettings> modSettings) {
-		return modSettings.stream().map(s -> new ClasspathGroup(getPaths(s), s.getExternalGroups().get())).toList();
+		return modSettings.stream().map(s -> new ClasspathGroup(s.getName(), getAbsolutePath(s.getMainResourceDirectory().getOrNull()), getPaths(s), s.getExternalGroups().get())).toList();
 	}
 
 	// TODO remove this constructor when updating to Gradle 9.0, works around an issue where config cache cannot serialize immutable lists
-	public ClasspathGroup(List<String> paths, List<ExternalClasspathGroup> externalGroups) {
+	public ClasspathGroup(String name, @Nullable String resourceDir, List<String> paths, List<ExternalClasspathGroup> externalGroups) {
+		this.name = name;
+		this.resourceDir = resourceDir;
 		this.paths = new ArrayList<>(paths);
 		this.externalGroups = new ArrayList<>(externalGroups);
 	}
@@ -49,5 +54,13 @@ public record ClasspathGroup(List<String> paths, List<ExternalClasspathGroup> ex
 				.stream()
 				.map(File::getAbsolutePath)
 				.toList();
+	}
+
+	private static @Nullable String getAbsolutePath(@Nullable FileSystemLocation location) {
+		if (location == null) {
+			return null;
+		}
+
+		return location.getAsFile().getAbsolutePath();
 	}
 }

@@ -40,22 +40,13 @@ import dev.architectury.loom.forge.config.ConfigValue;
 import dev.architectury.loom.forge.config.ForgeRunTemplate;
 import dev.architectury.loom.forge.config.UserdevConfig;
 import dev.architectury.loom.util.DependencyDownloader;
-import dev.architectury.loom.util.Version;
-import dev.architectury.loom.util.collection.Multimap;
-import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Dependency;
-import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.ModSettings;
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.gradle.SourceSetHelper;
-import net.fabricmc.loom.util.gradle.SourceSetReference;
 
-public class ForgeRunsProvider {
+public class ForgeRunsProvider implements ConfigValue.Resolver {
 	private final Project project;
 	private final LoomGradleExtension extension;
 	private final JsonObject json;
@@ -78,11 +69,8 @@ public class ForgeRunsProvider {
 		return new ForgeRunsProvider(project, userdevProvider.getJson(), userdevProvider.getConfig());
 	}
 
-	public ConfigValue.Resolver getResolver(@Nullable RunConfigSettings runConfig) {
-		return variable -> resolve(runConfig, variable);
-	}
-
-	private String resolve(@Nullable RunConfigSettings runConfig, ConfigValue.Variable variable) {
+	@Override
+	public String resolve(ConfigValue.Variable variable) {
 		String key = variable.name();
 		String string = '{' + key + '}';
 
@@ -128,51 +116,25 @@ public class ForgeRunsProvider {
 		} else if (key.equals("natives")) {
 			string = extension.getFiles().getNativesDirectory(project).getAbsolutePath();
 		} else if (key.equals("source_roots")) {
-			// Use a set-valued multimap for deduplicating paths.
-			Multimap<String, String> modClasses = Multimap.setMultimap();
-			NamedDomainObjectContainer<ModSettings> mods = extension.getMods();
-			String separator = getSourceRootsSeparator();
-
-			if (runConfig != null && !runConfig.getMods().isEmpty()) {
-				mods = runConfig.getMods();
-			}
-
-			for (ModSettings mod : mods) {
-				// Note: In Forge 1.16.5, resources have to come first to find mods.toml
-				for (SourceSetReference modSourceSet : mod.getModSourceSets().get()) {
-					File resourcesDir = modSourceSet.sourceSet().getOutput().getResourcesDir();
-					modClasses.put(mod.getName(), resourcesDir.getAbsolutePath());
-				}
-
-				for (File file : SourceSetHelper.getClasspath(mod, project)) {
-					modClasses.put(mod.getName(), file.getAbsolutePath());
-				}
-			}
-
-			string = modClasses.entrySet().stream()
-					.map(entry -> entry.getKey() + "%%" + entry.getValue())
-					.collect(Collectors.joining(separator));
+			// ignored, handled later using ForgeModClassesService
 		} else if (key.equals("mcp_mappings")) {
 			string = "loom.stub";
+		} else if (key.equals("modules")) {
+			string = StreamSupport.stream(json.getAsJsonArray("modules").spliterator(), false)
+					.map(JsonElement::getAsString)
+					.flatMap(str -> {
+						if (str.contains(":")) {
+							return DependencyDownloader.download(project, str, false, false).getFiles().stream()
+									.map(File::getAbsolutePath)
+									.filter(dep -> !dep.contains("bootstraplauncher")); // TODO: Hack
+						}
+
+						return Stream.of(str);
+					})
+					.collect(Collectors.joining(File.pathSeparator));
 		} else if (json.has(key)) {
 			JsonElement element = json.get(key);
-
-			if (element.isJsonArray()) {
-				string = StreamSupport.stream(element.getAsJsonArray().spliterator(), false)
-						.map(JsonElement::getAsString)
-						.flatMap(str -> {
-							if (str.contains(":")) {
-								return DependencyDownloader.download(project, str, false, false).getFiles().stream()
-										.map(File::getAbsolutePath)
-										.filter(dep -> !dep.contains("bootstraplauncher")); // TODO: Hack
-							}
-
-							return Stream.of(str);
-						})
-						.collect(Collectors.joining(File.pathSeparator));
-			} else {
-				string = element.toString();
-			}
+			string = element.toString();
 		} else {
 			project.getLogger().warn("Unrecognized template! " + string);
 		}
@@ -187,22 +149,5 @@ public class ForgeRunsProvider {
 
 	private Set<File> minecraftClasspath() {
 		return DependencyDownloader.resolveFiles(project, project.getConfigurations().getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY), true);
-	}
-
-	private String getSourceRootsSeparator() {
-		// Some versions of Forge 49+ requires a different separator
-		if (!extension.isForge() || extension.getForgeProvider().getVersion().getMajorVersion() < Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
-			return File.pathSeparator;
-		}
-
-		for (Dependency dependency : project.getConfigurations().getByName(Constants.Configurations.FORGE_DEPENDENCIES).getDependencies()) {
-			if (dependency.getGroup().equals("net.minecraftforge") && dependency.getName().equals("bootstrap-dev")) {
-				Version version = Version.parse(dependency.getVersion());
-				return version.compareTo(Version.parse("2.1.4")) >= 0 ? File.pathSeparator : ";";
-			}
-		}
-
-		project.getLogger().warn("Failed to find bootstrap-dev in forge dependencies, using File.pathSeparator as separator");
-		return File.pathSeparator;
 	}
 }

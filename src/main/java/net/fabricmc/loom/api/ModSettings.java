@@ -36,6 +36,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.tasks.SourceSet;
 import org.jetbrains.annotations.ApiStatus;
@@ -53,6 +54,13 @@ public abstract class ModSettings implements Named {
 	 * List of classpath directories, or jar files used to populate the `fabric.classPathGroups` Fabric Loader system property.
 	 */
 	public abstract ConfigurableFileCollection getModFiles();
+
+	/**
+	 * The main resource directory in the mod.
+	 * On Forge and NeoForge, this is the resource directory that contains mods.toml.
+	 */
+	@ApiStatus.Experimental
+	public abstract DirectoryProperty getMainResourceDirectory();
 
 	@Inject
 	public ModSettings() {
@@ -125,6 +133,14 @@ public abstract class ModSettings implements Named {
 			SourceSetReference ref = new SourceSetReference(SourceSetHelper.getSourceSetByName(sourceSetName, getProject()), getProject());
 			List<File> classpath = SourceSetHelper.getClasspath(ref, false);
 			getModFiles().from(classpath);
+
+			// Arch: store resource dir
+			File resourcesDir = ref.sourceSet().getOutput().getResourcesDir();
+
+			if (resourcesDir != null && !getMainResourceDirectory().isPresent()) {
+				getMainResourceDirectory().set(resourcesDir);
+			}
+
 			return;
 		}
 

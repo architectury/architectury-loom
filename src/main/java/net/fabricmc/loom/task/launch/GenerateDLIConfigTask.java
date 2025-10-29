@@ -40,7 +40,6 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-import dev.architectury.loom.forge.config.ConfigValue;
 import dev.architectury.loom.forge.config.ForgeRunTemplate;
 import dev.architectury.loom.forge.dependency.ForgeRunsProvider;
 import org.gradle.api.Project;
@@ -64,10 +63,9 @@ import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
 import net.fabricmc.loom.task.AbstractLoomTask;
+import net.fabricmc.loom.task.service.ClasspathGroupService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
-import net.fabricmc.loom.util.gradle.SourceSetHelper;
-import net.fabricmc.loom.task.service.ClasspathGroupService;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
@@ -155,10 +153,9 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		if (getExtension().isForgeLike()) {
 			getRunTemplates().addAll(getProject().provider(() -> {
 				final ForgeRunsProvider forgeRunsProvider = getExtension().getForgeRunsProvider();
-				final ConfigValue.Resolver configResolver = forgeRunsProvider.getResolver(null);
 				return forgeRunsProvider.getTemplates()
 						.stream()
-						.map(template -> template.resolve(configResolver))
+						.map(template -> template.resolve(forgeRunsProvider))
 						.toList();
 			}));
 

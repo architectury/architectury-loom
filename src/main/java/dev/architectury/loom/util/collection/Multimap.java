@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SequencedSet;
 import java.util.Set;
+import java.util.stream.Stream;
+
+import net.fabricmc.loom.util.Pair;
 
 public interface Multimap<K, V> {
 	static <K, V> Specialized<K, V, SequencedSet<V>> setMultimap() {
@@ -25,6 +28,11 @@ public interface Multimap<K, V> {
 	Set<K> keySet();
 	Map<K, ? extends Collection<V>> asMap();
 	Set<? extends Map.Entry<K, ? extends Collection<V>>> entrySet();
+
+	default Stream<Pair<K, V>> streamEntries() {
+		return entrySet().stream()
+				.flatMap(entry -> entry.getValue().stream().map(value -> new Pair<>(entry.getKey(), value)));
+	}
 
 	interface Specialized<K, V, C extends Collection<V>> extends Multimap<K, V> {
 		@Override

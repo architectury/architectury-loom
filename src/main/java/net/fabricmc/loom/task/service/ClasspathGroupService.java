@@ -69,10 +69,11 @@ public class ClasspathGroupService extends Service<ClasspathGroupService.Options
 	}
 
 	public static Provider<Options> create(Project project) {
-		return TYPE.create(project, options -> {
-			LoomGradleExtension extension = LoomGradleExtension.get(project);
-			NamedDomainObjectContainer<ModSettings> modSettings = extension.getMods();
+		return create(project, LoomGradleExtension.get(project).getMods());
+	}
 
+	public static Provider<Options> create(Project project, NamedDomainObjectContainer<ModSettings> modSettings) {
+		return TYPE.create(project, options -> {
 			if (modSettings.isEmpty()) {
 				return;
 			}
@@ -158,5 +159,9 @@ public class ClasspathGroupService extends Service<ClasspathGroupService.Options
 
 	public boolean hasGroups() {
 		return getOptions().getClasspathGroups().isPresent() && !getOptions().getClasspathGroups().get().isEmpty();
+	}
+
+	public List<ClasspathGroup> getClasspathGroups() {
+		return getOptions().getClasspathGroups().get();
 	}
 }

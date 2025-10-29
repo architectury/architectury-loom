@@ -43,12 +43,14 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import dev.architectury.loom.forge.dependency.ForgeModClassesService;
 import org.gradle.api.Project;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.jetbrains.annotations.VisibleForTesting;
@@ -64,6 +66,7 @@ import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.task.AbstractLoomTask;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 public abstract class IdeaSyncTask extends AbstractLoomTask {
 	private static final Logger LOGGER = LoggerFactory.getLogger(IdeaSyncTask.class);
@@ -71,16 +74,29 @@ public abstract class IdeaSyncTask extends AbstractLoomTask {
 	@Nested
 	protected abstract ListProperty<IntelijRunConfig> getIdeaRunConfigs();
 
+	@Nested
+	@Optional
+	protected abstract Property<ForgeModClassesService.Options> getModClassesOptions();
+
 	@Inject
 	public IdeaSyncTask() {
 		setGroup(Constants.TaskGroup.IDE);
 		getIdeaRunConfigs().set(getProject().provider(this::getRunConfigs));
+		getModClassesOptions().set(ForgeModClassesService.createOptions(getProject()));
 	}
 
 	@TaskAction
 	public void runTask() throws IOException {
 		for (IntelijRunConfig config : getIdeaRunConfigs().get()) {
 			config.writeLaunchFile();
+
+			if (getModClassesOptions().isPresent()) {
+				try (var serviceFactory = new ScopedServiceFactory()) {
+					ForgeModClassesService modClassesService = serviceFactory.get(getModClassesOptions());
+					Path launchFile = config.getLaunchFile().get().getAsFile().toPath();
+					setForgeModClasses(launchFile, modClassesService.getModClasses(config.getName().get()));
+				}
+			}
 		}
 	}
 
@@ -109,6 +125,7 @@ public abstract class IdeaSyncTask extends AbstractLoomTask {
 			irc.getRunConfigXml().set(runConfigXml);
 			irc.getExcludedLibraryPaths().set(excludedLibraryPaths);
 			irc.getLaunchFile().set(runConfigFile);
+			irc.getName().set(settings.getName());
 			configs.add(irc);
 
 			settings.makeRunDir();
@@ -126,6 +143,9 @@ public abstract class IdeaSyncTask extends AbstractLoomTask {
 
 		@OutputFile
 		RegularFileProperty getLaunchFile();
+
+		@Input
+		Property<String> getName();
 
 		default void writeLaunchFile() throws IOException {
 			Path launchFile = getLaunchFile().get().getAsFile().toPath();
@@ -154,6 +174,15 @@ public abstract class IdeaSyncTask extends AbstractLoomTask {
 
 			return;
 		}
+
+		if (!inputXml.equals(outputXml)) {
+			Files.writeString(runConfig, outputXml, StandardCharsets.UTF_8);
+		}
+	}
+
+	public static void setForgeModClasses(Path runConfig, String modClasses) throws IOException {
+		final String inputXml = Files.readString(runConfig, StandardCharsets.UTF_8);
+		final String outputXml = inputXml.replace(ForgeModClassesService.VARIABLE_KEY, modClasses);
 
 		if (!inputXml.equals(outputXml)) {
 			Files.writeString(runConfig, outputXml, StandardCharsets.UTF_8);

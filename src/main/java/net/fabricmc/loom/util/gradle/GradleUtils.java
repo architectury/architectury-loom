@@ -35,7 +35,6 @@ import org.gradle.api.provider.Provider;
 import net.fabricmc.loom.LoomCompanionGradlePlugin;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
-import net.fabricmc.loom.util.Constants;
 
 public final class GradleUtils {
 	private GradleUtils() {
@@ -66,7 +65,7 @@ public final class GradleUtils {
 	}
 
 	public static boolean isLoomCompanionProject(Project project) {
-		return project.getPluginManager().hasPlugin(LoomCompanionGradlePlugin.NAME);
+		return project.getPluginManager().hasPlugin(LoomCompanionGradlePlugin.NAME) || project.getPluginManager().hasPlugin(LoomCompanionGradlePlugin.UPSTREAM_NAME);
 	}
 
 	public static Provider<Boolean> getBooleanPropertyProvider(Project project, String key) {

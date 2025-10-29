@@ -67,6 +67,7 @@ public abstract class RenderDocRunTask extends RunGameTask {
 		ExecResult result = getExecOperations().exec(exec -> {
 			exec.workingDir(new File(getProjectDir().get(), getInternalRunDir().get()));
 			exec.environment(getInternalEnvironmentVars().get());
+			configureForgeModClasses(exec);
 
 			exec.commandLine(getRenderDocExecutable().get().getAsFile());
 			exec.args(getRenderDocArgs().get());

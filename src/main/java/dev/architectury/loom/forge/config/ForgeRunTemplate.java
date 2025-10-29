@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.architectury.loom.forge.dependency.ForgeModClassesService;
 import dev.architectury.loom.util.collection.CollectionUtil;
 import org.gradle.api.Named;
 
@@ -118,7 +119,7 @@ public record ForgeRunTemplate(
 		});
 
 		// Add MOD_CLASSES, this is something that ForgeGradle does
-		settings.getEnvironmentVariables().computeIfAbsent("MOD_CLASSES", $ -> ConfigValue.of("{source_roots}").resolve(configValueResolver));
+		settings.getEnvironmentVariables().putIfAbsent(ForgeModClassesService.ENVIRONMENT_VARIABLE, ForgeModClassesService.VARIABLE_KEY);
 	}
 
 	public Resolved resolve(ConfigValue.Resolver configValueResolver) {

@@ -446,7 +446,7 @@ public abstract class RunConfigSettings implements Named {
 			ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
 
 			if (template != null) {
-				template.applyTo(this, runsProvider.getResolver(this));
+				template.applyTo(this, runsProvider);
 			} else {
 				project.getLogger().warn("Could not find Forge run template with name '{}'", templateName);
 			}
