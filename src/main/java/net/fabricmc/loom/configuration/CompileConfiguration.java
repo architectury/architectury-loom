@@ -53,8 +53,8 @@ import dev.architectury.loom.mcpconfig.McpConfigProvider;
 import org.gradle.api.Action;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.Task;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -216,7 +216,12 @@ public abstract class CompileConfiguration implements Runnable {
 		final MinecraftProvider minecraftProvider = jarConfiguration.createMinecraftProvider(metadataProvider, configContext);
 
 		if (extension.isForgeLike() && !(minecraftProvider instanceof ForgeMinecraftProvider)) {
-			throw new UnsupportedOperationException("Using Forge with split jars is not supported!");
+			throw new UnsupportedOperationException("Using %s with split jars is not supported!".formatted(extension.getPlatform().get().displayName()));
+		}
+
+		if (extension.isForgeLike() && extension.disableObfuscation()) {
+			// TODO: Allow setting up Forge and NeoForge without obfuscation
+			throw new UnsupportedOperationException("Using %s without obfuscation is not supported!".formatted(extension.getPlatform().get().displayName()));
 		}
 
 		extension.setMinecraftProvider(minecraftProvider);
