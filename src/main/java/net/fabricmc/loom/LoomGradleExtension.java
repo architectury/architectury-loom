@@ -46,7 +46,6 @@ import org.jetbrains.annotations.ApiStatus;
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.InstallerData;
-import net.fabricmc.loom.configuration.LoomDependencyManager;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsFactory;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
@@ -76,10 +75,6 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 	void setInstallerData(InstallerData data);
 
 	InstallerData getInstallerData();
-
-	void setDependencyManager(LoomDependencyManager dependencyManager);
-
-	LoomDependencyManager getDependencyManager();
 
 	MinecraftMetadataProvider getMetadataProvider();
 
@@ -157,6 +152,16 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 	 * @return true when '--write-verification-metadata` is set
 	 */
 	boolean isCollectingDependencyVerificationMetadata();
+
+	/**
+	 * When enabled do not remap the output jars.
+	 */
+	boolean dontRemapOutputs();
+
+	/**
+	 * When enabled disable all forms of remapping.
+	 */
+	boolean disableObfuscation();
 
 	// ===================
 	//  Architectury Loom

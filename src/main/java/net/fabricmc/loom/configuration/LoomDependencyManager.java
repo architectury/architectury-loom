@@ -31,9 +31,16 @@ import net.fabricmc.loom.configuration.mods.ModConfigurationRemapper;
 import net.fabricmc.loom.util.SourceRemapper;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
-public class LoomDependencyManager {
-	public void handleDependencies(Project project, ServiceFactory serviceFactory) {
-		project.getLogger().info(":setting up loom dependencies");
+public record LoomDependencyManager(Project project, ServiceFactory serviceFactory, LoomGradleExtension extension) {
+	public void handleDependencies() {
+		if (extension.disableObfuscation()) {
+			handleNonRemapDependencies();
+		} else {
+			handleRemapDependencies();
+		}
+	}
+
+	private void handleRemapDependencies() {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		SourceRemapper sourceRemapper = new SourceRemapper(project, serviceFactory, true);
@@ -51,5 +58,9 @@ public class LoomDependencyManager {
 				project.getLogger().info("fabric-installer.json not found in dependencies!");
 			}
 		}
+	}
+
+	private void handleNonRemapDependencies() {
+		// TODO debof - do we need to do anything?
 	}
 }

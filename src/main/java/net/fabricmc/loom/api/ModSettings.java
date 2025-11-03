@@ -197,4 +197,10 @@ public abstract class ModSettings implements Named {
 
 		project.apply(Map.of("plugin", LoomCompanionGradlePlugin.NAME));
 	}
+
+	// DO NOT USE THIS!!!
+	// Added back because the Minecraft dev plugin uses it.
+	@ApiStatus.Internal
+	@Deprecated(forRemoval = true)
+	public abstract ListProperty<SourceSetReference> getModSourceSets();
 }

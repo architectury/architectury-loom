@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,27 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.decompile;
+package net.fabricmc.loom.configuration.processors;
 
-import org.gradle.api.Project;
+import java.util.List;
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
-import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
+import net.fabricmc.loom.api.processor.SpecContext;
+import net.fabricmc.loom.util.fmj.FabricModJson;
 
-public abstract class DecompileConfiguration<T extends MappedMinecraftProvider> {
-	static final String DEFAULT_DECOMPILER = "Vineflower";
-
-	protected final Project project;
-	protected final T minecraftProvider;
-	protected final LoomGradleExtension extension;
-
-	public DecompileConfiguration(Project project, T minecraftProvider) {
-		this.project = project;
-		this.minecraftProvider = minecraftProvider;
-		this.extension = LoomGradleExtension.get(project);
+// TODO debof - fixme
+public record SpecContextDebofImpl(List<FabricModJson> modDependencies,
+									List<FabricModJson> localMods) implements SpecContext {
+	public static SpecContext create() {
+		return new SpecContextDebofImpl(List.of(), List.of());
 	}
 
-	public abstract String getTaskName(MinecraftJar.Type type);
+	@Override
+	public List<FabricModJson> modDependenciesCompileRuntime() {
+		return List.of();
+	}
 
-	public abstract void afterEvaluation();
+	@Override
+	public List<FabricModJson> modDependenciesCompileRuntimeClient() {
+		return List.of();
+	}
 }

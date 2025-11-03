@@ -32,6 +32,7 @@ import java.nio.file.Path;
 
 import org.cadixdev.lorenz.MappingSet;
 import org.cadixdev.mercury.Mercury;
+import org.cadixdev.mercury.mixin.MixinRemapper;
 import org.cadixdev.mercury.remapper.MercuryRemapper;
 import org.gradle.api.IllegalDependencyNotation;
 import org.gradle.api.JavaVersion;
@@ -57,6 +58,8 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingSpecBuilderImpl;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsFactory;
 import net.fabricmc.loom.configuration.providers.mappings.TinyMappingsService;
+import net.fabricmc.loom.util.DeletingFileVisitor;
+import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.service.Service;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.loom.util.service.ServiceType;
@@ -123,7 +126,10 @@ public class MigrateMappingsService extends Service<MigrateMappingsService.Optio
 			throw new IllegalArgumentException("Could not find input directory: " + inputDir.toAbsolutePath());
 		}
 
-		Files.deleteIfExists(outputDir);
+		if (Files.exists(outputDir)) {
+			DeletingFileVisitor.deleteDirectory(outputDir);
+		}
+
 		Files.createDirectories(outputDir);
 
 		Mercury mercury = new Mercury();
@@ -139,6 +145,7 @@ public class MigrateMappingsService extends Service<MigrateMappingsService.Optio
 				MappingsNamespace.INTERMEDIARY.toString()
 		).read();
 
+		mercury.getProcessors().add(MixinRemapper.create(mappingSet));
 		mercury.getProcessors().add(MercuryRemapper.create(mappingSet));
 
 		for (File file : getOptions().getClasspath().getFiles()) {
@@ -151,7 +158,13 @@ public class MigrateMappingsService extends Service<MigrateMappingsService.Optio
 					outputDir
 			);
 		} catch (Exception e) {
-			LOGGER.warn("Could not remap fully!", e);
+			try {
+				DeletingFileVisitor.deleteDirectory(outputDir);
+			} catch (IOException ignored) {
+				// Nope
+			}
+
+			throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to migrate mappings", e);
 		}
 
 		// clean file descriptors

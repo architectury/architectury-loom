@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,33 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.decompile;
+package net.fabricmc.loom.test.integration
 
-import org.gradle.api.Project;
+import spock.lang.Specification
+import spock.lang.Unroll
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
-import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
+import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-public abstract class DecompileConfiguration<T extends MappedMinecraftProvider> {
-	static final String DEFAULT_DECOMPILER = "Vineflower";
+import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
+import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-	protected final Project project;
-	protected final T minecraftProvider;
-	protected final LoomGradleExtension extension;
+class NotObfuscatedTest extends Specification implements GradleProjectTestTrait {
+	@Unroll
+	def "Not Obfuscated"() {
+		setup:
+		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		gradle.buildGradle << '''
+				dependencies {
+					minecraft 'com.mojang:minecraft:1.21.10'
+                    api "net.fabricmc.fabric-api:fabric-api:0.134.1+1.21.10"
+                }
+		'''
+		gradle.getGradleProperties() << "fabric.loom.disableObfuscation=true"
 
-	public DecompileConfiguration(Project project, T minecraftProvider) {
-		this.project = project;
-		this.minecraftProvider = minecraftProvider;
-		this.extension = LoomGradleExtension.get(project);
+		when:
+		def result = gradle.run(task: "build")
+
+		then:
+		result.task(":build").outcome == SUCCESS
 	}
-
-	public abstract String getTaskName(MinecraftJar.Type type);
-
-	public abstract void afterEvaluation();
 }

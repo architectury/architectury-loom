@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2024 FabricMC
+ * Copyright (c) 2021-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,7 +57,6 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskProvider;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -185,8 +184,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		getInjectedAccessWidenerPath().convention(LoomGradleExtension.get(getProject()).getAccessWidenerPath());
 	}
 
-	@TaskAction
-	public void run() {
+	@Override
+	protected void copy() {
+		super.copy();
+
 		submitWork(RemapAction.class, params -> {
 			if (getAddNestedDependencies().get()) {
 				params.getNestedJars().from(getNestedJars());
@@ -246,14 +247,16 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 		private @Nullable TinyRemapperService tinyRemapperService;
 		private @Nullable TinyRemapper tinyRemapper;
+		private Path inputFile;
 
 		public RemapAction() {
 		}
 
 		@Override
-		public void execute() {
+		protected void execute(Path inputFile) throws IOException {
 			try (var serviceFactory = new ScopedServiceFactory()) {
 				LOGGER.info("Remapping {} to {}", inputFile, outputFile);
+				this.inputFile = inputFile;
 
 				this.tinyRemapperService = getParameters().getTinyRemapperServiceOptions().isPresent()
 						? serviceFactory.get(getParameters().getTinyRemapperServiceOptions().get())
@@ -306,20 +309,10 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				}
 
 				LOGGER.debug("Finished remapping {}", inputFile);
-			} catch (Exception e) {
-				try {
-					Files.deleteIfExists(outputFile);
-				} catch (IOException ex) {
-					LOGGER.error("Failed to delete output file", ex);
-				}
-
-				throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Failed to remap", e);
 			}
 		}
 
 		private void prepare() {
-			final Path inputFile = getParameters().getInputFile().getAsFile().get().toPath();
-
 			if (tinyRemapperService != null) {
 				tinyRemapperService.getTinyRemapperForInputs().readInputsAsync(tinyRemapperService.getOrCreateTag(inputFile), inputFile);
 			}
