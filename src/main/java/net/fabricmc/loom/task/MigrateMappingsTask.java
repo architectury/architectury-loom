@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2019-2024 FabricMC
+ * Copyright (c) 2019-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,6 @@ import java.nio.file.Path;
 
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputDirectory;
@@ -38,16 +37,12 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.UntrackedTask;
 import org.gradle.api.tasks.options.Option;
 
-import net.fabricmc.loom.task.service.MigrateMappingsService;
+import net.fabricmc.loom.task.service.MigrateSourceCodeMappingsService;
 import net.fabricmc.loom.util.DeletingFileVisitor;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 @UntrackedTask(because = "Always rerun this task.")
-public abstract class MigrateMappingsTask extends AbstractLoomTask {
-	@Input
-	@Option(option = "mappings", description = "Target mappings")
-	public abstract Property<String> getMappings();
-
+public abstract class MigrateMappingsTask extends AbstractMigrateMappingsTask {
 	@InputDirectory
 	@SkipWhenEmpty
 	@Option(option = "input", description = "Java source file directory")
@@ -57,25 +52,20 @@ public abstract class MigrateMappingsTask extends AbstractLoomTask {
 	@Option(option = "output", description = "Remapped source output directory")
 	public abstract DirectoryProperty getOutputDir();
 
-	@Input
-	@Option(option = "overrideInputsIHaveABackup", description = "Override input files with the remapped files")
-	public abstract Property<Boolean> getOverrideInputs();
-
 	@Nested
-	protected abstract Property<MigrateMappingsService.Options> getMigrationServiceOptions();
+	protected abstract Property<MigrateSourceCodeMappingsService.Options> getMigrationServiceOptions();
 
 	public MigrateMappingsTask() {
 		getInputDir().convention(getProject().getLayout().getProjectDirectory().dir("src/main/java"));
 		getOutputDir().convention(getProject().getLayout().getProjectDirectory().dir("remappedSrc"));
-		getMigrationServiceOptions().set(MigrateMappingsService.createOptions(getProject(), getMappings(), getInputDir(), getOutputDir()));
-		getOverrideInputs().convention(false);
+		getMigrationServiceOptions().set(MigrateSourceCodeMappingsService.createOptions(getProject(), getMappings(), getInputDir(), getOutputDir()));
 	}
 
 	@TaskAction
 	public void doTask() throws Throwable {
 		try (var serviceFactory = new ScopedServiceFactory()) {
-			MigrateMappingsService service = serviceFactory.get(getMigrationServiceOptions().get());
-			service.migrateMapppings();
+			MigrateSourceCodeMappingsService service = serviceFactory.get(getMigrationServiceOptions().get());
+			service.migrateMappings();
 		}
 
 		if (getOverrideInputs().get()) {

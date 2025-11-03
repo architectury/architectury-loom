@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2022 FabricMC
+ * Copyright (c) 2016-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ public abstract class LoomTasks implements Runnable {
 		SourceSetHelper.getSourceSets(getProject()).all(sourceSet -> {
 			if (SourceSetHelper.isMainSourceSet(sourceSet)) {
 				getTasks().register("migrateMappings", MigrateMappingsTask.class, t -> {
-					t.setDescription("Migrates mappings to a new version.");
+					t.setDescription("Migrates source code mappings to a new version.");
 				});
 
 				return;
@@ -74,10 +74,14 @@ public abstract class LoomTasks implements Runnable {
 			}
 
 			getTasks().register(sourceSet.getTaskName("migrate", "mappings"), MigrateMappingsTask.class, t -> {
-				t.setDescription("Migrates mappings to a new version.");
+				t.setDescription("Migrates source code mappings to a new version.");
 				t.getInputDir().set(SourceSetHelper.getFirstSrcDir(sourceSet));
 				t.getOutputDir().convention(getProject().getLayout().getProjectDirectory().dir(sourceSet.getTaskName("remapped", "src")));
 			});
+		});
+
+		getTasks().register("migrateClassTweakerMappings", MigrateClassTweakerMappingsTask.class, t -> {
+			t.setDescription("Migrates access widener and class tweaker mappings to a new version.");
 		});
 
 		var generateLog4jConfig = getTasks().register("generateLog4jConfig", GenerateLog4jConfigTask.class, t -> {
