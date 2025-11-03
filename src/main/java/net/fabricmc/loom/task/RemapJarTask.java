@@ -144,10 +144,6 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 	@Input
 	@ApiStatus.Internal
-	protected abstract Property<ModPlatform> getModPlatform();
-
-	@Input
-	@ApiStatus.Internal
 	public abstract Property<Boolean> getUseMixinAP();
 	@Nested
 	public abstract Property<TinyRemapperService.Options> getTinyRemapperServiceOptions();
@@ -179,8 +175,6 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		getTinyRemapperServiceOptions().set(TinyRemapperService.createOptions(this));
 		getMixinRefmapServiceOptions().set(MixinRefmapService.createOptions(this));
 
-		getModPlatform().value(LoomGradleExtension.get(getProject()).getPlatform()).finalizeValue();
-
 		getInjectedAccessWidenerPath().convention(LoomGradleExtension.get(getProject()).getAccessWidenerPath());
 	}
 
@@ -211,8 +205,6 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				throw new RuntimeException("Forge must have useLegacyMixinAp enabled");
 			}
 
-			params.getPlatform().set(getModPlatform());
-
 			if (getInjectAccessWidener().get() && getInjectedAccessWidenerPath().isPresent()) {
 				params.getInjectAccessWidener().set(getInjectedAccessWidenerPath());
 			}
@@ -228,8 +220,6 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		ConfigurableFileCollection getNestedJars();
 
 		ConfigurableFileCollection getRemapClasspath();
-
-		Property<ModPlatform> getPlatform();
 
 		RegularFileProperty getInjectAccessWidener();
 		Property<Boolean> getReadMixinConfigsFromManifest();
@@ -280,6 +270,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 					remapAccessWidener();
 				}
 
+				modifyJarManifest(); // Arch: must be executed before refmaps are added for the MixinConfigs attr
 				addRefmaps(serviceFactory);
 				addNestedJars();
 
@@ -292,10 +283,6 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 
 				if (getParameters().getPlatform().get() == ModPlatform.QUILT) {
 					convertQmj5();
-				}
-
-				if (!getParameters().getPlatform().get().isForgeLike()) {
-					modifyJarManifest();
 				}
 
 				rewriteJar();
