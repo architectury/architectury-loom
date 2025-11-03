@@ -11,7 +11,7 @@ lorenz-tiny = "4.0.2"
 mercury = "0.4.3.18"
 mercury-mixin = "0.2.2"
 loom-native = "0.2.0"
-unpick = "3.0.0-beta.9"
+unpick = "3.0.0-beta.13"
 
 # Plugins
 spotless = "7.2.1"

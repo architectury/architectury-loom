@@ -158,7 +158,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 		final WorkQueue workQueue = getWorkerExecutor().noIsolation();
 
 		workQueue.submit(workAction, params -> {
-			params.getMainInputFile().set(getInputFile());
+			params.getInputFile().set(getInputFile());
 			params.getArchiveFile().set(getArchiveFile());
 
 			params.getSourceNamespace().set(getSourceNamespace());
@@ -199,7 +199,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 	protected abstract Provider<? extends ClientEntriesService.Options> getClientOnlyEntriesOptionsProvider(SourceSet clientSourceSet);
 
 	public interface AbstractRemapParams extends WorkParameters {
-		RegularFileProperty getMainInputFile();
+		RegularFileProperty getInputFile();
 		RegularFileProperty getArchiveFile();
 
 		Property<String> getSourceNamespace();
@@ -263,22 +263,24 @@ public abstract class AbstractRemapJarTask extends Jar {
 			}
 		}
 
+		// Note: the inputFile parameter is the remapping input file.
+		// The main input jar is available in the parameters, but should not be used
+		// for remapping as it might be missing some files added manually to this task.
 		protected abstract void execute(Path inputFile) throws IOException;
 
 		protected void modifyJarManifest() throws IOException {
 			int count = ZipUtils.transform(outputFile, Map.of(Constants.Manifest.PATH, bytes -> {
 				var manifest = new Manifest(new ByteArrayInputStream(bytes));
-
-				if (!getParameters().getPlatform().get().isForgeLike()) {
-					getParameters().getJarManifestService().get().apply(manifest, getParameters().getManifestAttributes().get());
-					manifest.getMainAttributes().putValue(Constants.Manifest.MAPPING_NAMESPACE, getParameters().getTargetNamespace().get());
-				}
-
-				byte[] sourceManifestBytes = ZipUtils.unpackNullable(getParameters().getMainInputFile().get().getAsFile().toPath(), Constants.Manifest.PATH);
+				byte[] sourceManifestBytes = ZipUtils.unpackNullable(getParameters().getInputFile().get().getAsFile().toPath(), Constants.Manifest.PATH);
 
 				if (sourceManifestBytes != null) {
 					var sourceManifest = new Manifest(new ByteArrayInputStream(sourceManifestBytes));
 					mergeManifests(manifest, sourceManifest);
+				}
+
+				if (!getParameters().getPlatform().get().isForgeLike()) {
+					getParameters().getJarManifestService().get().apply(manifest, getParameters().getManifestAttributes().get());
+					manifest.getMainAttributes().putValue(Constants.Manifest.MAPPING_NAMESPACE, getParameters().getTargetNamespace().get());
 				}
 
 				ByteArrayOutputStream out = new ByteArrayOutputStream();
