@@ -31,40 +31,61 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 import org.gradle.api.Project;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.DependencyInfo;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 
 public class PatchProvider extends DependencyProvider {
-	public Path clientPatches;
-	public Path serverPatches;
+	private final Path projectCacheFolder;
+	private Path installerJar;
+	private @Nullable Path clientPatches;
+	private @Nullable Path serverPatches;
 
 	public PatchProvider(Project project) {
 		super(project);
+		this.projectCacheFolder = ForgeProvider.getForgeCache(project);
 	}
 
 	@Override
 	public void provide(DependencyInfo dependency) throws Exception {
 		init();
+		installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath();
+	}
 
-		if (Files.notExists(clientPatches) || Files.notExists(serverPatches) || refreshDeps()) {
-			getProject().getLogger().info(":extracting forge patches");
+	public Path extractClientPatches() {
+		if (clientPatches == null) {
+			clientPatches = projectCacheFolder.resolve("patches-client.lzma");
+			extractPatches(clientPatches, "client.lzma");
+		}
 
-			Path installerJar = dependency.resolveFile().orElseThrow(() -> new RuntimeException("Could not resolve Forge installer")).toPath();
+		return clientPatches;
+	}
 
-			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(installerJar, false)) {
-				Files.copy(fs.getPath("data", "client.lzma"), clientPatches, StandardCopyOption.REPLACE_EXISTING);
-				Files.copy(fs.getPath("data", "server.lzma"), serverPatches, StandardCopyOption.REPLACE_EXISTING);
-			}
+	public Path extractServerPatches() {
+		if (serverPatches == null) {
+			serverPatches = projectCacheFolder.resolve("patches-server.lzma");
+			extractPatches(serverPatches, "server.lzma");
+		}
+
+		return serverPatches;
+	}
+
+	private void extractPatches(Path targetPath, String name) {
+		if (Files.exists(targetPath) && !refreshDeps()) {
+			// No need to extract
+			return;
+		}
+
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(installerJar, false)) {
+			Files.copy(fs.getPath("data", name), targetPath, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 
 	private void init() {
-		final Path projectCacheFolder = ForgeProvider.getForgeCache(getProject());
-		clientPatches = projectCacheFolder.resolve("patches-client.lzma");
-		serverPatches = projectCacheFolder.resolve("patches-server.lzma");
-
 		try {
 			Files.createDirectories(projectCacheFolder);
 		} catch (IOException e) {
