@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2024 FabricMC
+ * Copyright (c) 2024-2025 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,5 +57,6 @@ class NeoForge1210Test extends Specification implements GradleProjectTestTrait {
 		mcVersion | neoforgeVersion | mappings | patches
 		'1.21'  | '21.0.77-beta' | 'loom.officialMojangMappings()' | ''
 		'1.21'  | '21.0.77-beta' | "'net.fabricmc:yarn:1.21+build.1:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.21+build.4'"
+		'1.21.10' | '21.10.63' | 'loom.officialMojangMappings()' | ''
 	}
 }
