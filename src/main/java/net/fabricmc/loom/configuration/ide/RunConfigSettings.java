@@ -155,9 +155,46 @@ public abstract class RunConfigSettings implements Named {
 		this.mainClass = project.getObjects().property(String.class).convention(project.provider(() -> {
 			Objects.requireNonNull(environment, "Run config " + name + " must specify environment");
 			Objects.requireNonNull(defaultMainClass, "Run config " + name + " must specify default main class");
-			return RunConfig.getMainClass(environment, extension, defaultMainClass);
+			
+			// Lazy NeoForge detection for Architectury projects
+			String resolvedMainClass = defaultMainClass;
+			if (resolvedMainClass.equals(Constants.Knot.KNOT_CLIENT) || resolvedMainClass.equals(Constants.Knot.KNOT_SERVER)) {
+				boolean hasNeoForge = false;
+				for (org.gradle.api.artifacts.Configuration config : project.getConfigurations()) {
+					try {
+						for (org.gradle.api.artifacts.Dependency dep : config.getDependencies()) {
+							if (dep.getGroup() != null && dep.getGroup().contains("neoforged")) {
+								hasNeoForge = true;
+								break;
+							}
+						}
+						if (hasNeoForge) break;
+					} catch (Exception e) { /* Ignore */ }
+				}
+				if (hasNeoForge) {
+					project.getLogger().lifecycle("[mainClass provider] Detected NeoForge, using DevLaunch main class");
+					resolvedMainClass = "net.neoforged.devlaunch.Main";
+				}
+			}
+			
+			return RunConfig.getMainClass(environment, extension, resolvedMainClass);
 		}));
-		this.devLaunchMainClass = project.getObjects().property(String.class).convention("net.fabricmc.devlaunchinjector.Main");
+		this.devLaunchMainClass = project.getObjects().property(String.class).convention(project.provider(() -> {
+			// Lazy NeoForge detection - use proper main class for NeoForge
+			for (org.gradle.api.artifacts.Configuration config : project.getConfigurations()) {
+				try {
+					for (org.gradle.api.artifacts.Dependency dep : config.getDependencies()) {
+						if (dep.getGroup() != null && dep.getGroup().contains("neoforged")) {
+							project.getLogger().lifecycle("[devLaunchMainClass] Detected NeoForge, using DevLaunch directly");
+							// Don't use DevLaunch - use FML startup directly (DevLaunch requires special args)
+// Architectury Transformer will call this class directly
+return "net.neoforged.fml.startup.Client";
+						}
+					}
+				} catch (Exception e) { /* Ignore */ }
+			}
+			return "net.fabricmc.devlaunchinjector.Main";
+		}));
 		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
 
 		setSource(p -> {
@@ -367,6 +404,7 @@ public abstract class RunConfigSettings implements Named {
 	 * Configure run config with the default client options.
 	 */
 	public void client() {
+		project.getLogger().lifecycle("[client()] Called, platform=" + getExtension().getPlatform().get() + ", isForgeLike=" + getExtension().isForgeLike());
 		environment("client");
 		defaultMainClass(Constants.Knot.KNOT_CLIENT);
 
@@ -375,7 +413,7 @@ public abstract class RunConfigSettings implements Named {
 			environmentVariable("MESA_GL_VERSION_OVERRIDE", "4.3");
 		}
 
-		if (getExtension().isForgeLike()) {
+		if (getExtension().isForgeLike() || hasNeoForgeDependency()) {
 			forgeTemplate("client");
 		}
 	}
@@ -388,7 +426,7 @@ public abstract class RunConfigSettings implements Named {
 		environment("server");
 		defaultMainClass(Constants.Knot.KNOT_SERVER);
 
-		if (getExtension().isForgeLike()) {
+		if (getExtension().isForgeLike() || hasNeoForgeDependency()) {
 			forgeTemplate("server");
 		}
 	}
@@ -438,11 +476,39 @@ public abstract class RunConfigSettings implements Named {
 	 * @since 1.0
 	 */
 	public void forgeTemplate(String templateName) {
-		ModPlatform.assertForgeLike(getExtension());
-		defaultMainClass(Constants.Forge.UNDETERMINED_MAIN_CLASS);
+project.getLogger().lifecycle("[forgeTemplate] Called with templateName: " + templateName);
+defaultMainClass(Constants.Forge.UNDETERMINED_MAIN_CLASS);
+project.getLogger().lifecycle("[forgeTemplate] Set defaultMainClass to UNDETERMINED_MAIN_CLASS");
 		// Evaluate later if Forge hasn't been resolved yet.
 		evaluateNowOrLater(() -> {
 			ForgeRunsProvider runsProvider = getExtension().getForgeRunsProvider();
+                        
+                        // Handle Architectury mode where ForgeRunsProvider may not be set up
+                        if (runsProvider == null) {
+                                project.getLogger().lifecycle("[forgeTemplate] No ForgeRunsProvider - using fallback main class for NeoForge");
+					// Use the correct NeoForge main class based on template
+					String fallbackMain;
+					switch (templateName) {
+						case "client":
+							fallbackMain = "net.neoforged.fml.startup.Client";
+							break;
+						case "server":
+							fallbackMain = "net.neoforged.fml.startup.Server";
+							break;
+						case "data":
+						case "clientData":
+							fallbackMain = "net.neoforged.fml.startup.DataClient";
+							break;
+						case "serverData":
+							fallbackMain = "net.neoforged.fml.startup.DataServer";
+							break;
+						default:
+							fallbackMain = "net.neoforged.fml.startup.Client";
+					}
+					project.getLogger().lifecycle("[forgeTemplate] Using fallback main class: " + fallbackMain);
+					defaultMainClass(fallbackMain);
+                                return;
+                        }
 			ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
 
 			if (template != null) {
@@ -510,7 +576,7 @@ public abstract class RunConfigSettings implements Named {
 	 * <p>This method is currently only available on Forge and NeoForge.
 	 */
 	public NamedDomainObjectContainer<ModSettings> getMods() {
-		ModPlatform.assertForgeLike(extension);
+                if (!extension.isForgeLike() && !hasNeoForgeDependency()) { ModPlatform.assertForgeLike(extension); }
 		return mods;
 	}
 
@@ -522,4 +588,31 @@ public abstract class RunConfigSettings implements Named {
 	public void mods(Action<NamedDomainObjectContainer<ModSettings>> action) {
 		action.execute(getMods());
 	}
+/**
+ * Checks if the project has a NeoForge or Forge dependency in modImplementation.
+ * This is used for Architectury multi-platform projects where loom.platform may not be set.
+ */
+private boolean hasNeoForgeDependency() {
+try {
+project.getLogger().lifecycle("[hasNeoForgeDependency] Checking project: " + project.getName());
+
+// Check all configurations for NeoForge
+for (org.gradle.api.artifacts.Configuration config : project.getConfigurations()) {
+for (org.gradle.api.artifacts.Dependency dep : config.getDependencies()) {
+if (dep.getGroup() != null && dep.getGroup().contains("neoforged")) {
+project.getLogger().lifecycle("[hasNeoForgeDependency] Found in " + config.getName() + ": " + dep.getGroup() + ":" + dep.getName());
+return true;
+}
+if (dep.getGroup() != null && dep.getGroup().contains("minecraftforge")) {
+project.getLogger().lifecycle("[hasNeoForgeDependency] Found in " + config.getName() + ": " + dep.getGroup() + ":" + dep.getName());
+return true;
+}
+}
+}
+project.getLogger().lifecycle("[hasNeoForgeDependency] No NeoForge/Forge found in any configuration");
+} catch (Exception e) {
+project.getLogger().lifecycle("[hasNeoForgeDependency] Error: " + e.getMessage());
+}
+return false;
+}
 }

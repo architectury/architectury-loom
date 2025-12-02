@@ -67,7 +67,7 @@ public class JarNester {
 				}
 			}).collect(Collectors.toList()));
 
-			if (platform.isForgeLike()) {
+			if (platform.isForgeLike() || ZipUtils.contains(modJar.toPath(), "META-INF/neoforge.mods.toml") || ZipUtils.contains(modJar.toPath(), "META-INF/mods.toml")) {
 				handleForgeJarJar(jars, modJar, logger);
 				return;
 			}

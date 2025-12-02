@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -60,9 +61,12 @@ import dev.architectury.loom.forge.dependency.ForgeUserdevProvider;
 import dev.architectury.loom.forge.dependency.PatchProvider;
 import dev.architectury.loom.forge.tool.ForgeToolValueSource;
 import dev.architectury.loom.mappings.MappingOption;
+import dev.architectury.loom.mcpconfig.McpConfigFunction;
 import dev.architectury.loom.mcpconfig.McpConfigProvider;
 import dev.architectury.loom.mcpconfig.McpExecutor;
 import dev.architectury.loom.mcpconfig.McpExecutorBuilder;
+import dev.architectury.loom.mcpconfig.steplogic.FunctionLogic;
+import dev.architectury.loom.mcpconfig.steplogic.StepLogic;
 import dev.architectury.loom.neoforge.SidedJarIndexGenerator;
 import dev.architectury.loom.util.DependencyDownloader;
 import dev.architectury.loom.util.Stopwatch;
@@ -194,6 +198,26 @@ public class MinecraftPatchedProvider {
 
 			try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 				McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
+
+				// For NeoForge 21.10.57+ with combinedBinaryPatches, modify rename args
+				// to match ProcessMinecraftJar (add --strip-sigs, remove --unfinal-params)
+				ForgeUserdevProvider userdevProvider = getExtension().getForgeUserdevProvider();
+				if (userdevProvider.getConfig().features().combinedBinaryPatches()) {
+					builder.setStepLogicProvider((context, name, type) -> {
+						if ("rename".equals(type)) {
+							McpConfigFunction originalFunction = builder.getFunctions().get(type);
+							if (originalFunction != null) {
+								McpConfigFunction modifiedFunction = originalFunction.withModifiedArgs(
+										List.of("--strip-sigs"),
+										Set.of("--unfinal-params")
+								);
+								return FunctionLogic.createOptions(context, modifiedFunction);
+							}
+						}
+						return null;
+					});
+				}
+
 				builder.enqueue("rename");
 				McpExecutor executor = serviceFactory.get(builder.build());
 				Path output = executor.execute();

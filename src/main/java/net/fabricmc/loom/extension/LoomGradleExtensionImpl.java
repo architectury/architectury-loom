@@ -376,6 +376,59 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 		return disableObfuscation.get();
 	}
 
+	/**
+	 * Override isForgeLike() to also check for NeoForge in Architectury multi-platform projects.
+	 */
+	@Override
+	public boolean isForgeLike() {
+		if (getPlatform().get().isForgeLike()) {
+			return true;
+		}
+		return hasNeoForgeDependency();
+	}
+
+	/**
+	 * Override isNeoForge() to detect NeoForge in Architectury multi-platform projects.
+	 */
+	@Override
+	public boolean isNeoForge() {
+		if (getPlatform().get() == net.fabricmc.loom.util.ModPlatform.NEOFORGE) {
+			return true;
+		}
+		return hasNeoForgeDependency();
+	}
+
+	/**
+	 * Checks if this project is a NeoForge/Forge project in an Architectury setup.
+	 */
+	private boolean hasNeoForgeDependency() {
+		try {
+			// Check for developmentNeoForge/developmentForge configurations
+			if (project.getConfigurations().findByName("developmentNeoForge") != null) {
+				return true;
+			}
+			if (project.getConfigurations().findByName("developmentForge") != null) {
+				return true;
+			}
+			// Check project name
+			String projectName = project.getName().toLowerCase();
+			if (projectName.contains("neoforge") || projectName.equals("forge")) {
+				return true;
+			}
+			// Check dependencies
+			for (org.gradle.api.artifacts.Configuration config : project.getConfigurations()) {
+				for (org.gradle.api.artifacts.Dependency dep : config.getDependencies()) {
+					if (dep.getGroup() != null && (dep.getGroup().contains("neoforged") || dep.getGroup().contains("minecraftforge"))) {
+						return true;
+					}
+				}
+			}
+		} catch (Exception e) {
+			// Ignore
+		}
+		return false;
+	}
+
 	@Override
 	public ForgeExtensionAPI getForge() {
 		ModPlatform.assertPlatform(this, ModPlatform.FORGE);
@@ -384,7 +437,7 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 
 	@Override
 	public NeoForgeExtensionAPI getNeoForge() {
-		ModPlatform.assertPlatform(this, ModPlatform.NEOFORGE);
+		ModPlatform.assertNeoForge(this);
 		return neoForgeExtension.get();
 	}
 

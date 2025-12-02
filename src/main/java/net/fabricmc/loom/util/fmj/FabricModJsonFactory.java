@@ -203,6 +203,9 @@ public final class FabricModJsonFactory {
 	public static boolean isNestableModJar(Path input, ModPlatform platform) {
 		// Forge and NeoForge don't care if the main jar is mod jar.
 		if (platform.isForgeLike()) return true;
+		// For Architectury multi-platform projects, FABRIC platform may have NeoForge metadata
+		if (platform == ModPlatform.FABRIC && ZipUtils.contains(input, "META-INF/neoforge.mods.toml")) return true;
+		if (platform == ModPlatform.FABRIC && ZipUtils.contains(input, "META-INF/mods.toml")) return true;
 		return isModJar(input, platform);
 	}
 

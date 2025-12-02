@@ -107,9 +107,17 @@ public record ForgeRunTemplate(
 	}
 
 	public void applyTo(RunConfigSettings settings, ConfigValue.Resolver configValueResolver) {
-		if (settings.getDefaultMainClass().equals(Constants.Forge.UNDETERMINED_MAIN_CLASS)) {
-			settings.defaultMainClass(main);
-		}
+// DEBUG: Log the main class being applied
+settings.getProject().getLogger().lifecycle("[ForgeRunTemplate.applyTo] Template name: " + name + ", main class: " + main);
+settings.getProject().getLogger().lifecycle("[ForgeRunTemplate.applyTo] Current defaultMainClass: " + settings.getDefaultMainClass());
+
+// Always set the main class from the NeoForge/Forge template.
+// Previously this only set it if defaultMainClass == UNDETERMINED_MAIN_CLASS,
+// but client/server configs already have KNOT_CLIENT/KNOT_SERVER from Fabric defaults,
+// so the NeoForge main class (e.g. net.neoforged.devlaunch.Main) was never applied.
+settings.defaultMainClass(main);
+
+settings.getProject().getLogger().lifecycle("[ForgeRunTemplate.applyTo] After setting: " + settings.getDefaultMainClass());
 
 		settings.vmArgs(CollectionUtil.map(jvmArgs, value -> value.resolve(configValueResolver)));
 

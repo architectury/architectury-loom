@@ -212,6 +212,13 @@ public final class McpExecutorBuilder {
 		this.stepLogicProvider = stepLogicProvider;
 	}
 
+	/**
+	 * Returns the map of MCP config functions.
+	 */
+	public Map<String, McpConfigFunction> getFunctions() {
+		return functions;
+	}
+
 	private boolean isNoOp(String stepType) {
 		return "downloadManifest".equals(stepType) || "downloadJson".equals(stepType);
 	}

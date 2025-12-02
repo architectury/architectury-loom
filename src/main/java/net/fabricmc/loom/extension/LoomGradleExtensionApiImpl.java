@@ -236,6 +236,26 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 				project.getLogger().warn("Project " + project.getPath() + " is using property " + FORGE_PROPERTY + " to enable forge mode. Please use '" + PLATFORM_PROPERTY + " = forge' instead!");
 				return Boolean.parseBoolean(Objects.toString(forgeProperty)) ? ModPlatform.FORGE : ModPlatform.FABRIC;
 			}
+// Auto-detect platform from dependencies (for Architectury multi-platform projects)
+try {
+org.gradle.api.artifacts.Configuration modImpl = project.getConfigurations().findByName("modImplementation");
+if (modImpl != null) {
+for (org.gradle.api.artifacts.Dependency dep : modImpl.getDependencies()) {
+if ("net.neoforged".equals(dep.getGroup()) && "neoforge".equals(dep.getName())) {
+project.getLogger().lifecycle("Auto-detected NeoForge platform from modImplementation dependency");
+return ModPlatform.NEOFORGE;
+}
+if ("net.minecraftforge".equals(dep.getGroup()) && "forge".equals(dep.getName())) {
+project.getLogger().lifecycle("Auto-detected Forge platform from modImplementation dependency");
+return ModPlatform.FORGE;
+}
+}
+}
+} catch (Exception e) {
+// Ignore - configuration might not exist yet
+}
+
+
 
 			return ModPlatform.FABRIC;
 		})::get);

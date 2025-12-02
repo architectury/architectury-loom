@@ -27,7 +27,9 @@ package dev.architectury.loom.mcpconfig;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -46,51 +48,76 @@ import org.jetbrains.annotations.Nullable;
  * @param repo    the Maven repository to download the dependency from, or {@code null} if not specified
  */
 public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, @Nullable String repo) implements Serializable {
-	private static final String VERSION_KEY = "version";
-	private static final String ARGS_KEY = "args";
-	private static final String JVM_ARGS_KEY = "jvmargs";
-	private static final String REPO_KEY = "repo";
+private static final String VERSION_KEY = "version";
+private static final String ARGS_KEY = "args";
+private static final String JVM_ARGS_KEY = "jvmargs";
+private static final String REPO_KEY = "repo";
 
-	public Path download(StepLogic.SetupContext executionContext) throws IOException {
-		if (repo != null) {
-			return executionContext.downloadFile(getDownloadUrl());
-		} else {
-			return executionContext.downloadDependency(version);
-		}
-	}
+public Path download(StepLogic.SetupContext executionContext) throws IOException {
+if (repo != null) {
+return executionContext.downloadFile(getDownloadUrl());
+} else {
+return executionContext.downloadDependency(version);
+}
+}
 
-	private String getDownloadUrl() {
-		String[] parts = version.split(":");
-		StringBuilder builder = new StringBuilder();
-		builder.append(repo);
-		// Group:
-		builder.append(parts[0].replace('.', '/')).append('/');
-		// Name:
-		builder.append(parts[1]).append('/');
-		// Version:
-		builder.append(parts[2]).append('/');
-		// Artifact:
-		builder.append(parts[1]).append('-').append(parts[2]);
+private String getDownloadUrl() {
+String[] parts = version.split(":");
+StringBuilder builder = new StringBuilder();
+builder.append(repo);
+// Group:
+builder.append(parts[0].replace('.', '/')).append('/');
+// Name:
+builder.append(parts[1]).append('/');
+// Version:
+builder.append(parts[2]).append('/');
+// Artifact:
+builder.append(parts[1]).append('-').append(parts[2]);
 
-		// Classifier:
-		if (parts.length >= 4) {
-			builder.append('-').append(parts[3]);
-		}
+// Classifier:
+if (parts.length >= 4) {
+builder.append('-').append(parts[3]);
+}
 
-		builder.append(".jar");
-		return builder.toString();
-	}
+builder.append(".jar");
+return builder.toString();
+}
 
-	public static McpConfigFunction fromJson(JsonObject json) {
-		String version = json.get(VERSION_KEY).getAsString();
-		List<ConfigValue> args = json.has(ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(ARGS_KEY)) : List.of();
-		List<ConfigValue> jvmArgs = json.has(JVM_ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY)) : List.of();
-		JsonElement repoJson = json.get(REPO_KEY);
-		@Nullable String repo = repoJson.isJsonPrimitive() ? repoJson.getAsString() : null;
-		return new McpConfigFunction(version, args, jvmArgs, repo);
-	}
+/**
+ * Creates a new function with modified arguments.
+ *
+ * @param argsToAdd    arguments to add to the end
+ * @param argsToRemove arguments to remove (matched by the literal value)
+ * @return a new McpConfigFunction with modified args
+ */
+public McpConfigFunction withModifiedArgs(List<String> argsToAdd, Set<String> argsToRemove) {
+List<ConfigValue> newArgs = new ArrayList<>();
 
-	private static List<ConfigValue> configValuesFromJson(JsonArray json) {
-		return CollectionUtil.map(json, child -> ConfigValue.of(child.getAsString()));
-	}
+// Copy existing args, filtering out ones to remove
+for (ConfigValue arg : args) {
+if (!(arg instanceof ConfigValue.Constant c && argsToRemove.contains(c.value()))) {
+newArgs.add(arg);
+}
+}
+
+// Add new args
+for (String arg : argsToAdd) {
+newArgs.add(ConfigValue.of(arg));
+}
+
+return new McpConfigFunction(version, List.copyOf(newArgs), jvmArgs, repo);
+}
+
+public static McpConfigFunction fromJson(JsonObject json) {
+String version = json.get(VERSION_KEY).getAsString();
+List<ConfigValue> args = json.has(ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(ARGS_KEY)) : List.of();
+List<ConfigValue> jvmArgs = json.has(JVM_ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY)) : List.of();
+JsonElement repoJson = json.get(REPO_KEY);
+@Nullable String repo = repoJson.isJsonPrimitive() ? repoJson.getAsString() : null;
+return new McpConfigFunction(version, args, jvmArgs, repo);
+}
+
+private static List<ConfigValue> configValuesFromJson(JsonArray json) {
+return CollectionUtil.map(json, child -> ConfigValue.of(child.getAsString()));
+}
 }

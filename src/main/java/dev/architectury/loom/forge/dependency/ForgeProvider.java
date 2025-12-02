@@ -57,13 +57,14 @@ public class ForgeProvider extends DependencyProvider {
 	}
 
 	public boolean usesMojangAtRuntime() {
-		return platform == ModPlatform.NEOFORGE || version.getMajorVersion() >= Constants.Forge.MIN_USE_MOJANG_NS_VERSION;
+		return getExtension().isNeoForge() || version.getMajorVersion() >= Constants.Forge.MIN_USE_MOJANG_NS_VERSION;
 	}
 
 	public File getGlobalCache() {
 		if (globalCache == null) {
 			Objects.requireNonNull(version.getCombined(), "Forge provider version is null when trying to get project directory");
-			globalCache = getMinecraftProvider().dir(platform.id() + "/" + version.getCombined());
+			String platformId = getExtension().isNeoForge() ? "neoforge" : "forge";
+			globalCache = getMinecraftProvider().dir(platformId + "/" + version.getCombined());
 			globalCache.mkdirs();
 		}
 
@@ -72,7 +73,7 @@ public class ForgeProvider extends DependencyProvider {
 
 	@Override
 	public String getTargetConfig() {
-		return platform == ModPlatform.NEOFORGE ? Constants.Configurations.NEOFORGE : Constants.Configurations.FORGE;
+		return getExtension().isNeoForge() ? Constants.Configurations.NEOFORGE : Constants.Configurations.FORGE;
 	}
 
 	/**
@@ -82,11 +83,11 @@ public class ForgeProvider extends DependencyProvider {
 	 */
 	public static Path getForgeCache(Project project) {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
-		final ModPlatform platform = extension.getPlatform().get();
 		final String version = extension.getForgeProvider().getVersion().getCombined();
 		Objects.requireNonNull(version, "Forge provider version is null when trying to get project directory");
+		String platformId = extension.isNeoForge() ? "neoforge" : "forge";
 		return LoomGradleExtension.get(project).getMinecraftProvider()
-				.dir(platform.id() + "/" + version).toPath();
+				.dir(platformId + "/" + version).toPath();
 	}
 
 	public static final class ForgeVersion {

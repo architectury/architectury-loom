@@ -88,7 +88,17 @@ public enum ModPlatform {
 	}
 
 	public static void assertForgeLike(LoomGradleExtensionAPI extension, Supplier<String> message) {
-		if (!extension.getPlatform().get().isForgeLike()) {
+		if (!extension.isForgeLike()) {
+			throw new GradleException(message.get());
+		}
+	}
+
+	public static void assertNeoForge(LoomGradleExtensionAPI extension) {
+		assertNeoForge(extension, () -> "Loom is not running on NeoForge.\\nYou can switch to it by adding 'loom.platform = neoforge' to your gradle.properties");
+	}
+
+	public static void assertNeoForge(LoomGradleExtensionAPI extension, Supplier<String> message) {
+		if (!extension.isNeoForge()) {
 			throw new GradleException(message.get());
 		}
 	}
