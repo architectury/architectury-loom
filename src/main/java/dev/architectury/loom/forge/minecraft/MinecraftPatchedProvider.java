@@ -68,6 +68,7 @@ import dev.architectury.loom.util.DependencyDownloader;
 import dev.architectury.loom.util.Stopwatch;
 import dev.architectury.loom.util.TempFiles;
 import dev.architectury.loom.util.ThreadingUtils;
+import dev.architectury.loom.util.Version;
 import dev.architectury.loom.util.function.FsPathConsumer;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
@@ -86,6 +87,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
 import net.fabricmc.loom.util.Check;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.LoomVersions;
 import net.fabricmc.loom.util.TinyRemapperHelper;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
@@ -102,6 +104,8 @@ public class MinecraftPatchedProvider {
 	private static final String LOOM_PATCH_VERSION_KEY = "Loom-Patch-Version";
 	private static final String CURRENT_LOOM_PATCH_VERSION = "10";
 	private static final String NAME_MAPPING_SERVICE_PATH = "/inject/META-INF/services/cpw.mods.modlauncher.api.INameMappingService";
+
+	private static final String NEOFORGE_MANUAL_CLEAR_JAR_CREATION_VERSION = "21.10.57-beta";
 
 	private final Project project;
 	private final Logger logger;
@@ -183,6 +187,17 @@ public class MinecraftPatchedProvider {
 		}
 	}
 
+	// See https://github.com/neoforged/NeoForge/issues/2848
+	private boolean shouldUseNeoForgeInstallerToolsToCreatePrePatchJar() {
+		if (!getExtension().isNeoForge()) {
+			return false;
+		}
+
+		Version currentVersion = Version.parse(getExtension().getForgeProvider().getVersion().getCombined());
+		Version minVersion = Version.parse(NEOFORGE_MANUAL_CLEAR_JAR_CREATION_VERSION);
+		return currentVersion.compareTo(minVersion) >= 0;
+	}
+
 	public void provide() throws Exception {
 		initPatchedFiles();
 		checkCache();
@@ -191,14 +206,7 @@ public class MinecraftPatchedProvider {
 
 		if (Files.notExists(minecraftIntermediateJar)) {
 			this.dirty = true;
-
-			try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
-				McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
-				builder.enqueue("rename");
-				McpExecutor executor = serviceFactory.get(builder.build());
-				Path output = executor.execute();
-				Files.copy(output, minecraftIntermediateJar);
-			}
+			createPrePatchJar();
 		}
 
 		if (dirty || Files.notExists(minecraftPatchedIntermediateJar)) {
@@ -219,6 +227,51 @@ public class MinecraftPatchedProvider {
 		}
 
 		DependencyProvider.addDependency(project, minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
+	}
+
+	private void createPrePatchJar() throws IOException {
+		if (shouldUseNeoForgeInstallerToolsToCreatePrePatchJar()) {
+			createNeoForgeInstallerToolsPrePatchJar();
+			return;
+		}
+
+		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
+			McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
+			builder.enqueue("rename");
+			McpExecutor executor = serviceFactory.get(builder.build());
+			Path output = executor.execute();
+			Files.copy(output, minecraftIntermediateJar);
+		}
+	}
+
+	private void createNeoForgeInstallerToolsPrePatchJar() throws IOException {
+		try (var tempFiles = new TempFiles()) {
+			final Path mappings = tempFiles.file("mappings", ".txt");
+
+			getExtension().download(minecraftProvider.getVersionInfo().download("client_mappings").url())
+					.downloadPath(mappings);
+
+			ForgeToolValueSource.exec(project, settings -> {
+				// todo: does it work without fatjar
+				settings.getExecClasspath().from(DependencyDownloader.download(project, LoomVersions.NEOFORGE_INSTALLER_TOOLS.mavenNotation() + ":fatjar"));
+				settings.getMainClass().set("net.neoforged.installertools.ConsoleTool");
+				settings.args("--task", "PROCESS_MINECRAFT_JAR");
+
+				switch (type) {
+				case CLIENT_ONLY -> settings.args("--input", minecraftProvider.getMinecraftClientJar().getAbsolutePath());
+				case SERVER_ONLY -> settings.args("--input", minecraftProvider.getMinecraftServerJar().getAbsolutePath());
+
+				case MERGED -> {
+					settings.args("--input", minecraftProvider.getMinecraftClientJar().getAbsolutePath());
+					settings.args("--input", minecraftProvider.getMinecraftServerJar().getAbsolutePath());
+				}
+				}
+
+				settings.args("--input-mappings", mappings.toAbsolutePath().toString());
+				settings.args("--output", minecraftIntermediateJar.toAbsolutePath().toString());
+				settings.args("--neoform-data", getExtension().getMcpConfigProvider().getMcp().toAbsolutePath().toString());
+			});
+		}
 	}
 
 	private void fillClientExtraJar(ServiceFactory serviceFactory) throws IOException {
