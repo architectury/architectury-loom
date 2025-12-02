@@ -26,6 +26,7 @@ package dev.architectury.loom.forge.dependency;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import org.gradle.api.Project;
 
@@ -61,6 +62,7 @@ public class ForgeProvider extends DependencyProvider {
 
 	public File getGlobalCache() {
 		if (globalCache == null) {
+			Objects.requireNonNull(version.getCombined(), "Forge provider version is null when trying to get project directory");
 			globalCache = getMinecraftProvider().dir(platform.id() + "/" + version.getCombined());
 			globalCache.mkdirs();
 		}
@@ -82,6 +84,7 @@ public class ForgeProvider extends DependencyProvider {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final ModPlatform platform = extension.getPlatform().get();
 		final String version = extension.getForgeProvider().getVersion().getCombined();
+		Objects.requireNonNull(version, "Forge provider version is null when trying to get project directory");
 		return LoomGradleExtension.get(project).getMinecraftProvider()
 				.dir(platform.id() + "/" + version).toPath();
 	}
