@@ -26,6 +26,7 @@ unprotect = "2.0.2"
 asm = "9.7"
 access-transformers-log4j = "2.17.1"
 forge-installer-tools = "1.2.0"
+neoforge-installer-tools = "4.0.6"
 
 [libraries]
 # Decompilers
@@ -58,3 +59,4 @@ unprotect-modlauncher = { module = "io.github.juuxel:unprotect-modlauncher", ver
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 access-transformers-log4j-bom = { module = "org.apache.logging.log4j:log4j-bom", version.ref = "access-transformers-log4j" }
 forge-installer-tools = { module = "net.minecraftforge:installertools", version.ref = "forge-installer-tools" }
+neoforge-installer-tools = { module = "net.neoforged.installertools:installertools", version.ref = "neoforge-installer-tools" }
