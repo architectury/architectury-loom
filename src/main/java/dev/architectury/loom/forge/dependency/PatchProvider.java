@@ -38,14 +38,13 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
 
 public class PatchProvider extends DependencyProvider {
-	private final Path projectCacheFolder;
+	private Path projectCacheFolder;
 	private Path installerJar;
 	private @Nullable Path clientPatches;
 	private @Nullable Path serverPatches;
 
 	public PatchProvider(Project project) {
 		super(project);
-		this.projectCacheFolder = ForgeProvider.getForgeCache(project);
 	}
 
 	@Override
@@ -86,6 +85,8 @@ public class PatchProvider extends DependencyProvider {
 	}
 
 	private void init() {
+		this.projectCacheFolder = ForgeProvider.getForgeCache(getProject());
+
 		try {
 			Files.createDirectories(projectCacheFolder);
 		} catch (IOException e) {
