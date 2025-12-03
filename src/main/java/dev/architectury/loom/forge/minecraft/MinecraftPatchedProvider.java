@@ -105,7 +105,10 @@ public class MinecraftPatchedProvider {
 	private static final String CURRENT_LOOM_PATCH_VERSION = "10";
 	private static final String NAME_MAPPING_SERVICE_PATH = "/inject/META-INF/services/cpw.mods.modlauncher.api.INameMappingService";
 
-	private static final String NEOFORGE_MANUAL_CLEAR_JAR_CREATION_VERSION = "21.10.57-beta";
+	// The version where the bug was introduced.
+	private static final String MIN_NEOFORGE_MANUAL_CLEAN_JAR_CREATION_VERSION = "21.10.57-beta";
+	// The version where the bug was fixed.
+	private static final String MAX_NEOFORGE_MANUAL_CLEAN_JAR_CREATION_VERSION = "21.10.64";
 
 	private final Project project;
 	private final Logger logger;
@@ -194,8 +197,14 @@ public class MinecraftPatchedProvider {
 		}
 
 		Version currentVersion = Version.parse(getExtension().getForgeProvider().getVersion().getCombined());
-		Version minVersion = Version.parse(NEOFORGE_MANUAL_CLEAR_JAR_CREATION_VERSION);
-		return currentVersion.compareTo(minVersion) >= 0;
+		Version minVersion = Version.parse(MIN_NEOFORGE_MANUAL_CLEAN_JAR_CREATION_VERSION);
+
+		if (currentVersion.compareTo(minVersion) < 0) {
+			return false; // old enough to skip the workaround
+		}
+
+		Version maxVersion = Version.parse(MAX_NEOFORGE_MANUAL_CLEAN_JAR_CREATION_VERSION);
+		return currentVersion.compareTo(maxVersion) < 0;
 	}
 
 	public void provide() throws Exception {
