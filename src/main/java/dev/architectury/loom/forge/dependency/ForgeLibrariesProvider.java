@@ -82,6 +82,9 @@ public class ForgeLibrariesProvider {
 	private static final String NEOFORGE_GAME_LOCATOR_FILE = "net/neoforged/fml/loading/moddiscovery/locators/GameLocator.class";
 	private static final String NEOFORGE_REQUIRED_SYSTEM_FILES_FILE = "net/neoforged/fml/loading/moddiscovery/locators/RequiredSystemFiles.class";
 
+	private static final String TERMINAL_CONSOLE_APPENDER_GROUP = "net.minecrell";
+	private static final String TERMINAL_CONSOLE_APPENDER_NAME = "terminalconsoleappender";
+
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final List<Dependency> dependencies = new ArrayList<>();
@@ -158,6 +161,9 @@ public class ForgeLibrariesProvider {
 				} catch (IOException e) {
 					throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not remap FML", e);
 				}
+			} else if (TERMINAL_CONSOLE_APPENDER_GROUP.equals(artifact.getModuleVersion().getId().getGroup()) && TERMINAL_CONSOLE_APPENDER_NAME.equals(artifact.getModuleVersion().getId().getName())) {
+				// Skip TerminalConsoleAppender since we already have it through Fabric.
+				continue;
 			} else {
 				dep = project.getDependencies().create(getDependencyNotation(artifact));
 
