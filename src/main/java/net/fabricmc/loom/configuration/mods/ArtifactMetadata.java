@@ -38,8 +38,11 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import org.gradle.api.Project;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.InstallerData;
@@ -52,6 +55,8 @@ import net.fabricmc.loom.util.gradle.GradleUtils;
 // ARCH: isFabricMod means "is mod on current platform"
 public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequirements, @Nullable InstallerData installerData, MixinRemapType mixinRemapType, List<String> knownIdyBsms) {
 	private static final String INSTALLER_PATH = "fabric-installer.json";
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ArtifactMetadata.class);
 
 	// ARCH: Quilt support
 	private static final String QUILT_INSTALLER_PATH = "quilt_installer.json";
@@ -83,6 +88,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 				final String loomVersion = mainAttributes.getValue(Constants.Manifest.LOOM_VERSION);
 				final String mixinRemapType = mainAttributes.getValue(Constants.Manifest.MIXIN_REMAP_TYPE);
 				final String knownIndyBsmsValue = mainAttributes.getValue(Constants.Manifest.KNOWN_IDY_BSMS);
+				final String mixinConfigs = mainAttributes.getValue(Constants.Forge.MIXIN_CONFIGS_MANIFEST_KEY);
 
 				if (remapValue != null) {
 					// Support opting into and out of remapping with "Fabric-Loom-Remap" manifest entry
@@ -95,6 +101,10 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 					} catch (IllegalArgumentException e) {
 						throw new IllegalStateException("Unknown mixin remap type: " + mixinRemapType);
 					}
+				} else if (platform == ModPlatform.FORGE && hasRefmaplessMixinConfig(fs, mixinConfigs)) {
+					// On Forge, we support both mixins with and without refmaps.
+					// Check for mixins without them, and if any are found, mark the remap type as static.
+					refmapRemapType = MixinRemapType.STATIC;
 				} else if (forcesStaticMixinRemap != null) {
 					// The mixin remap type is not specified in the manifest, but we have a forced value
 					// This is forced to be static on NeoForge or Forge 50+.
@@ -121,6 +131,22 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 		}
 
 		return new ArtifactMetadata(isFabricMod, remapRequirements, installerData, refmapRemapType, Collections.unmodifiableList(knownIndyBsms));
+	}
+
+	private static boolean hasRefmaplessMixinConfig(FileSystemUtil.Delegate fs, String mixinConfigs) throws IOException {
+		for (String mixinConfig : mixinConfigs.split(",")) {
+			try {
+				final JsonObject json = LoomGradlePlugin.GSON.fromJson(Files.readString(fs.getPath(mixinConfig)), JsonObject.class);
+
+				if (!json.has("refmap")) {
+					return true;
+				}
+			} catch (JsonSyntaxException e) {
+				LOGGER.error("Could not parse mixin config in file {}", mixinConfig, e);
+			}
+		}
+
+		return false;
 	}
 
 	// Validates that the version matches or is less than the current loom version
