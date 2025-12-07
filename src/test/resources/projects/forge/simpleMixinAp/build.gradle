@@ -22,6 +22,10 @@ loom {
 	forge {
 		mixinConfigs 'my_mixins.json'
 	}
+
+	mixin {
+		useLegacyMixinAp = true
+	}
 }
 
 repositories {
