@@ -165,8 +165,8 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 		getSasOptions().set(sasOptions);
 
 		getPatchPathInZip().set(getExtension().getForgeUserdevProvider().getConfig().patches());
-		getPatchesOriginalPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesOriginalPrefix().orElseThrow());
-		getPatchesModifiedPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesModifiedPrefix().orElseThrow());
+		getPatchesOriginalPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesOriginalPrefix().orElse("a/"));
+		getPatchesModifiedPrefix().set(getExtension().getForgeUserdevProvider().getConfig().patchesModifiedPrefix().orElse("b/"));
 
 		getSourceRemapperOptions().set(SourceRemapperService.TYPE.create(getProject(), sro -> {
 			sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(
