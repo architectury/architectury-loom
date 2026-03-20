@@ -21,7 +21,7 @@ import dev.architectury.at.io.AccessTransformFormats;
 import dev.architectury.loom.accesstransformer.Aw2At;
 import dev.architectury.loom.util.LfWriter;
 import org.gradle.api.provider.Provider;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.util.Constants;

@@ -16,7 +16,7 @@ import java.util.Set;
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.io.ParsingException;
 import com.electronwill.nightconfig.toml.TomlParser;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.util.ExceptionUtil;

@@ -73,7 +73,7 @@ import org.gradle.workers.WorkQueue;
 import org.gradle.workers.WorkerExecutor;
 import org.gradle.workers.internal.WorkerDaemonClientsManager;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.decompilers.DecompilationMetadata;
@@ -329,7 +329,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 		if (job instanceof CachedJarProcessor.WorkToDoJob workToDoJob) {
 			Path workInputJar = workToDoJob.incomplete();
-			@Nullable Path existingClasses = (job instanceof CachedJarProcessor.PartialWorkJob partialWorkJob) ? partialWorkJob.existingClasses() : null;
+			Path existingClasses = (job instanceof CachedJarProcessor.PartialWorkJob partialWorkJob) ? partialWorkJob.existingClasses() : null;
 
 			if (usingUnpick()) {
 				try (var timer = new Timer("Unpick")) {

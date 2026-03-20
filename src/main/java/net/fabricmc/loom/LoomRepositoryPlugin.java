@@ -36,7 +36,6 @@ import org.gradle.api.initialization.Settings;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.PluginAware;
-import org.jetbrains.annotations.NotNull;
 
 import net.fabricmc.loom.extension.LoomFiles;
 import net.fabricmc.loom.util.MirrorUtil;
@@ -51,7 +50,7 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 	);
 
 	@Override
-	public void apply(@NotNull PluginAware target) {
+	public void apply(PluginAware target) {
 		if (target instanceof Settings settings) {
 			declareRepositories(settings.getDependencyResolutionManagement().getRepositories(), LoomFiles.create(settings), settings);
 

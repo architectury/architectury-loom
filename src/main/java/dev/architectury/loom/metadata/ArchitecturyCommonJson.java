@@ -14,7 +14,7 @@ import java.util.Set;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.util.CheckSignatureAdapter;
 

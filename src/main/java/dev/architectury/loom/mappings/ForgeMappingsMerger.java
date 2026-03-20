@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 import dev.architectury.loom.forge.dependency.SrgProvider;
 import dev.architectury.loom.util.collection.CollectionUtil;
 import dev.architectury.loom.util.collection.Multimap;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;

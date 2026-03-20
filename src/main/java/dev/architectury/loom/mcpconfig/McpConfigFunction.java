@@ -35,7 +35,7 @@ import com.google.gson.JsonObject;
 import dev.architectury.loom.forge.config.ConfigValue;
 import dev.architectury.loom.mcpconfig.steplogic.StepLogic;
 import dev.architectury.loom.util.collection.CollectionUtil;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An executable program for {@linkplain McpConfigStep steps}.

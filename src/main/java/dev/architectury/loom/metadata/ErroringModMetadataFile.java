@@ -3,7 +3,7 @@ package dev.architectury.loom.metadata;
 import java.util.List;
 import java.util.Set;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
