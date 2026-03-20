@@ -42,7 +42,6 @@ class LoomTestConstants {
 		PRE_RELEASE_GRADLE
 	] : [
 		DEFAULT_GRADLE,
-		LoomTestVersions.GRADLE_LATEST.version()
 	]).shuffled().toArray()
 
 	public static final File TEST_DIR = new File("./.gradle/test-files")

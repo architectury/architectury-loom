@@ -278,6 +278,10 @@ gradlePlugin {
 			id = 'dev.architectury.loom-remap'
 			implementationClass = 'net.fabricmc.loom.LoomRemapGradlePlugin'
 		}
+		fabricLoomLegacy {
+			id = 'dev.architectury.loom-legacy'
+			implementationClass = 'net.fabricmc.loom.LoomGradlePlugin'
+		}
 		fabricLoomCompanion {
 			id = 'dev.architectury.loom-companion'
 			implementationClass = 'net.fabricmc.loom.LoomCompanionGradlePlugin'
