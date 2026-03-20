@@ -69,6 +69,8 @@ import org.gradle.api.tasks.testing.Test;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.InterfaceInjectionExtensionAPI;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
+import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.build.mixin.GroovyApInvoker;
 import net.fabricmc.loom.build.mixin.JavaApInvoker;
 import net.fabricmc.loom.build.mixin.KaptApInvoker;
@@ -76,6 +78,7 @@ import net.fabricmc.loom.build.mixin.ScalaApInvoker;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerJarProcessor;
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.configuration.mods.ModConfigurationRemapper;
+import net.fabricmc.loom.configuration.processors.JsrAnnotationRemapperProcessor;
 import net.fabricmc.loom.configuration.processors.MinecraftJarProcessorManager;
 import net.fabricmc.loom.configuration.processors.ModJavadocProcessor;
 import net.fabricmc.loom.configuration.processors.speccontext.DebofConfiguration;
@@ -92,6 +95,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftPr
 import net.fabricmc.loom.extension.MixinExtension;
 import net.fabricmc.loom.task.service.ClasspathGroupService;
 import net.fabricmc.loom.util.Checksum;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.ProcessUtil;
 import net.fabricmc.loom.util.gradle.GradleUtils;
@@ -217,6 +221,18 @@ public abstract class CompileConfiguration implements Runnable {
 		final MinecraftMetadataProvider metadataProvider = MinecraftMetadataProvider.create(configContext);
 		extension.setMetadataProvider(metadataProvider);
 
+		if (metadataProvider.getVersionMeta().isVersionOrNewer(Constants.RELEASE_TIME_1_21_11_UNOBFUSCATED_SNAPSHOTS) && !metadataProvider.getVersionMeta().downloads().containsKey("client_mappings")) {
+			extension.getProductionNamespace().convention(MappingsNamespace.OFFICIAL.toString());
+		} else {
+			extension.getProductionNamespace().convention(IntermediaryNamespaces.intermediaryNamespace(extension.getPlatform().get()).toString());
+		}
+
+		// runtimeIntermediaryNamespace defaults to productionNamespace;
+		// overridden later for Forge with mojang-at-runtime (see configureCompile)
+		extension.getRuntimeIntermediaryNamespace().convention(extension.getProductionNamespace());
+
+		extension.getProductionNamespace().finalizeValue();
+
 		var jarConfiguration = extension.getMinecraftJarConfiguration().get();
 
 		// Provide the vanilla mc jars
@@ -296,10 +312,14 @@ public abstract class CompileConfiguration implements Runnable {
 		}
 
 		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
+			extension.getRuntimeIntermediaryNamespace().set(MappingsNamespace.MOJANG.toString());
+
 			final MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider = jarConfiguration.createMojangMappedMinecraftProvider(project);
 			extension.setMojangMappedMinecraftProvider(mojangMappedMinecraftProvider);
 			mojangMappedMinecraftProvider.provide(provideContext);
 		}
+
+		extension.getRuntimeIntermediaryNamespace().finalizeValue();
 	}
 
 	private void registerGameProcessors(ConfigContext configContext) {
@@ -316,6 +336,10 @@ public abstract class CompileConfiguration implements Runnable {
 
 		if (interfaceInjection.isEnabled()) {
 			extension.addMinecraftJarProcessor(InterfaceInjectionProcessor.class, "fabric-loom:interface-inject", interfaceInjection.getEnableDependencyInterfaceInjection().get());
+		}
+
+		if (!extension.getRemapJsrAnnotationsToJetBrains().get()) {
+			extension.addMinecraftJarProcessor(JsrAnnotationRemapperProcessor.class, "fabric-loom:jsr-annotations");
 		}
 
 		if (extension.isForgeLike()) {

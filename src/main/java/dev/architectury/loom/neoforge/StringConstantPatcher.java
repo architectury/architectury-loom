@@ -3,7 +3,7 @@ package dev.architectury.loom.neoforge;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 

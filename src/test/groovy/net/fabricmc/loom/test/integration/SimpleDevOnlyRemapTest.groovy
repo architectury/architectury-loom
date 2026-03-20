@@ -22,7 +22,9 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.test.integration.noRemap
+package net.fabricmc.loom.test.integration
+
+import java.nio.file.Path
 
 import org.intellij.lang.annotations.Language
 import spock.lang.Specification
@@ -33,40 +35,47 @@ import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class SimpleDebofTest extends Specification implements GradleProjectTestTrait {
+class SimpleDevOnlyRemapTest extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build"() {
 		setup:
-		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
-		gradle.buildGradle << '''
+		def mappings = Path.of("src/test/resources/mappings/25w46a_unobfuscated-intermediary-minimal.tiny").toAbsolutePath()
+		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		gradle.buildGradle << """
 				dependencies {
-					minecraft 'com.mojang:minecraft:25w45a_unobfuscated'
-					implementation "net.fabricmc:fabric-loader:0.17.3"
-					implementation "net.fabricmc.fabric-api:fabric-api:0.138.3+1.21.11_unobfuscated"
+					minecraft 'com.mojang:minecraft:25w46a_unobfuscated'
+					mappings 'net.fabricmc:yarn:25w46a+build.2:v2'
+					modImplementation "net.fabricmc:fabric-loader:0.18.0"
                 }
-		'''
+		"""
+		gradle.buildSrc("devOnlyRemapIntermediary")
 		def sourceFile = new File(gradle.projectDir, "src/main/java/example/Test.java")
 		sourceFile.parentFile.mkdirs()
 		@Language("JAVA") String src =  """
 		package example;
 
-		import net.minecraft.resources.Identifier;
+		import net.minecraft.util.Identifier;
 
 		import org.spongepowered.asm.mixin.Mixin; // Make sure we applied loaders deps via the installer data
 
 		public class Test {
 			public static void main(String[] args) {
-			    Identifier id = Identifier.fromNamespaceAndPath("loom", "test");
+			    Identifier id = Identifier.of("loom", "test");
 			}
 		}
 		"""
 		sourceFile.text = src
 
 		when:
-		def result = gradle.run(tasks: [
-			"build",
-			"configureClientLaunch"
-		])
+		def result = gradle.run(
+				tasks: [
+					"build",
+					"configureClientLaunch"
+				],
+				args: [
+					"-Ploom.test.devOnlyRemapIntermediary.mappingPath=${mappings}"
+				]
+				)
 
 		then:
 		result.task(":build").outcome == SUCCESS
@@ -76,60 +85,46 @@ class SimpleDebofTest extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "split build"() {
 		setup:
-		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
-		gradle.buildGradle << '''
+		def mappings = Path.of("src/test/resources/mappings/25w46a_unobfuscated-intermediary-minimal.tiny").toAbsolutePath()
+		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		gradle.buildGradle << """
 				loom {
 					splitEnvironmentSourceSets()
 				}
 
 				dependencies {
-					minecraft 'com.mojang:minecraft:25w45a_unobfuscated'
-					implementation "net.fabricmc:fabric-loader:0.17.3"
+					minecraft 'com.mojang:minecraft:25w46a_unobfuscated'
+					mappings 'net.fabricmc:yarn:25w46a+build.2:v2'
+					modImplementation "net.fabricmc:fabric-loader:0.18.0"
                 }
-		'''
+		"""
+		gradle.buildSrc("devOnlyRemapIntermediary")
 		def sourceFile = new File(gradle.projectDir, "src/main/java/example/Test.java")
 		sourceFile.parentFile.mkdirs()
 		@Language("JAVA") String src =  """
 		package example;
 
-		import net.minecraft.resources.Identifier;
+		import net.minecraft.util.Identifier;
 
 		import org.spongepowered.asm.mixin.Mixin; // Make sure we applied loaders deps via the installer data
 
 		public class Test {
 			public static void main(String[] args) {
-			    Identifier id = Identifier.fromNamespaceAndPath("loom", "test");
+			    Identifier id = Identifier.of("loom", "test");
 			}
 		}
 		"""
 		sourceFile.text = src
 
 		when:
-		def result = gradle.run(task: "build")
+		def result = gradle.run(
+				task: "build",
+				args: [
+					"-Ploom.test.devOnlyRemapIntermediary.mappingPath=${mappings}"
+				]
+				)
 
 		then:
 		result.task(":build").outcome == SUCCESS
-	}
-
-	@Unroll
-	def "genSources split build"() {
-		setup:
-		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
-		gradle.buildGradle << '''
-				loom {
-					splitEnvironmentSourceSets()
-				}
-
-				dependencies {
-					minecraft 'com.mojang:minecraft:25w45a_unobfuscated'
-					implementation "net.fabricmc:fabric-loader:0.17.3"
-                }
-		'''
-
-		when:
-		def result = gradle.run(task: "genSources")
-
-		then:
-		result.task(":genSources").outcome == SUCCESS
 	}
 }

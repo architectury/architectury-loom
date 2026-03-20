@@ -259,7 +259,7 @@ public class ModProcessor {
 
 					if (accessWidenerData != null) {
 						LOGGER.debug("Remapping access widener in {}", dependency.getInputFile());
-						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper());
+						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper(), fromM, toM);
 						accessWidenerMap.put(dependency, new Pair<>(remappedAw, accessWidenerData.path()));
 					}
 

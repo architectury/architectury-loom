@@ -24,6 +24,8 @@
 
 package net.fabricmc.loom.build;
 
+import java.util.Objects;
+
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -47,14 +49,16 @@ public final class IntermediaryNamespaces {
 	}
 
 	/**
-	 * Returns the intermediary namespace of the project.
+	 * Returns the intermediary namespace of the project, reading from the extension's production namespace property.
 	 */
 	public static MappingsNamespace intermediaryNamespace(Project project) {
-		return intermediaryNamespace(LoomGradleExtension.get(project).getPlatform().get());
+		LoomGradleExtension extension = LoomGradleExtension.get(project);
+		return Objects.requireNonNull(MappingsNamespace.of(extension.getProductionNamespace().get()), "Invalid intermediary namespace");
 	}
 
 	/**
 	 * Returns the intermediary namespace of the platform.
+	 * This is the fallback used before the extension property is set.
 	 */
 	public static MappingsNamespace intermediaryNamespace(ModPlatform platform) {
 		return switch (platform) {
@@ -65,12 +69,12 @@ public final class IntermediaryNamespaces {
 	}
 
 	/**
-	 * Returns the intermediary namespace of the project.
+	 * Returns the runtime intermediary namespace of the project, reading from the extension's
+	 * runtime intermediary namespace property.
 	 */
 	public static MappingsNamespace runtimeIntermediaryNamespace(Project project) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		if (extension.isForge() && extension.getForgeProvider().usesMojangAtRuntime()) return MappingsNamespace.MOJANG;
-		return intermediaryNamespace(project);
+		return Objects.requireNonNull(MappingsNamespace.of(extension.getRuntimeIntermediaryNamespace().get()), "Invalid runtime intermediary namespace");
 	}
 
 	/**

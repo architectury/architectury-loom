@@ -245,6 +245,31 @@ public interface LoomGradleExtensionAPI {
 	 */
 	Property<String> getIntermediaryUrl();
 
+	/**
+	 * Returns the production namespace — the intermediary-like namespace that the processed
+	 * Minecraft jar and mod dependencies are in before being remapped to named.
+	 *
+	 * <p>This serves as the source namespace for all remapping operations on both the
+	 * Minecraft jar (access wideners, interface injection, javadoc) and mod dependencies.
+	 *
+	 * <p>Convention values:
+	 * <ul>
+	 *   <li>Fabric/Quilt (normal versions): {@code intermediary}</li>
+	 *   <li>Forge: {@code srg}</li>
+	 *   <li>NeoForge: {@code mojang}</li>
+	 *   <li>All platforms (unobfuscated 1.21.11+): {@code official}</li>
+	 * </ul>
+	 *
+	 * <p>In architectury-loom, this property replaces both the upstream concept of
+	 * "production namespace" and the platform-specific intermediary namespace, since
+	 * the processed jar is always in the platform's intermediary namespace when
+	 * processors run.
+	 *
+	 * @return the production namespace property
+	 * @see #getRuntimeIntermediaryNamespace()
+	 */
+	Property<String> getProductionNamespace();
+
 	@ApiStatus.Experimental
 	Property<MinecraftJarConfiguration<?, ?, ?>> getMinecraftJarConfiguration();
 
@@ -263,6 +288,19 @@ public interface LoomGradleExtensionAPI {
 	void splitEnvironmentSourceSets();
 
 	boolean areEnvironmentSourceSetsSplit();
+
+	/**
+	 * When enabled, Loom remaps JSR {@code Nullable}, {@code Nonnull}, and {@code Immutable} annotations to their JetBrains counterparts in the Minecraft JAR.
+	 *
+	 * <p>When disabled, Loom keeps JSR annotations as-is, and remaps any JetBrains {@code Nullable}, {@code NotNull}, and {@code Unmodifiable} annotations to their JSR counterparts in the Minecraft JAR.
+	 *
+	 * <p>This has no effect on Minecraft versions that solely use JSpecify annotations.
+	 *
+	 * <p>Default: true
+	 *
+	 * @return the property controlling the remapping of JSR annotations
+	 */
+	Property<Boolean> getRemapJsrAnnotationsToJetBrains();
 
 	Property<Boolean> getRuntimeOnlyLog4j();
 
@@ -283,6 +321,18 @@ public interface LoomGradleExtensionAPI {
 	// ===================
 	//  Architectury Loom
 	// ===================
+
+	/**
+	 * Returns the runtime intermediary namespace for the current platform and MC version.
+	 * This is the namespace used in the compiled jar at runtime.
+	 *
+	 * <p>Same as {@link #getProductionNamespace()} in most cases, except for Forge
+	 * with mojang-at-runtime where it returns {@code mojang}.
+	 *
+	 * @return the runtime intermediary namespace property
+	 */
+	Property<String> getRuntimeIntermediaryNamespace();
+
 	void silentMojangMappingsLicense();
 
 	boolean isSilentMojangMappingsLicenseEnabled();

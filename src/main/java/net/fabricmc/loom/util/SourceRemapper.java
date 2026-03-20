@@ -174,8 +174,8 @@ public class SourceRemapper {
 		LorenzMappingService lorenzMappingService = serviceFactory.get(LorenzMappingService.createOptions(
 				project,
 				mappingConfiguration,
-															Objects.requireNonNull(MappingsNamespace.of(from)),
-															Objects.requireNonNull(MappingsNamespace.of(to))));
+				Objects.requireNonNull(MappingsNamespace.of(from)),
+				Objects.requireNonNull(MappingsNamespace.of(to))));
 		MappingSet mappings = lorenzMappingService.getMappings();
 
 		Mercury mercury = createMercuryWithClassPath(project, MappingsNamespace.of(to) == MappingsNamespace.NAMED);
@@ -190,8 +190,8 @@ public class SourceRemapper {
 			}
 		}
 
-		for (Path intermediaryJar : extension.getMinecraftJars(MappingsNamespace.INTERMEDIARY)) {
-			mercury.getClassPath().add(intermediaryJar);
+		for (Path productionJar : extension.getMinecraftJars(extension.getProductionNamespaceEnum())) {
+			mercury.getClassPath().add(productionJar);
 		}
 
 		for (Path intermediaryJar : extension.getMinecraftJars(MappingsNamespace.NAMED)) {

@@ -153,6 +153,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	@Inject
 	public RemapJarTask() {
 		super();
+		LoomGradleExtension extension = LoomGradleExtension.get(getProject());
 		final ConfigurationContainer configurations = getProject().getConfigurations();
 		getClasspath().from(configurations.getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
 		getAddNestedDependencies().convention(true).finalizeValueOnRead();
@@ -160,11 +161,13 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForgeLike()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
 
+		getTargetNamespace().set(extension.getProductionNamespace());
+
 		TaskProvider<NestableJarGenerationTask> processIncludeJars = getProject().getTasks().named(Constants.Task.PROCESS_INCLUDE_JARS, NestableJarGenerationTask.class);
 		getNestedJars().from(processIncludeJars.map(task -> getProject().fileTree(task.getOutputDirectory())));
 		getNestedJars().builtBy(processIncludeJars);
 
-		getUseMixinAP().set(LoomGradleExtension.get(getProject()).getMixin().getUseLegacyMixinAp());
+		getUseMixinAP().set(extension.getMixin().getUseLegacyMixinAp());
 
 		// Make outputs reproducible by default
 		setReproducibleFileOrder(true);

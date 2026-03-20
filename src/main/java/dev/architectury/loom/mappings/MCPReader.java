@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;

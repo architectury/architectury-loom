@@ -73,4 +73,9 @@ public record ProcessorContextImpl(ConfigContext configContext, MinecraftJar min
 	public boolean disableObfuscation() {
 		return configContext().extension().disableObfuscation();
 	}
+
+	@Override
+	public MappingsNamespace getProductionNamespace() {
+		return configContext().extension().getProductionNamespaceEnum();
+	}
 }

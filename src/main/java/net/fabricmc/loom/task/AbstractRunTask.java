@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import dev.architectury.loom.forge.dependency.ForgeModClassesService;
+import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
@@ -53,6 +54,7 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
+import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.ExecOperations;
 import org.gradle.process.ProcessForkOptions;
 import org.jetbrains.annotations.ApiStatus;
@@ -61,6 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.ide.RunConfig;
+import net.fabricmc.loom.task.prod.TracyCapture;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.Platform;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
@@ -87,6 +90,22 @@ public abstract class AbstractRunTask extends JavaExec {
 	@Input
 	protected abstract Property<Boolean> getUseXvfb();
 
+	@Nested
+	@Optional
+	public abstract Property<TracyCapture> getTracyCapture();
+
+	/**
+	 * Configures the tracy profiler to run alongside the game. See @{@link TracyCapture} for more information.
+	 *
+	 * @param action The configuration action.
+	 */
+	@SuppressWarnings("unused")
+	public void tracy(Action<? super TracyCapture> action) {
+		getTracyCapture().set(getProject().getObjects().newInstance(TracyCapture.class));
+		getTracyCapture().finalizeValue();
+		action.execute(getTracyCapture().get());
+	}
+
 	// We control the classpath, as we use a ArgFile to pass it over the command line: https://docs.oracle.com/javase/7/docs/technotes/tools/windows/javac.html#commandlineargfile
 	@InputFiles
 	protected abstract ConfigurableFileCollection getInternalClasspath();
@@ -112,7 +131,22 @@ public abstract class AbstractRunTask extends JavaExec {
 						config.get().configName)
 				)));
 
-		getArgumentProviders().add(() -> config.get().programArgs);
+		getArgumentProviders().add(new CommandLineArgumentProvider() {
+			@Override
+			public Iterable<String> asArguments() {
+				return config.get().programArgs;
+			}
+		});
+		getArgumentProviders().add(new CommandLineArgumentProvider() {
+			@Override
+			public Iterable<String> asArguments() {
+				if (AbstractRunTask.this.getTracyCapture().isPresent()) {
+					return List.of("--tracy");
+				}
+
+				return List.of();
+			}
+		});
 		getMainClass().set(config.map(runConfig -> runConfig.mainClass));
 		getJvmArguments().addAll(getProject().provider(this::getGameJvmArgs));
 
@@ -170,6 +204,21 @@ public abstract class AbstractRunTask extends JavaExec {
 		environment(getInternalEnvironmentVars().get());
 		configureForgeModClasses(this);
 
+		// Wrap with Tracy if enabled
+		if (getTracyCapture().isPresent()) {
+			try {
+				getTracyCapture().get().runWithTracy(this::execInternal);
+			} catch (IOException e) {
+				throw new UncheckedIOException("Failed to run with Tracy", e);
+			}
+
+			return;
+		}
+
+		execInternal();
+	}
+
+	private void execInternal() {
 		// Wrap with XVFB if enabled and on Linux
 		if (getUseXvfb().get()) {
 			LOGGER.info("Using XVFB for headless client execution");

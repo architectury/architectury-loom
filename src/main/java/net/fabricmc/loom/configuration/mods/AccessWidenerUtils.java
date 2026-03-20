@@ -43,15 +43,15 @@ public class AccessWidenerUtils {
 	/**
 	 * Remap a mods access widener from intermediary to named, so that loader can apply it in our dev-env.
 	 */
-	public static byte[] remapAccessWidener(byte[] input, Remapper remapper) {
+	public static byte[] remapAccessWidener(byte[] input, Remapper remapper, String fromNamespace, String toNamespace) {
 		int version = ClassTweakerReader.readVersion(input);
 
 		ClassTweakerWriter writer = ClassTweakerWriter.create(version);
 		ClassTweakerRemapperVisitor awRemapper = new ClassTweakerRemapperVisitor(
 				writer,
 				remapper,
-				MappingsNamespace.INTERMEDIARY.toString(),
-				MappingsNamespace.NAMED.toString()
+				fromNamespace,
+				toNamespace
 		);
 		ClassTweakerReader reader = ClassTweakerReader.create(awRemapper);
 		reader.read(input, null); // TODO pass modid
