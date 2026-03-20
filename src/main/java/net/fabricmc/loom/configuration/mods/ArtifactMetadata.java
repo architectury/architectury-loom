@@ -26,7 +26,6 @@ package net.fabricmc.loom.configuration.mods;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -125,8 +124,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 			final Path installerPath = fs.getPath(installerFile);
 
 			if (isFabricMod && Files.exists(installerPath)) {
-				final JsonObject jsonObject = LoomGradlePlugin.GSON.fromJson(Files.readString(installerPath, StandardCharsets.UTF_8), JsonObject.class);
-				installerData = new InstallerData(artifact.version(), jsonObject);
+				installerData = InstallerData.fromBytes(Files.readAllBytes(installerPath), artifact.version());
 			}
 		}
 

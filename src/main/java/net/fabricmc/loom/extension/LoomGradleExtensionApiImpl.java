@@ -50,6 +50,8 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.jvm.tasks.Jar;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
@@ -659,6 +661,11 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 
 		@Override
 		public NeoForgeExtensionAPI getNeoForge() {
+			throw new RuntimeException("Yeah... something is really wrong");
+		}
+
+		@Override
+		public void nestJars(TaskProvider<? extends Jar> jarTask, FileCollection jars) {
 			throw new RuntimeException("Yeah... something is really wrong");
 		}
 	}

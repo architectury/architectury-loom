@@ -26,50 +26,88 @@ package net.fabricmc.loom.task;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.Set;
+
+import javax.inject.Inject;
 
 import org.gradle.api.Action;
 import org.gradle.api.Task;
-import org.gradle.api.file.Directory;
-import org.gradle.api.provider.Provider;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.jvm.tasks.Jar;
+import org.gradle.workers.WorkAction;
+import org.gradle.workers.WorkParameters;
+import org.gradle.workers.WorkQueue;
+import org.gradle.workers.WorkerExecutor;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.build.nesting.JarNester;
+import net.fabricmc.loom.util.ModPlatform;
 
 /**
  * Configuration-cache-compatible action for nesting jars.
- * Uses a provider to avoid capturing task references at configuration time.
+ * Uses a FileCollection to avoid capturing task references at configuration time.
  * Do NOT turn me into a record!
  */
-class NestJarsAction implements Action<Task>, Serializable {
-	private final Provider<Directory> nestedJarsDir;
+public abstract class NestJarsAction implements Action<Task>, Serializable {
+	@InputFiles
+	public abstract ConfigurableFileCollection getJars();
 
-	NestJarsAction(Provider<Directory> nestedJarsDir) {
-		this.nestedJarsDir = nestedJarsDir;
+	@Input
+	public abstract Property<ModPlatform> getPlatform();
+
+	@Inject
+	protected abstract WorkerExecutor getWorkerExecutor();
+
+	public static void addToTask(Jar task, FileCollection jars) {
+		addToTask(task, jars, ModPlatform.FABRIC);
+	}
+
+	public static void addToTask(Jar task, FileCollection jars, ModPlatform platform) {
+		NestJarsAction nestJarsAction = task.getProject().getObjects().newInstance(NestJarsAction.class);
+		nestJarsAction.getJars().from(jars);
+		nestJarsAction.getPlatform().set(platform);
+		task.getInputs().files(nestJarsAction.getJars()); // I don't think @InputFiles works, so to be sure add the jars to the task input anyway.
+		task.doLast(nestJarsAction);
 	}
 
 	@Override
 	public void execute(@NotNull Task t) {
 		final Jar jarTask = (Jar) t;
-		final File jarFile = jarTask.getArchiveFile().get().getAsFile();
 
-		if (!nestedJarsDir.isPresent()) {
-			return;
-		}
+		final WorkQueue workQueue = getWorkerExecutor().noIsolation();
 
-		final File outputDir = nestedJarsDir.get().getAsFile();
+		workQueue.submit(NestAction.class, p -> {
+			p.getArchiveFile().set(jarTask.getArchiveFile());
+			p.getJars().setFrom(getJars());
+			p.getPlatform().set(getPlatform());
+		});
+	}
 
-		if (outputDir.exists() && outputDir.isDirectory()) {
-			final File[] jars = outputDir.listFiles((dir, name) -> name.endsWith(".jar"));
+	public interface NestJarsParameters extends WorkParameters {
+		RegularFileProperty getArchiveFile();
+		ConfigurableFileCollection getJars();
+		Property<ModPlatform> getPlatform();
+	}
 
-			if (jars != null && jars.length > 0) {
-				JarNester.nestJars(
-						Arrays.asList(jars),
-						jarFile,
-						jarTask.getLogger()
-				);
-				jarTask.getLogger().lifecycle("Nested {} jar(s) into {}", jars.length, jarFile.getName());
+	public abstract static class NestAction implements WorkAction<NestJarsParameters> {
+		private static final Logger LOGGER = LoggerFactory.getLogger(NestJarsAction.class);
+
+		@Override
+		public void execute() {
+			final File jarFile = getParameters().getArchiveFile().get().getAsFile();
+			final Set<File> jars = getParameters().getJars().getFiles();
+
+			// Nest all collected jars
+			if (!jars.isEmpty()) {
+				JarNester.nestJars(jars, jarFile, getParameters().getPlatform().get(), LOGGER);
+				LOGGER.info("Nested {} jar(s) into {}", jars.size(), jarFile.getName());
 			}
 		}
 	}
