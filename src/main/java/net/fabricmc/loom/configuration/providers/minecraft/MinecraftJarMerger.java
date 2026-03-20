@@ -226,7 +226,7 @@ public class MinecraftJarMerger implements AutoCloseable {
 						visitor = new SnowmanClassVisitor(Constants.ASM_VERSION, visitor);
 					}
 
-					if (offsetSyntheticsParams) {
+					if (offsetSyntheticsParams && !entry.contains("/")) {
 						visitor = new SyntheticParameterClassVisitor(Constants.ASM_VERSION, visitor);
 					}
 
