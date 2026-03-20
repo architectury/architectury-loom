@@ -3,7 +3,7 @@ package dev.architectury.loom.neoforge;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 
@@ -64,7 +64,7 @@ public final class StringConstantPatcher extends ClassVisitor {
 
 	private static @Nullable String getNamedClassName(MappingTreeView mappings, String intermediary) {
 		final int intermediaryNsId = mappings.getNamespaceId(MappingsNamespace.INTERMEDIARY.toString());
-		final @Nullable MappingTreeView.ClassMappingView c = mappings.getClass(intermediary, intermediaryNsId);
+		final MappingTreeView.@Nullable ClassMappingView c = mappings.getClass(intermediary, intermediaryNsId);
 		return c != null ? c.getName(MappingsNamespace.NAMED.toString()) : null;
 	}
 

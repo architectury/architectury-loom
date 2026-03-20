@@ -44,7 +44,7 @@ import dev.architectury.loom.util.TempFiles;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
@@ -74,7 +74,7 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 	}
 
 	@Override
-	public @Nullable AccessTransformerJarProcessor.Spec buildSpec(SpecContext context) {
+	public AccessTransformerJarProcessor.@Nullable Spec buildSpec(SpecContext context) {
 		final List<AccessTransformerEntry> entries = new ArrayList<>();
 
 		for (File atFile : localAccessTransformers) {

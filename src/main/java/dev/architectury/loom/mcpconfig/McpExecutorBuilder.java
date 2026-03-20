@@ -58,7 +58,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.provider.Provider;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
@@ -81,7 +81,7 @@ public final class McpExecutorBuilder {
 	private final Map<String, McpConfigFunction> functions;
 	private final Map<String, String> config = new HashMap<>();
 	private final StepLogic.SetupContext setupContext = new SetupContextImpl();
-	private @Nullable StepLogic.StepLogicProvider stepLogicProvider = null;
+	private StepLogic.@Nullable StepLogicProvider stepLogicProvider = null;
 
 	public McpExecutorBuilder(Project project, MinecraftProvider minecraftProvider, Path cache, McpConfigProvider provider, String environment) {
 		this.project = project;
@@ -208,7 +208,7 @@ public final class McpExecutorBuilder {
 	 *
 	 * @param stepLogicProvider the provider, or null to disable
 	 */
-	public void setStepLogicProvider(@Nullable StepLogic.StepLogicProvider stepLogicProvider) {
+	public void setStepLogicProvider(StepLogic.@Nullable StepLogicProvider stepLogicProvider) {
 		this.stepLogicProvider = stepLogicProvider;
 	}
 

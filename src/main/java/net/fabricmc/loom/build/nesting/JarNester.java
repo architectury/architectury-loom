@@ -36,7 +36,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.gradle.api.UncheckedIOException;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 import net.fabricmc.loom.LoomGradlePlugin;
@@ -144,7 +144,7 @@ public class JarNester {
 		}
 	}
 
-	private static @Nullable NestableJarGenerationTask.Metadata readNestedFile(File file, Logger logger) {
+	private static NestableJarGenerationTask.@Nullable Metadata readNestedFile(File file, Logger logger) {
 		try {
 			return ZipUtils.unpackGsonNullable(file.toPath(), NestableJarGenerationTask.NESTING_METADATA_PATH, NestableJarGenerationTask.Metadata.class);
 		} catch (IOException e) {

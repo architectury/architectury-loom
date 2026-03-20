@@ -30,7 +30,7 @@ import java.util.List;
 
 import dev.architectury.loom.mappings.crane.CraneMappingsSpec;
 import org.gradle.api.Action;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import net.fabricmc.loom.api.mappings.layered.spec.FileMappingsSpecBuilder;
