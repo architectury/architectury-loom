@@ -22,46 +22,23 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.test.integration
+package net.fabricmc.loom;
 
-import org.intellij.lang.annotations.Language
-import spock.lang.Specification
-import spock.lang.Unroll
+import org.gradle.api.Plugin;
+import org.gradle.api.Project;
 
-import net.fabricmc.loom.test.util.GradleProjectTestTrait
+/**
+ * A marker plugin to indicate to the main loom plugin not to setup for remapping.
+ */
+public class LoomNoRemapGradlePlugin implements Plugin<Project> {
+	public static final String NAME = "net.fabricmc.fabric-loom-no-remap-experimental";
 
-import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-
-class NotObfuscatedTest extends Specification implements GradleProjectTestTrait {
-	@Unroll
-	def "Not Obfuscated"() {
-		setup:
-		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
-		gradle.buildGradle << '''
-				dependencies {
-					minecraft 'com.mojang:minecraft:25w45a_unobfuscated'
-                }
-		'''
-		def sourceFile = new File(gradle.projectDir, "src/main/java/example/Test.java")
-		sourceFile.parentFile.mkdirs()
-		@Language("JAVA") String src =  """
-		package example;
-
-		import net.minecraft.resources.Identifier;
-
-		public class Test {
-			public static void main(String[] args) {
-			    Identifier id = Identifier.fromNamespaceAndPath("loom", "test");
-			}
+	@Override
+	public void apply(Project target) {
+		if (target.getPluginManager().hasPlugin(LoomGradlePlugin.NAME)) {
+			throw new IllegalStateException(NAME + " must be applied before " + LoomGradlePlugin.NAME);
 		}
-		"""
-		sourceFile.text = src
 
-		when:
-		def result = gradle.run(task: "build")
-
-		then:
-		result.task(":build").outcome == SUCCESS
+		target.getPlugins().apply(LoomGradlePlugin.NAME);
 	}
 }

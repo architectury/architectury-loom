@@ -23,7 +23,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 }
 
 group = "dev.architectury"
-def baseVersion = '1.13'
+def baseVersion = '1.14'
 
 def ENV = System.getenv()
 def runNumber = ENV.GITHUB_RUN_NUMBER ?: "9999"
@@ -277,6 +277,10 @@ gradlePlugin {
 		fabricLoomCompanion {
 			id = 'dev.architectury.loom-companion'
 			implementationClass = 'net.fabricmc.loom.LoomCompanionGradlePlugin'
+		}
+		fabricLoomNoRemap {
+			id = 'net.fabricmc.fabric-loom-no-remap-experimental'
+			implementationClass = 'net.fabricmc.loom.LoomNoRemapGradlePlugin'
 		}
 	}
 }

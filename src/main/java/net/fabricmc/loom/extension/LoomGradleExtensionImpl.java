@@ -45,6 +45,7 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.LoomNoRemapGradlePlugin;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
 import net.fabricmc.loom.api.NeoForgeExtensionAPI;
 import net.fabricmc.loom.api.mappings.intermediate.IntermediateMappingsProvider;
@@ -137,8 +138,13 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 		disableObfuscation = project.getObjects().property(Boolean.class);
 		dontRemap = project.getObjects().property(Boolean.class);
 
-		disableObfuscation.set(project.provider(() -> GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DISABLE_OBFUSCATION)));
-		disableObfuscation.finalizeValueOnRead();
+		if (project.getPluginManager().hasPlugin(LoomNoRemapGradlePlugin.NAME)) {
+			disableObfuscation.set(true);
+			disableObfuscation.finalizeValue();
+		} else {
+			disableObfuscation.set(project.provider(() -> GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DISABLE_OBFUSCATION)));
+			disableObfuscation.finalizeValueOnRead();
+		}
 
 		dontRemap.set(disableObfuscation.map(notObfuscated -> notObfuscated || GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DONT_REMAP)));
 		dontRemap.finalizeValueOnRead();
