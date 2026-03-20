@@ -22,29 +22,37 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.accesswidener;
+package net.fabricmc.loom.test.integration.noRemap
 
-import java.io.IOException;
+import spock.lang.Specification
+import spock.lang.Unroll
 
-import org.jetbrains.annotations.Nullable;
+import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-import net.fabricmc.classtweaker.api.visitor.ClassTweakerVisitor;
-import net.fabricmc.loom.util.LazyCloseable;
-import net.fabricmc.loom.util.fmj.ModEnvironment;
-import net.fabricmc.tinyremapper.TinyRemapper;
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
+import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-public interface AccessWidenerEntry {
-	ModEnvironment environment();
+class IncludedJarsNoRemapTest extends Specification implements GradleProjectTestTrait {
+	@Unroll
+	def "included jars without remapping (gradle #version)"() {
+		setup:
+		def gradle = gradleProject(project: "includedJarsNoRemap", version: version)
 
-	/**
-	 * @return The mod id to be used in {@link TransitiveAccessWidenerMappingsProcessor} or null when this entry does not contain transitive entries.
-	 */
-	@Nullable
-	String mappingId();
+		when:
+		def result = gradle.run(tasks: ["jar"])
 
-	String getSortKey();
+		then:
+		result.task(":jar").outcome == SUCCESS
 
-	void read(ClassTweakerVisitor visitor, LazyCloseable<TinyRemapper> remapper) throws IOException;
+		// Assert directly declared dependencies are present in jar (no remap)
+		gradle.hasOutputZipEntry("includedJars.jar", "META-INF/jars/log4j-core-2.22.0.jar")
+		gradle.hasOutputZipEntry("includedJars.jar", "META-INF/jars/adventure-text-serializer-gson-4.14.0.jar")
 
-	void readOfficial(ClassTweakerVisitor visitor) throws IOException;
+		// But not transitives.
+		!gradle.hasOutputZipEntry("includedJars.jar", "META-INF/jars/log4j-api-2.22.0.jar")
+		!gradle.hasOutputZipEntry("includedJars.jar", "META-INF/jars/adventure-api-4.14.0.jar")
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
 }

@@ -68,4 +68,9 @@ public record ProcessorContextImpl(ConfigContext configContext, MinecraftJar min
 		final MappingOption mappingOption = MappingOption.forPlatform(extension);
 		return extension.getMappingConfiguration().getMappingsService(configContext().project(), configContext().serviceFactory(), mappingOption).getMappingTree();
 	}
+
+	@Override
+	public boolean disableObfuscation() {
+		return configContext().extension().disableObfuscation();
+	}
 }
