@@ -101,7 +101,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 					} catch (IllegalArgumentException e) {
 						throw new IllegalStateException("Unknown mixin remap type: " + mixinRemapType);
 					}
-				} else if (mixinConfigs != null && platform == ModPlatform.FORGE && hasRefmaplessMixinConfig(fs, mixinConfigs)) {
+				} else if (mixinConfigs != null && !mixinConfigs.isBlank() && platform == ModPlatform.FORGE && hasRefmaplessMixinConfig(fs, mixinConfigs)) {
 					// On Forge, we support both mixins with and without refmaps.
 					// Check for mixins without them, and if any are found, mark the remap type as static.
 					refmapRemapType = MixinRemapType.STATIC;
