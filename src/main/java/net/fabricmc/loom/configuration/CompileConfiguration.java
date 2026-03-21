@@ -244,13 +244,13 @@ public abstract class CompileConfiguration implements Runnable {
 
 		// TODO: Re-evaluate if isUnobfuscatedForge() should even exist, or if the checks below should be removed
 		if (extension.isForgeLike() && extension.disableObfuscation() && !extension.isUnobfuscatedForge()) {
-			throw new UnsupportedOperationException(("Architectury Loom: The dev.architectury.loom-no-remap plugin was applied, but the Minecraft version '%s' is obfuscated. " +
-					"Forge / NeoForge support for obfuscated Minecraft is through the regular dev.architectury.loom plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
+			throw new UnsupportedOperationException(("Architectury Loom: The dev.architectury.loom-no-remap plugin was applied, but the Minecraft version '%s' is obfuscated. "
+					+ "Forge / NeoForge support for obfuscated Minecraft is through the regular dev.architectury.loom plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
 		}
 
 		if (extension.isForgeLike() && !extension.disableObfuscation() && extension.isUnobfuscatedForge()) {
-			throw new UnsupportedOperationException(("Architectury Loom: The Minecraft version '%s' is unobfuscated (no mappings). " +
-					"Forge / NeoForge support for unobfuscated Minecraft is through the dev.architectury.loom-no-remap plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
+			throw new UnsupportedOperationException(("Architectury Loom: The Minecraft version '%s' is unobfuscated (no mappings). "
+					+ "Forge / NeoForge support for unobfuscated Minecraft is through the dev.architectury.loom-no-remap plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
 		}
 
 		extension.setMinecraftProvider(minecraftProvider);
