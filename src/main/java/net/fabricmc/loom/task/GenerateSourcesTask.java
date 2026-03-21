@@ -240,8 +240,6 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 		getDaemonUtilsContext().set(getProject().getObjects().newInstance(DaemonUtils.Context.class, getProject()));
 
-		getUnpickOptions().set(UnpickService.createOptions(this));
-
 		getForgeSourcesOptions().set(ForgeSourcesService.createOptions(getProject()));
 
 		mustRunAfter(getProject().getTasks().withType(AbstractRemapJarTask.class));

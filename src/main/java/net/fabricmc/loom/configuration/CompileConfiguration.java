@@ -275,6 +275,10 @@ public abstract class CompileConfiguration implements Runnable {
 			mappingConfiguration.applyToProject(getProject(), mappingsDep);
 		}
 
+		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
+			extension.getRuntimeIntermediaryNamespace().set(MappingsNamespace.MOJANG.toString());
+		}
+
 		if (extension.isForgeLike()) {
 			extension.setForgeRunsProvider(ForgeRunsProvider.create(project));
 		}
@@ -312,8 +316,6 @@ public abstract class CompileConfiguration implements Runnable {
 		}
 
 		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
-			extension.getRuntimeIntermediaryNamespace().set(MappingsNamespace.MOJANG.toString());
-
 			final MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider = jarConfiguration.createMojangMappedMinecraftProvider(project);
 			extension.setMojangMappedMinecraftProvider(mojangMappedMinecraftProvider);
 			mojangMappedMinecraftProvider.provide(provideContext);

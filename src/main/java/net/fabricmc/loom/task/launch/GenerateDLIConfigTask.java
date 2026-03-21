@@ -121,10 +121,12 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 
 	@ApiStatus.Internal
 	@InputFile
+	@Optional
 	protected abstract RegularFileProperty getPlatformMappingFile();
 
 	@ApiStatus.Internal
 	@InputFiles
+	@Optional
 	protected abstract ConfigurableFileCollection getMappingJars();
 
 	@ApiStatus.Internal
@@ -151,9 +153,11 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		getDevLauncherConfig().set(getExtension().getFiles().getDevLauncherConfig());
 		getProductionNamespace().set(getExtension().getProductionNamespaceEnum().toString());
 
-		getPlatformMappingFile().set(getProject().getLayout().file(getProject().provider(() -> getExtension().getPlatformMappingFile().toFile())));
-		getPlatformMappingFile().finalizeValue();
-		getMappingJars().from(getProject().getConfigurations().getByName(Constants.Configurations.MAPPINGS_FINAL));
+		if (!getExtension().disableObfuscation()) {
+			getPlatformMappingFile().set(getProject().getLayout().file(getProject().provider(() -> getExtension().getPlatformMappingFile().toFile())));
+			getPlatformMappingFile().finalizeValue();
+			getMappingJars().from(getProject().getConfigurations().getByName(Constants.Configurations.MAPPINGS_FINAL));
+		}
 
 		if (getExtension().isForgeLike()) {
 			getRunTemplates().addAll(getProject().provider(() -> {
@@ -164,7 +168,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 						.toList();
 			}));
 
-			if (getExtension().isForge()) {
+			if (getExtension().isForge() && !getExtension().disableObfuscation()) {
 				getForgeInputs().set(getProject().provider(() -> new ForgeInputs(getProject(), getExtension())));
 			}
 		} else {
@@ -230,54 +234,56 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		}
 
 		if (platform.isForgeLike()) {
-			// Find the mapping files for Unprotect to use for figuring out
-			// which classes are from Minecraft.
-			String unprotectMappings = getMappingJars()
-					.getFiles()
-					.stream()
-					.map(File::getAbsolutePath)
-					.collect(Collectors.joining(File.pathSeparator));
+			if (getPlatformMappingFile().isPresent()) {
+				// Find the mapping files for Unprotect to use for figuring out
+				// which classes are from Minecraft.
+				String unprotectMappings = getMappingJars()
+						.getFiles()
+						.stream()
+						.map(File::getAbsolutePath)
+						.collect(Collectors.joining(File.pathSeparator));
 
-			final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform).toString();
-			final String mappingsPath = getPlatformMappingFile().get().getAsFile().getAbsolutePath();
+				final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform).toString();
+				final String mappingsPath = getPlatformMappingFile().get().getAsFile().getAbsolutePath();
 
-			launchConfig
-					.property("unprotect.mappings", unprotectMappings)
-					// See ArchitecturyNamingService in forge-runtime
-					.property("architectury.naming.sourceNamespace", intermediateNs)
-					.property("architectury.naming.mappingsPath", mappingsPath);
+				launchConfig
+						.property("unprotect.mappings", unprotectMappings)
+						// See ArchitecturyNamingService in forge-runtime
+						.property("architectury.naming.sourceNamespace", intermediateNs)
+						.property("architectury.naming.mappingsPath", mappingsPath);
 
-			if (platform == ModPlatform.FORGE) {
-				final ForgeInputs forgeInputs = Objects.requireNonNull(getForgeInputs().getOrNull());
-				final List<String> dataGenMods = forgeInputs.dataGenMods();
+				if (platform == ModPlatform.FORGE) {
+					final ForgeInputs forgeInputs = Objects.requireNonNull(getForgeInputs().getOrNull());
+					final List<String> dataGenMods = forgeInputs.dataGenMods();
 
-				// Only apply the hardcoded data arguments if the deprecated data generator API is being used.
-				if (!dataGenMods.isEmpty()) {
-					launchConfig
-							.argument("data", "--all")
-							.argument("data", "--mod")
-							.argument("data", String.join(",", dataGenMods))
-							.argument("data", "--output")
-							.argument("data", forgeInputs.legacyDataGenDir());
-				}
+					// Only apply the hardcoded data arguments if the deprecated data generator API is being used.
+					if (!dataGenMods.isEmpty()) {
+						launchConfig
+								.argument("data", "--all")
+								.argument("data", "--mod")
+								.argument("data", String.join(",", dataGenMods))
+								.argument("data", "--output")
+								.argument("data", forgeInputs.legacyDataGenDir());
+					}
 
-				launchConfig.property("mixin.env.remapRefMap", "true");
+					launchConfig.property("mixin.env.remapRefMap", "true");
 
-				if (forgeInputs.useCustomMixin()) {
-					// See mixin remapper service in forge-runtime
-					launchConfig
-							.property("architectury.mixinRemapper.sourceNamespace", intermediateNs)
-							.property("architectury.mixinRemapper.mappingsPath", mappingsPath);
-				} else {
-					launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", forgeInputs.srgToNamedSrg());
-				}
+					if (forgeInputs.useCustomMixin()) {
+						// See mixin remapper service in forge-runtime
+						launchConfig
+								.property("architectury.mixinRemapper.sourceNamespace", intermediateNs)
+								.property("architectury.mixinRemapper.mappingsPath", mappingsPath);
+					} else {
+						launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", forgeInputs.srgToNamedSrg());
+					}
 
-				Set<String> mixinConfigs = forgeInputs.mixinConfigs();
+					Set<String> mixinConfigs = forgeInputs.mixinConfigs();
 
-				if (!mixinConfigs.isEmpty()) {
-					for (String config : mixinConfigs) {
-						launchConfig.argument("-mixin.config");
-						launchConfig.argument(config);
+					if (!mixinConfigs.isEmpty()) {
+						for (String config : mixinConfigs) {
+							launchConfig.argument("-mixin.config");
+							launchConfig.argument(config);
+						}
 					}
 				}
 			}
