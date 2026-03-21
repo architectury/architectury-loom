@@ -46,6 +46,7 @@ import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingContext;
@@ -82,7 +83,7 @@ public class ForgeLibrariesProvider {
 	private static final String NEOFORGE_GAME_LOCATOR_FILE = "net/neoforged/fml/loading/moddiscovery/locators/GameLocator.class";
 	private static final String NEOFORGE_REQUIRED_SYSTEM_FILES_FILE = "net/neoforged/fml/loading/moddiscovery/locators/RequiredSystemFiles.class";
 
-	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
+	public static void provide(@Nullable MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final List<Dependency> dependencies = new ArrayList<>();
 
@@ -145,7 +146,7 @@ public class ForgeLibrariesProvider {
 				isFancyModLoader10OrNewer = true;
 			}
 
-			if (isFML || isFancyML) {
+			if ((isFML || isFancyML) && mappingConfiguration != null) {
 				// If FML, remap it.
 				try (var serviceFactory = new ScopedServiceFactory()) {
 					if (isFML) {

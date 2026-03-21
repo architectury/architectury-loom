@@ -29,6 +29,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.Optional;
 import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -55,6 +56,7 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 		@InputFiles
 		ConfigurableFileCollection getForgeSourceJars();
 
+		@Optional
 		@Nested
 		Property<SourceRemapperService.Options> getSourceRemapperService();
 
@@ -74,25 +76,27 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 			final String sourceDependency = extension.getForgeUserdevProvider().getConfig().sources();
 			options.getForgeSourceJars().from(DependencyDownloader.download(project, sourceDependency));
 
-			options.getSourceRemapperService().set(SourceRemapperService.TYPE.create(project, sro -> {
-				final MappingsNamespace sourceNamespace = IntermediaryNamespaces.intermediaryNamespace(project);
-				final String targetNamespace = MappingsNamespace.NAMED.toString();
+			if (!extension.isUnobfuscatedForge()) {
+				options.getSourceRemapperService().set(SourceRemapperService.TYPE.create(project, sro -> {
+					final MappingsNamespace sourceNamespace = IntermediaryNamespaces.intermediaryNamespace(project);
+					final String targetNamespace = MappingsNamespace.NAMED.toString();
 
-				sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(
-						project,
-						project.provider(sourceNamespace::toString),
-						project.provider(() -> targetNamespace)
-				));
-				sro.getJavaCompileRelease().set(SourceRemapperService.getJavaCompileRelease(project));
-				sro.getClasspath().from(DependencyDownloader.download(project, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation()));
-				sro.getClasspath().from(extension.getMinecraftJars(sourceNamespace));
-				sro.getClasspath().from(project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
+					sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(
+							project,
+							project.provider(sourceNamespace::toString),
+							project.provider(() -> targetNamespace)
+					));
+					sro.getJavaCompileRelease().set(SourceRemapperService.getJavaCompileRelease(project));
+					sro.getClasspath().from(DependencyDownloader.download(project, LoomVersions.JETBRAINS_ANNOTATIONS.mavenNotation()));
+					sro.getClasspath().from(extension.getMinecraftJars(sourceNamespace));
+					sro.getClasspath().from(project.getConfigurations().getByName(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES));
 
-				TinyRemapperHelper.JSR_TO_JETBRAINS.forEach((from, to) -> {
-					Pair<String, String> mapping = new Pair<>(from, to);
-					sro.getAdditionalClassMappings().add(mapping);
-				});
-			}));
+					TinyRemapperHelper.JSR_TO_JETBRAINS.forEach((from, to) -> {
+						Pair<String, String> mapping = new Pair<>(from, to);
+						sro.getAdditionalClassMappings().add(mapping);
+					});
+				}));
+			}
 
 			options.getShouldShowVerboseStderr().set(ForgeToolExecutor.shouldShowVerboseStderr(project));
 
@@ -174,8 +178,10 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 		forgeSources.keySet().removeIf(classFilter.negate());
 		LOGGER.lifecycle(":extracted {} forge source classes", forgeSources.size());
 
-		try (var tempFiles = new TempFiles()) {
-			remapSources(tempFiles, forgeSources);
+		if (getOptions().getSourceRemapperService().isPresent()) {
+			try (var tempFiles = new TempFiles()) {
+				remapSources(tempFiles, forgeSources);
+			}
 		}
 
 		forgeSources.forEach(consumer);

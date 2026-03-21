@@ -1,0 +1,50 @@
+plugins {
+	id 'dev.architectury.loom-no-remap'
+	id 'maven-publish'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+base {
+	archivesName = project.archives_base_name
+}
+
+version = project.mod_version
+group = project.maven_group
+
+def mcVersion = "@MCVERSION@"
+def neoforgeVersion = "@NEOFORGEVERSION@"
+
+repositories {
+	maven { url = "https://maven.neoforged.net/releases/" }
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:$mcVersion"
+	neoForge "net.neoforged:neoforge:$neoforgeVersion"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${project.archivesBaseName}"}
+	}
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+}

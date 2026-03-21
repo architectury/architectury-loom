@@ -242,9 +242,15 @@ public abstract class CompileConfiguration implements Runnable {
 			throw new UnsupportedOperationException("Using %s with split jars is not supported!".formatted(extension.getPlatform().get().displayName()));
 		}
 
-		if (extension.isForgeLike() && extension.disableObfuscation()) {
-			// TODO: Allow setting up Forge and NeoForge without obfuscation
-			throw new UnsupportedOperationException("Using %s without obfuscation is not supported!".formatted(extension.getPlatform().get().displayName()));
+		// TODO: Re-evaluate if isUnobfuscatedForge() should even exist, or if the checks below should be removed
+		if (extension.isForgeLike() && extension.disableObfuscation() && !extension.isUnobfuscatedForge()) {
+			throw new UnsupportedOperationException(("Architectury Loom: The dev.architectury.loom-no-remap plugin was applied, but the Minecraft version '%s' is obfuscated. " +
+					"Forge / NeoForge support for obfuscated Minecraft is through the regular dev.architectury.loom plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
+		}
+
+		if (extension.isForgeLike() && !extension.disableObfuscation() && extension.isUnobfuscatedForge()) {
+			throw new UnsupportedOperationException(("Architectury Loom: The Minecraft version '%s' is unobfuscated (no mappings). " +
+					"Forge / NeoForge support for unobfuscated Minecraft is through the dev.architectury.loom-no-remap plugin instead.").formatted(metadataProvider.getMinecraftVersion()));
 		}
 
 		extension.setMinecraftProvider(minecraftProvider);
@@ -273,9 +279,14 @@ public abstract class CompileConfiguration implements Runnable {
 
 			mappingConfiguration.setupPost(project);
 			mappingConfiguration.applyToProject(getProject(), mappingsDep);
+		} else if (extension.isUnobfuscatedForge()) {
+			// Unobfuscated NeoForge: run the forge patch pipeline without requiring user-provided mappings.
+			setupDependencyProviders(project, extension);
+			ForgeLibrariesProvider.provide(null, project);
+			((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider().provide();
 		}
 
-		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
+		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime() && !extension.isUnobfuscatedForge()) {
 			extension.getRuntimeIntermediaryNamespace().set(MappingsNamespace.MOJANG.toString());
 		}
 
@@ -315,7 +326,7 @@ public abstract class CompileConfiguration implements Runnable {
 			srgMinecraftProvider.provide(provideContext);
 		}
 
-		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) {
+		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime() && !extension.isUnobfuscatedForge()) {
 			final MojangMappedMinecraftProvider<?> mojangMappedMinecraftProvider = jarConfiguration.createMojangMappedMinecraftProvider(project);
 			extension.setMojangMappedMinecraftProvider(mojangMappedMinecraftProvider);
 			mojangMappedMinecraftProvider.provide(provideContext);

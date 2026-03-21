@@ -157,7 +157,9 @@ public class MinecraftPatchedProvider {
 
 		minecraftProvider.setJarPrefix(patchId);
 
-		final String intermediateId = getExtension().isNeoForge() ? "mojang" : "srg";
+		final String intermediateId = getExtension().isNeoForge()
+				? (getExtension().isUnobfuscatedForge() ? "official" : "mojang")
+				: "srg";
 		minecraftIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + ".jar");
 		minecraftPatchedIntermediateJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-patched.jar");
 		minecraftPatchedIntermediateAtJar = forgeWorkingDir.resolve("minecraft-" + type.id + "-" + intermediateId + "-at-patched.jar");
@@ -231,14 +233,40 @@ public class MinecraftPatchedProvider {
 
 	public void remapJar(ServiceFactory serviceFactory) throws Exception {
 		if (dirty) {
-			remapPatchedJar(serviceFactory);
+			if (getExtension().isUnobfuscatedForge()) {
+				mergeUnobfuscatedPatchedJar();
+			} else {
+				remapPatchedJar(serviceFactory);
+			}
+
 			fillClientExtraJar(serviceFactory);
+		}
+
+		if (getExtension().isUnobfuscatedForge()) {
+			DependencyProvider.addDependency(project, getForgeJar(), Constants.Configurations.FORGE_EXTRA);
 		}
 
 		DependencyProvider.addDependency(project, minecraftClientExtra, Constants.Configurations.FORGE_EXTRA);
 	}
 
+	private void mergeUnobfuscatedPatchedJar() throws IOException {
+		logger.lifecycle(":merging userdev into minecraft");
+		Path mcOutput = minecraftPatchedJar;
+		Path forgeUserdevJar = getForgeUserdevJar().toPath();
+
+		Files.deleteIfExists(mcOutput);
+		Files.copy(minecraftPatchedIntermediateAtJar, mcOutput);
+
+		copyUserdevFiles(forgeUserdevJar, mcOutput);
+		applyLoomPatchVersion(mcOutput);
+	}
+
 	private void createPrePatchJar() throws IOException {
+		if (getExtension().isUnobfuscatedForge()) {
+			createUnobfuscatedPrePatchJar();
+			return;
+		}
+
 		if (shouldUseNeoForgeInstallerToolsToCreatePrePatchJar()) {
 			createNeoForgeInstallerToolsPrePatchJar();
 			return;
@@ -250,6 +278,16 @@ public class MinecraftPatchedProvider {
 			McpExecutor executor = serviceFactory.get(builder.build());
 			Path output = executor.execute();
 			Files.copy(output, minecraftIntermediateJar);
+		}
+	}
+
+	private void createUnobfuscatedPrePatchJar() throws IOException {
+		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
+			McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
+			builder.enqueue("preProcessJar");
+			McpExecutor executor = serviceFactory.get(builder.build());
+			Path output = executor.execute();
+			Files.copy(output, minecraftIntermediateJar, StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 
@@ -300,7 +338,11 @@ public class MinecraftPatchedProvider {
 	// The manifest includes a Minecraft-Dists attribute that specifies the dists in the current dev env,
 	// as well as Minecraft-Dist attributes on every dist-only file.
 	private void generateNeoForgeDistManifest(ServiceFactory serviceFactory, Path manifestPath) throws IOException {
-		MemoryMappingTree mappings = getMappingTree(serviceFactory);
+		// For unobfuscated NeoForge the classes are already in official namespace; an empty tree is safe
+		// because SidedJarIndexGenerator falls back to the original name when no mapping is found.
+		MemoryMappingTree mappings = getExtension().isUnobfuscatedForge()
+				? new MemoryMappingTree()
+				: getMappingTree(serviceFactory);
 
 		Manifest manifest = new Manifest();
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -527,7 +569,7 @@ public class MinecraftPatchedProvider {
 		copyMissingClasses(minecraftIntermediateJar, minecraftPatchedIntermediateJar);
 		deleteParameterNames(minecraftPatchedIntermediateJar);
 
-		if (getExtension().isForgeLikeAndNotOfficial()) {
+		if (getExtension().isForgeLikeAndNotOfficial() && !getExtension().isUnobfuscatedForge()) {
 			fixParameterAnnotation(minecraftPatchedIntermediateJar);
 		}
 

@@ -31,13 +31,14 @@ import java.util.Map;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Data extracted from the MCPConfig JSON file.
  *
  * @param version      the Minecraft version - the value of the {@code version} property
  * @param data         the value of the {@code data} property
- * @param mappingsPath the path to srg mappings inside the MCP zip
+ * @param mappingsPath the path to srg mappings inside the MCP zip, or {@code null} if absent (spec 6+)
  * @param official     the value of the {@code official} property
  * @param steps        the MCP step definitions by environment type
  * @param functions    the MCP function definitions by name
@@ -45,15 +46,19 @@ import com.google.gson.JsonObject;
 public record McpConfigData(
 		String version,
 		JsonObject data,
-		String mappingsPath,
+		@Nullable String mappingsPath,
 		boolean official,
 		Map<String, List<McpConfigStep>> steps,
 		Map<String, McpConfigFunction> functions
 ) {
+	public boolean hasMappings() {
+		return mappingsPath != null;
+	}
+
 	public static McpConfigData fromJson(JsonObject json) {
 		String version = json.get("version").getAsString();
 		JsonObject data = json.getAsJsonObject("data");
-		String mappingsPath = data.get("mappings").getAsString();
+		@Nullable String mappingsPath = data.has("mappings") ? data.get("mappings").getAsString() : null;
 		boolean official = json.has("official") && json.getAsJsonPrimitive("official").getAsBoolean();
 
 		JsonObject stepsJson = json.getAsJsonObject("steps");

@@ -188,6 +188,10 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 		return isForgeLike() && !getMcpConfigProvider().isOfficial();
 	}
 
+	default boolean isUnobfuscatedForge() {
+		return isForgeLike() && getProductionNamespace().get().equals(MappingsNamespace.OFFICIAL.toString());
+	}
+
 	DependencyProviders getDependencyProviders();
 
 	void setDependencyProviders(DependencyProviders dependencyProviders);
