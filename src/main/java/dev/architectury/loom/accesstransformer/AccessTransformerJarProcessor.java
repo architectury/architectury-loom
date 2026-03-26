@@ -128,7 +128,9 @@ public class AccessTransformerJarProcessor implements MinecraftJarProcessor<Acce
 			}
 		}
 
-		accessTransformSet = accessTransformSet.remap(context.getMappings(), IntermediaryNamespaces.intermediary(project), MappingsNamespace.NAMED.toString());
+		if (!context.disableObfuscation()) {
+			accessTransformSet = accessTransformSet.remap(context.getMappings(), IntermediaryNamespaces.intermediary(project), MappingsNamespace.NAMED.toString());
+		}
 
 		final Path accessTransformerPath = tempFiles.file("accesstransformer-merged", ".cfg");
 
