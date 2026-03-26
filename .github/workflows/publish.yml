@@ -21,6 +21,7 @@ on:
       - 'dev/1.10'
       - 'dev/1.11'
       - 'dev/1.13'
+      - 'dev/1.14'
 
 jobs:
   build:
