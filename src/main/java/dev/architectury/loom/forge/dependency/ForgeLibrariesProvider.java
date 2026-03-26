@@ -172,8 +172,10 @@ public class ForgeLibrariesProvider {
 			DependencyProvider.addDependency(project, dep, Constants.Configurations.FORGE_DEPENDENCIES);
 		}
 
-		LoomVersions unprotect = isFancyModLoader10OrNewer ? LoomVersions.UNPROTECT_FANCYMODLOADER10 : LoomVersions.UNPROTECT_MODLAUNCHER;
-		DependencyProvider.addDependency(project, unprotect.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
+		if (!extension.disableObfuscation()) {
+			LoomVersions unprotect = isFancyModLoader10OrNewer ? LoomVersions.UNPROTECT_FANCYMODLOADER10 : LoomVersions.UNPROTECT_MODLAUNCHER;
+			DependencyProvider.addDependency(project, unprotect.mavenNotation(), Constants.Configurations.FORGE_EXTRA);
+		}
 	}
 
 	// Returns a Gradle dependency notation.
