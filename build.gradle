@@ -357,7 +357,7 @@ publishing {
 						Node groupId = dependency.appendChild(document.createElement('groupId'))
 						groupId.setTextContent(project.group)
 						Node artifactId = dependency.appendChild(document.createElement('artifactId'))
-						artifactId.setTextContent(project.archivesBaseName)
+						artifactId.setTextContent(project.base.archivesName.get())
 						Node version = dependency.appendChild(document.createElement('version'))
 						version.setTextContent(project.version)
 					})
