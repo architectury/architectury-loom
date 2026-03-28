@@ -142,13 +142,8 @@ public abstract class LoomGradleExtensionImpl extends LoomGradleExtensionApiImpl
 		disableObfuscation = project.getObjects().property(Boolean.class);
 		dontRemap = project.getObjects().property(Boolean.class);
 
-		if (project.getPluginManager().hasPlugin(LoomNoRemapGradlePlugin.NAME)) {
-			disableObfuscation.set(true);
-			disableObfuscation.finalizeValue();
-		} else {
-			disableObfuscation.set(project.provider(() -> GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DISABLE_OBFUSCATION)));
-			disableObfuscation.finalizeValueOnRead();
-		}
+		disableObfuscation.set(project.provider(() -> GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DISABLE_OBFUSCATION, project.getPluginManager().hasPlugin(LoomNoRemapGradlePlugin.NAME))));
+		disableObfuscation.finalizeValueOnRead();
 
 		dontRemap.set(disableObfuscation.map(notObfuscated -> notObfuscated || GradleUtils.getBooleanProperty(getProject(), Constants.Properties.DONT_REMAP)));
 		dontRemap.finalizeValueOnRead();
