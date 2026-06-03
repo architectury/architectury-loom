@@ -35,8 +35,8 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 class NeoForge261Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build #mcVersion #neoforgeVersion"() {
-		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 21) {
-			println("This test requires Java 21. Currently you have Java ${System.getProperty("java.version")}.")
+		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 25) {
+			println("This test requires Java 25. Currently you have Java ${System.getProperty("java.version")}.")
 			return
 		}
 
@@ -44,12 +44,14 @@ class NeoForge261Test extends Specification implements GradleProjectTestTrait {
 		def gradle = gradleProject(project: "neoforge/261", version: DEFAULT_GRADLE)
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@NEOFORGEVERSION@', neoforgeVersion)
+		def expectedAt = new File(gradle.projectDir, "expected.accesstransformer.cfg").text.replace('\r', '')
 
 		when:
 		def result = gradle.run(task: "build")
 
 		then:
 		result.task(":build").outcome == SUCCESS
+		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expectedAt
 
 		where:
 		mcVersion            | neoforgeVersion

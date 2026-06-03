@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023 FabricMC
+ * Copyright (c) 2023-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ import org.gradle.api.file.ConfigurableFileCollection;
 
 import net.fabricmc.loom.api.NeoForgeExtensionAPI;
 
-public class NeoForgeExtensionImpl implements NeoForgeExtensionAPI {
+public abstract class NeoForgeExtensionImpl implements NeoForgeExtensionAPI {
 	private final ConfigurableFileCollection accessTransformers;
 
 	@Inject

@@ -24,12 +24,10 @@
 
 package net.fabricmc.loom.task;
 
-import java.util.Map;
-import java.util.Set;
-
 import javax.inject.Inject;
 
 import dev.architectury.loom.accesstransformer.Aw2At;
+import dev.architectury.loom.extensions.ModBuildExtensions;
 import dev.architectury.loom.util.PropertyUtil;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
@@ -117,18 +115,16 @@ public abstract class RemapTaskConfiguration implements Runnable {
 		getProject().afterEvaluate(p -> {
 			if (extension.isForge()) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-					Aw2At.setup(getProject(), (RemapJarTask) getTasks().getByName(REMAP_JAR_TASK_NAME));
-				}
-
-				Set<String> mixinConfigs = PropertyUtil.getAndFinalize(extension.getForge().getMixinConfigs());
-
-				if (!mixinConfigs.isEmpty()) {
-					getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class, task -> {
-						task.manifest(manifest -> {
-							manifest.attributes(Map.of(Constants.Forge.MIXIN_CONFIGS_MANIFEST_KEY, String.join(",", mixinConfigs)));
-						});
+					getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class, task -> {
+						task.getAtAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(task.getProject()));
 					});
 				}
+
+				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(p);
+			} else if (extension.isNeoForge()) {
+				getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class, task -> {
+					task.getAtAccessWideners().addAll(extension.getNeoForge().getAtAccessWideners());
+				});
 			}
 		});
 

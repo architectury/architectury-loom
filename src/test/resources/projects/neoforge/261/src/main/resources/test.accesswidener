@@ -1,0 +1,4 @@
+accessWidener v2 official
+
+accessible method net/minecraft/world/level/gamerules/GameRules registerBoolean (Ljava/lang/String;Lnet/minecraft/world/level/gamerules/GameRuleCategory;Z)Lnet/minecraft/world/level/gamerules/GameRule;
+extendable method net/minecraft/world/level/block/IronBarsBlock attachsTo (Lnet/minecraft/world/level/block/state/BlockState;Z)Z

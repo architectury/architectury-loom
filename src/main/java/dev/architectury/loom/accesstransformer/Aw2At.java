@@ -28,6 +28,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import dev.architectury.at.AccessChange;
 import dev.architectury.at.AccessTransform;
@@ -35,6 +37,7 @@ import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.ModifierChange;
 import org.cadixdev.bombe.type.signature.MethodSignature;
 import org.gradle.api.Project;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.jetbrains.annotations.VisibleForTesting;
@@ -43,41 +46,47 @@ import net.fabricmc.classtweaker.api.ClassTweakerReader;
 import net.fabricmc.classtweaker.api.visitor.AccessWidenerVisitor;
 import net.fabricmc.classtweaker.api.visitor.ClassTweakerVisitor;
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.task.RemapJarTask;
 
 /**
  * Converts AW files to AT files.
  */
 public final class Aw2At {
-	public static void setup(Project project, RemapJarTask remapJar) {
+	/**
+	 * Gets all to-be-converted access wideners configured in the Loom extension on Forge.
+	 */
+	public static Provider<Set<String>> getForgeAtAccessWideners(Project project) {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
-		if (extension.getAccessWidenerPath().isPresent()) {
-			// Find the relative AW file name
-			String awName = null;
-			Path awPath = extension.getAccessWidenerPath().get().getAsFile().toPath();
-			SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
-			SourceSet main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-			boolean found = false;
+		return extension.getForge().getExtraAccessWideners().map(extra -> {
+			Set<String> all = new HashSet<>(extra);
 
-			for (File srcDir : main.getResources().getSrcDirs()) {
-				Path srcDirPath = srcDir.toPath().toAbsolutePath();
+			if (extension.getAccessWidenerPath().isPresent()) {
+				// Find the relative AW file name
+				String awName = null;
+				Path awPath = extension.getAccessWidenerPath().get().getAsFile().toPath();
+				SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+				SourceSet main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+				boolean found = false;
 
-				if (awPath.startsWith(srcDirPath)) {
-					awName = srcDirPath.relativize(awPath).toString().replace(File.separator, "/");
-					found = true;
-					break;
+				for (File srcDir : main.getResources().getSrcDirs()) {
+					Path srcDirPath = srcDir.toPath().toAbsolutePath();
+
+					if (awPath.startsWith(srcDirPath)) {
+						awName = srcDirPath.relativize(awPath).toString().replace(File.separator, "/");
+						found = true;
+						break;
+					}
 				}
+
+				if (!found) {
+					awName = awPath.getFileName().toString();
+				}
+
+				all.add(awName);
 			}
 
-			if (!found) {
-				awName = awPath.getFileName().toString();
-			}
-
-			remapJar.getAtAccessWideners().add(awName);
-		}
-
-		remapJar.getAtAccessWideners().addAll(extension.getForge().getExtraAccessWideners());
+			return all;
+		});
 	}
 
 	/**
