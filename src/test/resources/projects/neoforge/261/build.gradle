@@ -3,6 +3,12 @@ plugins {
 	id 'maven-publish'
 }
 
+loom {
+	neoForge {
+		atAccessWideners.addAll('test.accesswidener', 'test2.classtweaker')
+	}
+}
+
 java {
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21

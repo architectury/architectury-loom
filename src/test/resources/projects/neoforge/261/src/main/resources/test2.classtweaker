@@ -1,0 +1,3 @@
+classTweaker v1 official
+
+mutable field net/minecraft/world/level/storage/loot/LootTable paramSet Lnet/minecraft/util/context/ContextKeySet;
