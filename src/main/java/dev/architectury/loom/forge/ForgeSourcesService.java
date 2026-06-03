@@ -34,7 +34,6 @@ import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.task.GenerateSourcesTask;
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.task.service.SourceRemapperService;
@@ -78,7 +77,7 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 
 			if (!extension.isUnobfuscatedForge()) {
 				options.getSourceRemapperService().set(SourceRemapperService.TYPE.create(project, sro -> {
-					final MappingsNamespace sourceNamespace = IntermediaryNamespaces.intermediaryNamespace(project);
+					final MappingsNamespace sourceNamespace = extension.getProductionNamespaceEnum();
 					final String targetNamespace = MappingsNamespace.NAMED.toString();
 
 					sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(

@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2024 FabricMC
+ * Copyright (c) 2022-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,20 +32,21 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.ModPlatform;
 
+// TODO: Check if some of the usages of this class should be replaced with the prod namespace
+
+/**
+ * Contains methods for checking the (fallback/platform default) intermediary namespace of a project.
+ *
+ * <p>The namespace returned by methods in this class is wrong for obfuscated versions of Forge that use
+ * Mojang names at runtime.
+ * The actual production namespace is available from the extension using {@link net.fabricmc.loom.api.LoomGradleExtensionAPI#getProductionNamespace()}.
+ */
 public final class IntermediaryNamespaces {
 	/**
 	 * Returns the intermediary namespace of the project.
 	 */
 	public static String intermediary(Project project) {
 		return intermediaryNamespace(project).toString();
-	}
-
-	/**
-	 * Returns the runtime intermediary namespace of the project.
-	 * This is the namespace used in the compiled jar.
-	 */
-	public static String runtimeIntermediary(Project project) {
-		return runtimeIntermediaryNamespace(project).toString();
 	}
 
 	/**
@@ -69,18 +70,9 @@ public final class IntermediaryNamespaces {
 	}
 
 	/**
-	 * Returns the runtime intermediary namespace of the project, reading from the extension's
-	 * runtime intermediary namespace property.
-	 */
-	public static MappingsNamespace runtimeIntermediaryNamespace(Project project) {
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		return Objects.requireNonNull(MappingsNamespace.of(extension.getRuntimeIntermediaryNamespace().get()), "Invalid runtime intermediary namespace");
-	}
-
-	/**
 	 * Potentially replaces the remapping target namespace for mixin refmaps.
+	 * <p>All {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getProductionNamespace() production namespaces} are replaced
 	 *
-	 * <p>All {@linkplain #runtimeIntermediary(Project) intermediary-like namespaces} are replaced
 	 * by {@code intermediary} since fabric-mixin-compile-extensions only supports intermediary.
 	 * We transform the namespaces in the input mappings, e.g. {@code intermediary} -> {@code yraidemretni} and
 	 * {@code srg} -> {@code intermediary}.
@@ -90,6 +82,6 @@ public final class IntermediaryNamespaces {
 	 * @return the correct namespace to use
 	 */
 	public static String replaceMixinIntermediaryNamespace(Project project, String namespace) {
-		return namespace.equals(runtimeIntermediary(project)) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
+		return namespace.equals(LoomGradleExtension.get(project).getProductionNamespace().get()) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
 	}
 }
