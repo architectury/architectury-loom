@@ -35,8 +35,8 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 class NeoForge261Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build #mcVersion #neoforgeVersion"() {
-		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 21) {
-			println("This test requires Java 21. Currently you have Java ${System.getProperty("java.version")}.")
+		if (Integer.valueOf(System.getProperty("java.version").split("\\.")[0]) < 25) {
+			println("This test requires Java 25. Currently you have Java ${System.getProperty("java.version")}.")
 			return
 		}
 
