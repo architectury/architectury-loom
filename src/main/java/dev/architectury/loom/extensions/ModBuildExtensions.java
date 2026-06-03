@@ -11,6 +11,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
@@ -20,9 +21,14 @@ import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.io.AccessTransformFormats;
 import dev.architectury.loom.accesstransformer.Aw2At;
 import dev.architectury.loom.util.LfWriter;
+import dev.architectury.loom.util.PropertyUtil;
+import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
+import org.gradle.jvm.tasks.Jar;
 import org.jspecify.annotations.Nullable;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
@@ -48,7 +54,20 @@ public final class ModBuildExtensions {
 		}
 	}
 
-	public static void convertAwToAt(ServiceFactory serviceFactory, Set<String> atAccessWideners, Path outputFile, Provider<MappingsService.Options> options) throws IOException {
+	public static void addMixinConfigsToDefaultJarManifest(Project project) {
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		final Set<String> mixinConfigs = PropertyUtil.getAndFinalize(extension.getForge().getMixinConfigs());
+
+		if (!mixinConfigs.isEmpty()) {
+			project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class, task -> {
+				task.manifest(manifest -> {
+					manifest.attributes(Map.of(Constants.Forge.MIXIN_CONFIGS_MANIFEST_KEY, String.join(",", mixinConfigs)));
+				});
+			});
+		}
+	}
+
+	public static void convertAwToAt(ServiceFactory serviceFactory, Set<String> atAccessWideners, Path outputFile, Provider<MappingsService.Options> mappingOptions) throws IOException {
 		if (atAccessWideners.isEmpty()) {
 			return;
 		}
@@ -63,6 +82,7 @@ public final class ModBuildExtensions {
 				throw new FileAlreadyExistsException("Jar " + outputFile + " already contains an access transformer - cannot convert AWs!");
 			}
 
+			// Read all AWs into the AT set
 			for (String aw : atAccessWideners) {
 				Path awPath = fs.getPath(aw);
 
@@ -77,9 +97,13 @@ public final class ModBuildExtensions {
 				Files.delete(awPath);
 			}
 
-			MappingsService service = serviceFactory.get(options);
-			at = at.remap(service.getMemoryMappingTree(), service.getFrom(), service.getTo());
+			// Remap the AT if mappings are provided
+			if (mappingOptions.isPresent()) {
+				MappingsService service = serviceFactory.get(mappingOptions);
+				at = at.remap(service.getMemoryMappingTree(), service.getFrom(), service.getTo());
+			}
 
+			// Write out the merged and possibly remapped AT
 			try (Writer writer = new LfWriter(Files.newBufferedWriter(atPath))) {
 				AccessTransformFormats.FML.write(writer, at);
 			}

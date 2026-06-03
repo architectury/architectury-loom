@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023 FabricMC
+ * Copyright (c) 2023-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 package net.fabricmc.loom.api;
 
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.SetProperty;
 
 /**
  * This is the NeoForge extension API available to build scripts.
@@ -47,4 +48,22 @@ public interface NeoForgeExtensionAPI {
 	 * @param file the file, evaluated as per {@link org.gradle.api.Project#file(Object)}
 	 */
 	void accessTransformer(Object file);
+
+	/**
+	 * Gets the jar paths to the access wideners or class tweakers that will be converted to ATs for NeoForge runtime.
+	 * If you specify multiple files, they will be merged into one.
+	 *
+	 * <p>The file paths are relative to the mod jar root, corresponding to {@code resources} directories in
+	 * a development environment, <strong>not</strong> the project directory!
+	 * For example, {@code "my_mod.accesswidener"} corresponds to the source file {@code src/main/resources/my_mod.accesswidener}.
+	 *
+	 * <p>The specified files will be converted and removed from the final jar.
+	 *
+	 * <p>In projects on Minecraft versions that are obfuscated, this property is simply added to the corresponding
+	 * property in {@link net.fabricmc.loom.task.RemapJarTask}.
+	 *
+	 * @return the property containing access widener paths in the final jar
+	 * @see net.fabricmc.loom.task.RemapJarTask#getAtAccessWideners()
+	 */
+	SetProperty<String> getAtAccessWideners();
 }
