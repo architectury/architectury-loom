@@ -145,6 +145,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	 */
 	@InputFile
 	@Optional
+	@PathSensitive(PathSensitivity.NAME_ONLY)
 	public abstract RegularFileProperty getInjectedAccessWidenerPath();
 
 	@Input

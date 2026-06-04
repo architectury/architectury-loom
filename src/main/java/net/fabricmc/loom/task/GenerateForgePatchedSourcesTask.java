@@ -286,6 +286,7 @@ public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 
 	public interface SasOptions {
 		@InputFile
+		@PathSensitive(PathSensitivity.NONE)
 		RegularFileProperty getUserdevJar();
 
 		@Input

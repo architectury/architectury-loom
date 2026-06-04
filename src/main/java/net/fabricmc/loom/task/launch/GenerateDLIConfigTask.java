@@ -131,11 +131,13 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@ApiStatus.Internal
 	@InputFile
 	@Optional
+	@PathSensitive(PathSensitivity.ABSOLUTE)
 	protected abstract RegularFileProperty getPlatformMappingFile();
 
 	@ApiStatus.Internal
 	@InputFiles
 	@Optional
+	@PathSensitive(PathSensitivity.ABSOLUTE)
 	protected abstract ConfigurableFileCollection getMappingJars();
 
 	@ApiStatus.Internal
