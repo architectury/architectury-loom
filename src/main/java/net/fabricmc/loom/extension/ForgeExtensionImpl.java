@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2023 FabricMC
+ * Copyright (c) 2021-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,17 +31,22 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import dev.architectury.loom.accesstransformer.Aw2At;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.jvm.tasks.Jar;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ForgeExtensionAPI;
+import net.fabricmc.loom.api.aw2at.Aw2AtSettings;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 
 public class ForgeExtensionImpl implements ForgeExtensionAPI {
+	private final Project project;
 	private final LoomGradleExtension extension;
 	private final Property<Boolean> convertAccessWideners;
 	private final SetProperty<String> extraAccessWideners;
@@ -53,6 +58,7 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 
 	@Inject
 	public ForgeExtensionImpl(Project project, LoomGradleExtension extension) {
+		this.project = project;
 		this.extension = extension;
 		convertAccessWideners = project.getObjects().property(Boolean.class).convention(false);
 		extraAccessWideners = project.getObjects().setProperty(String.class).empty();
@@ -80,6 +86,11 @@ public class ForgeExtensionImpl implements ForgeExtensionAPI {
 	@Override
 	public void accessTransformer(Object file) {
 		accessTransformers.from(file);
+	}
+
+	@Override
+	public void convertAccessWideners(TaskProvider<? extends Jar> jarTask, Action<? super Aw2AtSettings> action) {
+		Aw2At.addToTask(project, jarTask, action);
 	}
 
 	@Override

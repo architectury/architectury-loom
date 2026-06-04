@@ -32,14 +32,14 @@ public abstract class Aw2AtAction implements Action<Task> {
 	@Optional
 	public abstract Property<MappingsService.Options> getMappingOptions();
 
-	public static void addToTask(Jar task, Provider<Set<String>> awPaths) {
+	static void addToTask(Jar task, Provider<Set<String>> awPaths) {
 		if (task instanceof RemapJarTask) {
 			throw new IllegalArgumentException("Jar task must not be a RemapJarTask");
 		}
 
 		final Aw2AtAction action = task.getProject().getObjects().newInstance(Aw2AtAction.class);
 		action.getAccessWidenerPaths().set(awPaths);
-		// RemapJarTask already sets up the inputs on its own
+		// RemapJarTask already sets up the inputs on its own, but we have to add them manually to other jar tasks.
 		task.getInputs().property("atAccessWideners", awPaths);
 		task.doLast(action);
 	}

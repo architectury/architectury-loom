@@ -5,7 +5,7 @@ plugins {
 
 loom {
 	neoForge {
-		atAccessWideners.addAll('test.accesswidener', 'test2.classtweaker')
+		convertAccessWideners(tasks.named('jar'), 'test.accesswidener', 'test2.classtweaker')
 	}
 }
 

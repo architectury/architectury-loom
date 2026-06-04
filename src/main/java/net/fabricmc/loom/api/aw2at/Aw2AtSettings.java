@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023-2026 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,42 +22,24 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.extension;
+package net.fabricmc.loom.api.aw2at;
 
-import javax.inject.Inject;
+import org.gradle.api.provider.SetProperty;
+import org.jetbrains.annotations.ApiStatus;
 
-import dev.architectury.loom.accesstransformer.Aw2At;
-import org.gradle.api.Action;
-import org.gradle.api.Project;
-import org.gradle.api.file.ConfigurableFileCollection;
-import org.gradle.api.tasks.TaskProvider;
-import org.gradle.jvm.tasks.Jar;
-
-import net.fabricmc.loom.api.NeoForgeExtensionAPI;
-import net.fabricmc.loom.api.aw2at.Aw2AtSettings;
-
-public abstract class NeoForgeExtensionImpl implements NeoForgeExtensionAPI {
-	private final Project project;
-	private final ConfigurableFileCollection accessTransformers;
-
-	@Inject
-	public NeoForgeExtensionImpl(Project project) {
-		accessTransformers = project.getObjects().fileCollection();
-		this.project = project;
-	}
-
-	@Override
-	public ConfigurableFileCollection getAccessTransformers() {
-		return accessTransformers;
-	}
-
-	@Override
-	public void accessTransformer(Object file) {
-		accessTransformers.from(file);
-	}
-
-	@Override
-	public void convertAccessWideners(TaskProvider<? extends Jar> jarTask, Action<? super Aw2AtSettings> action) {
-		Aw2At.addToTask(project, jarTask, action);
-	}
+@ApiStatus.Experimental
+public interface Aw2AtSettings {
+	/**
+	 * Gets the jar paths to the access wideners or class tweakers that will be converted to ATs for Forge or NeoForge runtime.
+	 * If you specify multiple files, they will be merged into one.
+	 *
+	 * <p>The file paths are relative to the mod jar root, corresponding to {@code resources} directories in
+	 * a development environment, <strong>not</strong> the project directory!
+	 * For example, {@code "my_mod.accesswidener"} corresponds to the source file {@code src/main/resources/my_mod.accesswidener}.
+	 *
+	 * <p>The specified files will be converted and removed from the final jar.
+	 *
+	 * @return the property containing access widener paths in the final jar
+	 */
+	SetProperty<String> getAccessWideners();
 }

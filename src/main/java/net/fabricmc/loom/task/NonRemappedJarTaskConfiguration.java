@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 
 import dev.architectury.loom.accesstransformer.Aw2At;
-import dev.architectury.loom.accesstransformer.Aw2AtAction;
 import dev.architectury.loom.extensions.ModBuildExtensions;
 import dev.architectury.loom.util.PropertyUtil;
 import org.gradle.api.Project;
@@ -80,19 +79,19 @@ public class NonRemappedJarTaskConfiguration {
 			));
 
 			task.usesService(manifestServiceProvider);
-
-			if (extension.isForge()) {
-				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-					Aw2AtAction.addToTask(task, Aw2At.getForgeAtAccessWideners(project));
-				}
-
-				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
-			} else if (extension.isNeoForge()) {
-				Aw2AtAction.addToTask(task, extension.getNeoForge().getAtAccessWideners());
-			}
 		});
 
 		extension.getUnmappedModCollection().from(project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
+
+		if (extension.isForge()) {
+			if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
+				extension.getForge().convertAccessWideners(project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class), settings -> {
+					settings.getAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(project));
+				});
+			}
+
+			ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
+		}
 	}
 
 	private List<String> getClientOnlyEntries() {
