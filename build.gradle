@@ -85,11 +85,6 @@ sourceSets {
 			srcDir("src/decompilers/common")
 		}
 	}
-	fernflower {
-		java {
-			srcDir("src/decompilers/fernflower")
-		}
-	}
 	cfr {
 		java {
 			srcDir("src/decompilers/cfr")
@@ -113,6 +108,7 @@ dependencies {
 	implementation (libs.fabric.stitch) {
 		exclude module: 'mercury'
 		exclude module: 'enigma'
+		exclude module: 'guava'
 	}
 
 	// tinyfile management
@@ -127,21 +123,16 @@ dependencies {
 	implementation libs.fabric.loom.nativelib
 
 	// decompilers
-	fernflowerCompileOnly runtimeLibs.fernflower
-	fernflowerCompileOnly libs.fabric.mapping.io
-
 	cfrCompileOnly runtimeLibs.cfr
 	cfrCompileOnly libs.fabric.mapping.io
 
 	vineflowerCompileOnly runtimeLibs.vineflower
 	vineflowerCompileOnly libs.fabric.mapping.io
 
-	fernflowerApi sourceSets.commonDecompiler.output
 	cfrApi sourceSets.commonDecompiler.output
 	vineflowerApi sourceSets.commonDecompiler.output
 
 	implementation sourceSets.commonDecompiler.output
-	implementation sourceSets.fernflower.output
 	implementation sourceSets.cfr.output
 	implementation sourceSets.vineflower.output
 
@@ -206,7 +197,6 @@ jar {
 
 	from sourceSets.commonDecompiler.output.classesDirs
 	from sourceSets.cfr.output.classesDirs
-	from sourceSets.fernflower.output.classesDirs
 	from sourceSets.vineflower.output.classesDirs
 }
 
@@ -285,6 +275,10 @@ gradlePlugin {
 		fabricLoomCompanion {
 			id = 'dev.architectury.loom-companion'
 			implementationClass = 'net.fabricmc.loom.LoomCompanionGradlePlugin'
+		}
+		fabricLoomRepositories {
+			id = 'dev.architectury.loom-repositories'
+			implementationClass = 'net.fabricmc.loom.LoomRepositoryPlugin'
 		}
 	}
 }
@@ -450,6 +444,17 @@ tasks.withType(GenerateModuleMetadata) {
 }
 
 tasks.register('printActionsTestName', PrintActionsTestName) {
+}
+
+tasks.register('exportVersion') {
+	def versionFile = file("${layout.buildDirectory.get()}/version.txt")
+	outputs.file(versionFile)
+
+	def v = project.version
+	doLast {
+		versionFile.text = v
+		println("Exported version: ${v}")
+	}
 }
 
 /**

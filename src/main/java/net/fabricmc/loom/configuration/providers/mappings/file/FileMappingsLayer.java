@@ -55,7 +55,8 @@ public record FileMappingsLayer(
 		boolean enigma, // Enigma cannot be automatically detected since it's stored in a directory.
 		boolean unpick,
 		boolean annotations,
-		String mergeNamespace
+		String mergeNamespace,
+		String fallbackUnpickConstants
 ) implements MappingLayer, UnpickLayer, AnnotationsLayer {
 	@Override
 	public void visit(MappingVisitor mappingVisitor) throws IOException {
@@ -118,6 +119,15 @@ public record FileMappingsLayer(
 
 			return UnpickData.read(unpickMetadata, unpickDefinitions);
 		}
+	}
+
+	@Override
+	public @Nullable String getFallbackConstants() {
+		if (!unpick) {
+			return null;
+		}
+
+		return fallbackUnpickConstants;
 	}
 
 	@Override

@@ -70,8 +70,8 @@ public final class IntermediaryNamespaces {
 	/**
 	 * Potentially replaces the remapping target namespace for mixin refmaps.
 	 *
-	 * <p>All {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getProductionNamespace() production namespaces} are replaced
-	 * by {@code intermediary} since fabric-mixin-compile-extensions only supports intermediary.
+	 * <p>{@code srg} and {@code mojang} {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getProductionNamespace() production namespaces} are replaced
+	 * by {@code intermediary} since fabric-mixin-compile-extensions only supports {@code intermediary} and {@code official}.
 	 * We transform the namespaces in the input mappings, e.g. {@code intermediary} -> {@code yraidemretni} and
 	 * {@code srg} -> {@code intermediary}.
 	 *
@@ -80,6 +80,11 @@ public final class IntermediaryNamespaces {
 	 * @return the correct namespace to use
 	 */
 	public static String replaceMixinIntermediaryNamespace(Project project, String namespace) {
-		return namespace.equals(LoomGradleExtension.get(project).getProductionNamespace().get()) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
+		final MappingsNamespace prodNamespace = LoomGradleExtension.get(project).getProductionNamespaceEnum().get();
+
+		return switch (prodNamespace) {
+			case SRG, MOJANG -> prodNamespace.toString().equals(namespace) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
+			default -> namespace;
+		};
 	}
 }

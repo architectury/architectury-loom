@@ -59,6 +59,7 @@ import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
@@ -154,8 +155,8 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		getAssetsDirectoryPath().set(new File(getExtension().getFiles().getUserCache(), "assets").getAbsolutePath());
 		getNativesDirectoryPath().set(getExtension().getFiles().getNativesDirectory(getProject()).getAbsolutePath());
 		getDevLauncherConfig().set(getExtension().getFiles().getDevLauncherConfig());
-		getProductionNamespace().set(getExtension().getProductionNamespaceEnum().toString());
-		getDefaultMixinRemapType().set(getExtension().getDefaultMixinRemapTypeEnum().toString().toLowerCase(Locale.ROOT));
+		getProductionNamespace().set(getExtension().getProductionNamespaceEnum().map(MappingsNamespace::toString));
+		getDefaultMixinRemapType().set(getExtension().getDefaultMixinRemapTypeEnum().map(remapType -> remapType.toString().toLowerCase(Locale.ROOT)));
 
 		if (!getExtension().disableObfuscation()) {
 			getPlatformMappingFile().set(getProject().getLayout().file(getProject().provider(() -> getExtension().getPlatformMappingFile().toFile())));

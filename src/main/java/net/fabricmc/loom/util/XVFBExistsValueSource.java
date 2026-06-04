@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,29 +22,34 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.configuration.providers.mappings.extras.unpick;
+package net.fabricmc.loom.util;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import javax.inject.Inject;
 
-import org.jetbrains.annotations.ApiStatus;
-import org.jspecify.annotations.Nullable;
+import org.gradle.api.Project;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ValueSource;
+import org.gradle.api.provider.ValueSourceParameters;
+import org.gradle.process.ExecOperations;
+import org.gradle.process.ExecResult;
 
-import net.fabricmc.loom.configuration.providers.mappings.unpick.UnpickMetadata;
+public abstract class XVFBExistsValueSource implements ValueSource<Boolean, ValueSourceParameters.None> {
+	public static final String XVFB = "xvfb-run";
 
-@ApiStatus.Experimental
-public interface UnpickLayer {
-	@Nullable
-	UnpickData getUnpickData() throws IOException;
+	@Inject
+	protected abstract ExecOperations getExecOperations();
 
-	@Nullable
-	String getFallbackConstants();
+	@Override
+	public Boolean obtain() {
+		ExecResult result = getExecOperations().exec(spec -> {
+			spec.commandLine(XVFB);
+			spec.args("--help");
+		});
 
-	record UnpickData(UnpickMetadata metadata, byte[] definitions) {
-		public static UnpickData read(Path metadataPath, Path definitionPath) throws IOException {
-			final byte[] definitions = Files.readAllBytes(definitionPath);
-			return new UnpickData(UnpickMetadata.parse(metadataPath), definitions);
-		}
+		return result.getExitValue() == 0;
+	}
+
+	public static Provider<Boolean> exists(Project project) {
+		return project.getProviders().of(XVFBExistsValueSource.class, i -> { });
 	}
 }

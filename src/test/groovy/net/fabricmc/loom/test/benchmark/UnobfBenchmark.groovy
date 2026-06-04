@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2024 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,44 +30,49 @@ import groovy.time.TimeDuration
 import net.fabricmc.loom.test.LoomTestConstants
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
+import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
+
 /**
  * Run this class, passing a working dir as the first argument.
  * Allow for one warm up run before profiling, follow up runs should not be using the network.
  */
 @Singleton
-class FabricAPIBenchmark implements GradleProjectTestTrait {
+class UnobfBenchmark implements GradleProjectTestTrait {
 	def run(File dir) {
 		def gradle = gradleProject(
-				version: LoomTestConstants.DEFAULT_GRADLE,
+				project: "minimalBaseNoRemap",
+				version: LoomTestConstants.PRE_RELEASE_GRADLE,
 				projectDir: new File(dir, "project"),
-				gradleHomeDir: new File(dir, "gradlehome"),
-				allowExistingRepo: true,
-
-				repo: "https://github.com/FabricMC/fabric-api.git",
-				commit: "7053354728ece4a68d098b07b2526eb4303fbac1",
-				patch: "fabric_api_unobf"
+				gradleHomeDir: new File(dir, "gradlehome")
 				)
+
+		gradle.buildGradle << '''
+                dependencies {
+                    minecraft "com.mojang:minecraft:26.1-snapshot-1"
+                    implementation "net.fabricmc.fabric-api:fabric-api:0.140.3+26.1"
+                    implementation "net.fabricmc:fabric-loader:0.18.3"
+                }
+            '''
 
 		def timeStart = new Date()
 
 		def result = gradle.run(tasks: [
 			"clean",
 			"build",
-			"-x",
-			"test",
-			"-x",
-			"check",
-			"-x",
-			":fabric-data-generation-api-v1:runDatagen"
-		], args: [])
+			"configureClientLaunch",
+			"--rerun-tasks"
+		])
 
 		def timeStop = new Date()
 		TimeDuration duration = TimeCategory.minus(timeStop, timeStart)
 		println(duration)
+
+		assert result.task(":build").outcome == SUCCESS
+
+		System.exit(0)
 	}
 
 	static void main(String[] args) {
 		getInstance().run(new File(args[0]))
-		System.exit(0)
 	}
 }

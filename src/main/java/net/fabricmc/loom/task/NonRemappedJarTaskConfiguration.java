@@ -81,7 +81,7 @@ public class NonRemappedJarTaskConfiguration {
 			task.usesService(manifestServiceProvider);
 		});
 
-		extension.getUnmappedModCollection().from(project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
+		extension.getUnmappedModCollection().from(project.getTasks().named(JavaPlugin.JAR_TASK_NAME));
 
 		if (extension.isForge()) {
 			if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {

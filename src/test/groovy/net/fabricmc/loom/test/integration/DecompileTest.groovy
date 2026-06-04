@@ -47,7 +47,6 @@ class DecompileTest extends Specification implements GradleProjectTestTrait {
 
 		where:
 		decompiler 		| task								| version
-		'fernflower'	| "genSourcesWithFernFlower"		| PRE_RELEASE_GRADLE
 		'cfr' 			| "genSourcesWithCfr"				| PRE_RELEASE_GRADLE
 		'vineflower' 	| "genSourcesWithVineflower"		| PRE_RELEASE_GRADLE
 	}
