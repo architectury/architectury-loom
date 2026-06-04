@@ -51,6 +51,7 @@ import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradlePlugin;
@@ -62,6 +63,7 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
 // Recommended vscode plugin pack:
 // https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack
+@DisableCachingByDefault
 public abstract class GenVsCodeProjectTask extends AbstractLoomTask {
 	// Prevent Gradle from running vscode task asynchronously
 	@ServiceReference(SyncTaskBuildService.NAME)

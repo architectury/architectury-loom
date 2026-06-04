@@ -43,6 +43,7 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.workers.WorkAction;
 import org.gradle.workers.WorkParameters;
 import org.gradle.workers.WorkQueue;
@@ -71,6 +72,7 @@ import net.fabricmc.tinyremapper.extension.mixin.common.data.Constant;
  * }
  * }</pre>
  */
+@DisableCachingByDefault
 public abstract class ValidateMixinNameTask extends SourceTask {
 	@Input
 	abstract Property<Boolean> getSoftFailures();

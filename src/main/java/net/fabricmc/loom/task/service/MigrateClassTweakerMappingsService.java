@@ -40,6 +40,8 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.objectweb.asm.commons.Remapper;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -70,6 +72,7 @@ public final class MigrateClassTweakerMappingsService extends Service<MigrateCla
 		@Nested
 		Property<TinyRemapperService.Options> getTinyRemapperOptions();
 		@InputFile
+		@PathSensitive(PathSensitivity.NONE)
 		RegularFileProperty getMergedMappings();
 	}
 
@@ -135,7 +138,7 @@ public final class MigrateClassTweakerMappingsService extends Service<MigrateCla
 		final var tree = new MemoryMappingTree();
 		MappingReader.read(sourceOptions.getMappingsFile().get().getAsFile().toPath(), tree);
 		final var renamer = new MappingNsRenamer(tree, Map.of(MappingsNamespace.NAMED.toString(), MIGRATION_TARGET_NS));
-		final Path mappingFile = targetOptions.getMappings().getSingleFile().toPath();
+		final Path mappingFile = targetOptions.getMappings().get().getAsFile().toPath();
 
 		if (targetOptions.getZipEntryPath().isPresent()) {
 			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(mappingFile)) {

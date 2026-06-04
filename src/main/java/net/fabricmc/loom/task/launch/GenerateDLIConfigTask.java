@@ -54,7 +54,10 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -69,6 +72,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
+@DisableCachingByDefault
 public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@Input
 	protected abstract Property<String> getVersionInfoJson();
@@ -109,6 +113,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	protected abstract Property<String> getDefaultMixinRemapType();
 
 	@InputFile
+	@PathSensitive(PathSensitivity.ABSOLUTE)
 	@Optional
 	public abstract RegularFileProperty getRemapClasspathFile();
 

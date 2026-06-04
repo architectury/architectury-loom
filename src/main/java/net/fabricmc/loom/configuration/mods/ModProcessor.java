@@ -187,7 +187,7 @@ public class ModProcessor {
 
 		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
 				.withKnownIndyBsm(knownIndyBsms)
-				.withMappings(TinyRemapperHelper.create(mappings, productionNamespace.toString(), toM, false))
+				.withMappings(TinyRemapperHelper.create(mappings, productionNamespace.toString(), toM, true))
 				.renameInvalidLocals(false)
 				.extraAnalyzeVisitor(AccessWidenerAnalyzeVisitorProvider.createFromMods(productionNamespace.toString(), remapList, extension.getPlatform().get()));
 

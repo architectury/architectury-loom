@@ -209,6 +209,7 @@ public abstract class LoomTasks implements Runnable {
 			getTasks().named(getRunConfigTaskName(runConfigSettings), task -> {
 				// Disable the task so it can't be run
 				task.setEnabled(false);
+				task.setGroup("other");
 			});
 		});
 

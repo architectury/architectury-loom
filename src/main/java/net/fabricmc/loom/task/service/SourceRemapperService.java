@@ -39,8 +39,8 @@ import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -66,7 +66,7 @@ public final class SourceRemapperService extends Service<SourceRemapperService.O
 		Property<MappingsService.Options> getMappings();
 		@Input
 		Property<Integer> getJavaCompileRelease();
-		@InputFiles
+		@Classpath
 		ConfigurableFileCollection getClasspath();
 
 		// Architectury: support additional class mappings for Forge sources remapping

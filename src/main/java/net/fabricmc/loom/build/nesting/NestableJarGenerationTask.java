@@ -50,12 +50,15 @@ import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.bundling.ZipEntryCompression;
+import org.gradle.work.DisableCachingByDefault;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +72,7 @@ import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 
+@DisableCachingByDefault
 public abstract class NestableJarGenerationTask extends AbstractLoomTask {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NestableJarGenerationTask.class);
 	private static final String SEMVER_REGEX = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$";
@@ -84,6 +88,9 @@ public abstract class NestableJarGenerationTask extends AbstractLoomTask {
 
 	@Input
 	protected abstract MapProperty<String, Metadata> getJarIds();
+
+	@Input
+	public abstract Property<Boolean> getUncompressNestedJars();
 
 	@Inject
 	public NestableJarGenerationTask() {
@@ -241,6 +248,10 @@ public abstract class NestableJarGenerationTask extends AbstractLoomTask {
 	private void makeNestableJar(final File input, final File output, final @Nullable String modJsonFile, final @Nullable String nestingMetadata) {
 		try {
 			Files.copy(input.toPath(), output.toPath());
+
+			if (getUncompressNestedJars().get()) {
+				ZipReprocessorUtil.reprocessZip(output.toPath(), false, true, ZipEntryCompression.STORED);
+			}
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to copy mod file %s".formatted(input), e);
 		}

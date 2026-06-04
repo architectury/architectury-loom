@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2016-2025 FabricMC
+ * Copyright (c) 2016-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,8 +56,8 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.services.ServiceReference;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
@@ -66,6 +66,7 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.internal.logging.progress.ProgressLoggerFactory;
 import org.gradle.process.ExecOperations;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.workers.WorkAction;
 import org.gradle.workers.WorkParameters;
 import org.gradle.workers.WorkQueue;
@@ -78,6 +79,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.decompilers.DecompilationMetadata;
 import net.fabricmc.loom.api.decompilers.DecompilerOptions;
 import net.fabricmc.loom.api.decompilers.LoomDecompiler;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJar;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.AbstractMappedMinecraftProvider;
 import net.fabricmc.loom.decompilers.ClassLineNumbers;
@@ -105,6 +107,7 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
+@DisableCachingByDefault
 public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	private static final String CACHE_VERSION = "v1";
 	private final DecompilerOptions decompilerOptions;
@@ -115,13 +118,13 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	@Input
 	public abstract Property<String> getInputJarName();
 
-	@InputFiles // Only contains a single file
-	protected abstract ConfigurableFileCollection getClassesInputJar();
+	@Classpath
+	protected abstract RegularFileProperty getClassesInputJar();
 
-	@InputFiles
+	@Classpath
 	protected abstract ConfigurableFileCollection getClasspath();
 
-	@InputFiles
+	@Classpath
 	protected abstract ConfigurableFileCollection getMinecraftCompileLibraries();
 
 	@OutputFile
@@ -129,7 +132,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 	// Contains the remapped linenumbers
 	@OutputFile
-	protected abstract ConfigurableFileCollection getClassesOutputJar(); // Single jar
+	protected abstract RegularFileProperty getClassesOutputJar();
 
 	@Input
 	@Option(option = "use-cache", description = "Use the decompile cache")
@@ -144,7 +147,6 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	// Internal inputs
 	@ApiStatus.Internal
 	@Nested
-	@Optional
 	protected abstract Property<SourceMappingsService.Options> getMappings();
 
 	// Internal outputs
@@ -176,6 +178,10 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	@Nested
 	protected abstract Property<DaemonUtils.Context> getDaemonUtilsContext();
 
+	@ApiStatus.Internal
+	@Internal
+	protected abstract Property<String> getRuntimeNamespace();
+
 	@Nested
 	@Optional
 	protected abstract Property<UnpickService.Options> getUnpickOptions();
@@ -192,7 +198,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	public GenerateSourcesTask(DecompilerOptions decompilerOptions) {
 		this.decompilerOptions = decompilerOptions;
 
-		getClassesInputJar().setFrom(getInputJarName().map(minecraftJarName -> {
+		getClassesInputJar().fileProvider(getInputJarName().map(minecraftJarName -> {
 			final List<MinecraftJar> minecraftJars = getExtension().getNamedMinecraftProvider().getMinecraftJars();
 
 			for (MinecraftJar minecraftJar : minecraftJars) {
@@ -209,7 +215,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 
 			throw new IllegalStateException("Input minecraft jar not found: " + getInputJarName().get());
 		}));
-		getClassesOutputJar().setFrom(getInputJarName().map(minecraftJarName -> {
+		getClassesOutputJar().fileProvider(getInputJarName().map(minecraftJarName -> {
 			final List<MinecraftJar> minecraftJars = getExtension().getNamedMinecraftProvider().getMinecraftJars();
 
 			for (MinecraftJar minecraftJar : minecraftJars) {
@@ -230,9 +236,13 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		getUseCache().convention(true);
 		getResetCache().convention(getExtension().refreshDeps());
 
+		getMappings().set(SourceMappingsService.create(getProject()));
+
 		if (!LoomGradleExtension.get(getProject()).disableObfuscation()) {
-			getMappings().set(SourceMappingsService.create(getProject()));
 			getUnpickOptions().set(UnpickService.createOptions(this));
+			getRuntimeNamespace().set(MappingsNamespace.NAMED.toString());
+		} else {
+			getRuntimeNamespace().set(MappingsNamespace.OFFICIAL.toString());
 		}
 
 		getMaxCachedFiles().set(GradleUtils.getIntegerPropertyProvider(getProject(), Constants.Properties.DECOMPILE_CACHE_MAX_FILES).orElse(50_000));
@@ -300,9 +310,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	}
 
 	private void runWithCache(ServiceFactory serviceFactory, Path cacheRoot) throws IOException {
-		final Path classesInputJar = getClassesInputJar().getSingleFile().toPath();
+		final Path classesInputJar = getClassesInputJar().get().getAsFile().toPath();
 		final Path sourcesOutputJar = getSourcesOutputJar().get().getAsFile().toPath();
-		final Path classesOutputJar = getClassesOutputJar().getSingleFile().toPath();
+		final Path classesOutputJar = getClassesOutputJar().get().getAsFile().toPath();
 		final var cacheRules = new CachedFileStoreImpl.CacheRules(getMaxCachedFiles().get(), Duration.ofDays(getMaxCacheFileAge().get()));
 		final var decompileCache = new CachedFileStoreImpl<>(cacheRoot, CachedData.SERIALIZER, cacheRules);
 		final String cacheKey = getCacheKey(serviceFactory);
@@ -368,9 +378,9 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 	}
 
 	private void runWithoutCache(ServiceFactory serviceFactory) throws IOException {
-		final Path classesInputJar = getClassesInputJar().getSingleFile().toPath();
+		final Path classesInputJar = getClassesInputJar().get().getAsFile().toPath();
 		final Path sourcesOutputJar = getSourcesOutputJar().get().getAsFile().toPath();
-		final Path classesOutputJar = getClassesOutputJar().getSingleFile().toPath();
+		final Path classesOutputJar = getClassesOutputJar().get().getAsFile().toPath();
 
 		Path workClassesJar = classesInputJar;
 
@@ -423,13 +433,11 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			sj.add(unpick.getUnpickCacheKey());
 		}
 
-		if (getMappings().isPresent()) {
-			SourceMappingsService mappingsService = serviceFactory.get(getMappings());
-			String mappingsHash = mappingsService.getProcessorHash();
+		SourceMappingsService mappingsService = serviceFactory.get(getMappings());
+		String mappingsHash = mappingsService.getProcessorHash();
 
-			if (mappingsHash != null) {
-				sj.add(mappingsHash);
-			}
+		if (mappingsHash != null) {
+			sj.add(mappingsHash);
 		}
 
 		getLogger().info("Decompile cache data: {}", sj);
@@ -576,10 +584,8 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			params.getInputJar().set(inputJar.toFile());
 			params.getOutputJar().set(outputJar.toFile());
 			params.getLinemapFile().set(linemapFile.toFile());
-
-			if (getMappings().isPresent()) {
-				params.getMappings().set(getMappings());
-			}
+			params.getMappings().set(getMappings());
+			params.getRuntimeNamespace().set(getRuntimeNamespace());
 
 			if (ipcServer != null) {
 				params.getIPCPath().set(ipcServer.getPath().toFile());
@@ -641,6 +647,7 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 		RegularFileProperty getOutputJar();
 		RegularFileProperty getLinemapFile();
 		Property<SourceMappingsService.Options> getMappings();
+		Property<String> getRuntimeNamespace();
 
 		RegularFileProperty getIPCPath();
 
@@ -688,19 +695,16 @@ public abstract class GenerateSourcesTask extends AbstractLoomTask {
 			}
 
 			try (var serviceFactory = new ScopedServiceFactory()) {
-				Path javaDocs = null;
-
-				if (getParameters().getMappings().isPresent()) {
-					final SourceMappingsService mappingsService = serviceFactory.get(getParameters().getMappings());
-					javaDocs = mappingsService.getMappingsFile();
-				}
+				final SourceMappingsService mappingsService = serviceFactory.get(getParameters().getMappings());
+				final Path javaDocs = mappingsService.getMappingsFile();
 
 				final var metadata = new DecompilationMetadata(
 						decompilerOptions.maxThreads(),
 						javaDocs,
 						getLibraries(),
 						logger,
-						decompilerOptions.options()
+						decompilerOptions.options(),
+						getParameters().getRuntimeNamespace().get()
 				);
 
 				decompiler.decompile(

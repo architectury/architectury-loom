@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2018-2020 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,40 +22,24 @@
  * SOFTWARE.
  */
 
-package net.fabricmc.loom.task;
+package net.fabricmc.loom.test.unit.library.processors
 
-import org.gradle.api.DefaultTask;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.Internal;
-import org.gradle.api.tasks.Optional;
-import org.gradle.work.DisableCachingByDefault;
-import org.jetbrains.annotations.ApiStatus;
+import net.fabricmc.loom.configuration.providers.minecraft.library.Library
+import net.fabricmc.loom.configuration.providers.minecraft.library.LibraryProcessor
+import net.fabricmc.loom.configuration.providers.minecraft.library.processors.RuntimeLwjglGraphicsLibraryProcessor
+import net.fabricmc.loom.test.util.PlatformTestUtils
 
-import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.LoomGradlePlugin;
-import net.fabricmc.loom.util.Constants;
-import net.fabricmc.loom.util.ModPlatform;
+class RuntimeLwjglGraphicsLibraryProcessorTest extends LibraryProcessorTest {
+	def "Make lwjgl-opengl runtime"() {
+		when:
+		def (original, context) = getLibs("26.1-snapshot-10", PlatformTestUtils.MAC_OS_X64)
+		def processor = new RuntimeLwjglGraphicsLibraryProcessor(PlatformTestUtils.MAC_OS_X64, context)
+		def processed = mockLibraryProcessorManager().processLibraries([processor], original)
 
-@DisableCachingByDefault
-public abstract class AbstractLoomTask extends DefaultTask {
-	@Input
-	@Optional
-	@ApiStatus.Internal
-	protected abstract Property<ModPlatform> getModPlatform();
+		then:
+		processor.applicationResult == LibraryProcessor.ApplicationResult.CAN_APPLY
 
-	public AbstractLoomTask() {
-		setGroup(Constants.TaskGroup.FABRIC);
-
-		// Store the platform if Loom is applied.
-		// This code might run in projects without Loom, such as Loom Companion projects.
-		if (getProject().getPluginManager().hasPlugin(LoomGradlePlugin.NAME)) {
-			getModPlatform().value(getExtension().getPlatform()).finalizeValue();
-		}
-	}
-
-	@Internal
-	protected LoomGradleExtension getExtension() {
-		return LoomGradleExtension.get(getProject());
+		findLibrary("org.lwjgl:lwjgl-opengl", original).target() == Library.Target.COMPILE
+		findLibrary("org.lwjgl:lwjgl-opengl", processed).target() == Library.Target.RUNTIME
 	}
 }

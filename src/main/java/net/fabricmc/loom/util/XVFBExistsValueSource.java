@@ -24,6 +24,8 @@
 
 package net.fabricmc.loom.util;
 
+import java.io.OutputStream;
+
 import javax.inject.Inject;
 
 import org.gradle.api.Project;
@@ -44,6 +46,10 @@ public abstract class XVFBExistsValueSource implements ValueSource<Boolean, Valu
 		ExecResult result = getExecOperations().exec(spec -> {
 			spec.commandLine(XVFB);
 			spec.args("--help");
+
+			// We don't care about the output
+			spec.setStandardOutput(OutputStream.nullOutputStream());
+			spec.setErrorOutput(OutputStream.nullOutputStream());
 		});
 
 		return result.getExitValue() == 0;
