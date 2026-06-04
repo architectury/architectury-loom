@@ -68,6 +68,7 @@ import net.fabricmc.loom.api.mappings.layered.spec.LayeredMappingSpecBuilder;
 import net.fabricmc.loom.api.processor.MinecraftJarProcessor;
 import net.fabricmc.loom.api.remapping.RemapperExtension;
 import net.fabricmc.loom.api.remapping.RemapperParameters;
+import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.RemapConfigurations;
 import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
@@ -81,6 +82,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftJarConfigura
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProvider;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.task.GenerateSourcesTask;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.DeprecationHelper;
 import net.fabricmc.loom.util.Lazy;
 import net.fabricmc.loom.util.MirrorUtil;
@@ -170,7 +172,7 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 		this.intermediary = project.getObjects().property(String.class)
 				.convention(DEFAULT_INTERMEDIARY_URL);
 		this.productionNamespace = project.getObjects().property(String.class);
-		this.productionNamespace.convention(project.provider(() -> LoomGradleExtension.get(project).getMetadataProvider().isUnobfuscated() ? MappingsNamespace.OFFICIAL.toString() : MappingsNamespace.INTERMEDIARY.toString()));
+		this.productionNamespace.convention(project.provider(() -> computeDefaultProductionNamespace(project)));
 		this.productionNamespace.finalizeValueOnRead();
 		this.useIntermediateMappings = project.getObjects().property(Boolean.class);
 		this.useIntermediateMappings.convention(project.provider(() -> !LoomGradleExtension.get(project).getMetadataProvider().isUnobfuscated()));
@@ -675,6 +677,18 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public void neoForge(Action<NeoForgeExtensionAPI> action) {
 		action.execute(getNeoForge());
+	}
+
+	private static String computeDefaultProductionNamespace(Project project) {
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		if (extension.getMetadataProvider().isUnobfuscated()) {
+			return MappingsNamespace.OFFICIAL.toString();
+		} else if (extension.isForge() && extension.getMetadataProvider().getVersionMeta().isVersionOrNewer(Constants.Forge.RELEASE_TIME_1_20_6)) {
+			return MappingsNamespace.MOJANG.toString();
+		} else {
+			return IntermediaryNamespaces.intermediaryNamespace(extension.getPlatform().get()).toString();
+		}
 	}
 
 	// This is here to ensure that LoomGradleExtensionApiImpl compiles without any unimplemented methods
