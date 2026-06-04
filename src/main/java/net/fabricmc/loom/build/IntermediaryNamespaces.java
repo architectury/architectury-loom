@@ -24,8 +24,6 @@
 
 package net.fabricmc.loom.build;
 
-import java.util.Objects;
-
 import org.gradle.api.Project;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -37,8 +35,9 @@ import net.fabricmc.loom.util.ModPlatform;
 /**
  * Contains methods for checking the (fallback/platform default) intermediary namespace of a project.
  *
- * <p>The namespace returned by methods in this class is wrong for obfuscated versions of Forge that use
+ * <p>The namespace returned by methods in this class is partially wrong for obfuscated versions of Forge that use
  * Mojang names at runtime.
+ * SRG names are still used in the toolchain, so the methods in this class are useful for those versions.
  * The actual production namespace is available from the extension using {@link net.fabricmc.loom.api.LoomGradleExtensionAPI#getProductionNamespace()}.
  */
 public final class IntermediaryNamespaces {
@@ -50,11 +49,10 @@ public final class IntermediaryNamespaces {
 	}
 
 	/**
-	 * Returns the intermediary namespace of the project, reading from the extension's production namespace property.
+	 * Returns the intermediary namespace of the project.
 	 */
 	public static MappingsNamespace intermediaryNamespace(Project project) {
-		LoomGradleExtension extension = LoomGradleExtension.get(project);
-		return Objects.requireNonNull(MappingsNamespace.of(extension.getProductionNamespace().get()), "Invalid intermediary namespace");
+		return intermediaryNamespace(LoomGradleExtension.get(project).getPlatform().get());
 	}
 
 	/**
