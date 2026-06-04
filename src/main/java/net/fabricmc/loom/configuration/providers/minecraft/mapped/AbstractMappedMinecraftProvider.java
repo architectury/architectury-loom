@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
@@ -318,7 +317,7 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 				className = "net.minecraftforge.registries.ObjectHolderRegistry";
 			}
 
-			final String sourceNamespace = IntermediaryNamespaces.runtimeIntermediary(project);
+			final String sourceNamespace = extension.getProductionNamespace().get();
 			final MemoryMappingTree mappings = mappingsService.getMappingTree();
 			RemapObjectHolderVisitor.remapObjectHolder(remappedJars.outputJar().getPath(), className, mappings, sourceNamespace, "named");
 		}

@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.JarManifestService;
 import net.fabricmc.loom.util.Check;
@@ -135,7 +134,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 	public AbstractRemapJarTask() {
 		from(getProject().zipTree(getInputFile()));
 		getSourceNamespace().convention(MappingsNamespace.NAMED.toString()).finalizeValueOnRead();
-		getTargetNamespace().convention(getProject().provider(() -> IntermediaryNamespaces.runtimeIntermediary(getProject()))).finalizeValueOnRead();
+		getTargetNamespace().convention(getProject().provider(() -> LoomGradleExtension.get(getProject()).getProductionNamespace().get())).finalizeValueOnRead();
 		getIncludesClientOnlyClasses().convention(false).finalizeValueOnRead();
 		getJarType().finalizeValueOnRead();
 

@@ -252,21 +252,15 @@ public interface LoomGradleExtensionAPI {
 	 * <p>This serves as the source namespace for all remapping operations on both the
 	 * Minecraft jar (access wideners, interface injection, javadoc) and mod dependencies.
 	 *
-	 * <p>Convention values:
+	 * <p>Values:
 	 * <ul>
 	 *   <li>Fabric/Quilt (normal versions): {@code intermediary}</li>
-	 *   <li>Forge: {@code srg}</li>
-	 *   <li>NeoForge: {@code mojang}</li>
+	 *   <li>Forge (before 1.20.6): {@code srg}</li>
+	 *   <li>NeoForge and Forge (1.20.6+): {@code mojang}</li>
 	 *   <li>All platforms (unobfuscated 1.21.11+): {@code official}</li>
 	 * </ul>
 	 *
-	 * <p>In architectury-loom, this property replaces both the upstream concept of
-	 * "production namespace" and the platform-specific intermediary namespace, since
-	 * the processed jar is always in the platform's intermediary namespace when
-	 * processors run.
-	 *
 	 * @return the production namespace property
-	 * @see #getRuntimeIntermediaryNamespace()
 	 */
 	Property<String> getProductionNamespace();
 
@@ -343,17 +337,6 @@ public interface LoomGradleExtensionAPI {
 	// ===================
 	//  Architectury Loom
 	// ===================
-
-	/**
-	 * Returns the runtime intermediary namespace for the current platform and MC version.
-	 * This is the namespace used in the compiled jar at runtime.
-	 *
-	 * <p>Same as {@link #getProductionNamespace()} in most cases, except for Forge
-	 * with mojang-at-runtime where it returns {@code mojang}.
-	 *
-	 * @return the runtime intermediary namespace property
-	 */
-	Property<String> getRuntimeIntermediaryNamespace();
 
 	void silentMojangMappingsLicense();
 

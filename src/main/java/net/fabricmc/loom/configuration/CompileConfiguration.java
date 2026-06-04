@@ -223,13 +223,11 @@ public abstract class CompileConfiguration implements Runnable {
 
 		if (metadataProvider.getVersionMeta().isVersionOrNewer(Constants.RELEASE_TIME_1_21_11_UNOBFUSCATED_SNAPSHOTS) && !metadataProvider.getVersionMeta().downloads().containsKey("client_mappings")) {
 			extension.getProductionNamespace().convention(MappingsNamespace.OFFICIAL.toString());
+		} else if (extension.isForge() && metadataProvider.getVersionMeta().isVersionOrNewer(Constants.Forge.RELEASE_TIME_1_20_6)) {
+			extension.getProductionNamespace().convention(MappingsNamespace.MOJANG.toString());
 		} else {
 			extension.getProductionNamespace().convention(IntermediaryNamespaces.intermediaryNamespace(extension.getPlatform().get()).toString());
 		}
-
-		// runtimeIntermediaryNamespace defaults to productionNamespace;
-		// overridden later for Forge with mojang-at-runtime (see configureCompile)
-		extension.getRuntimeIntermediaryNamespace().convention(extension.getProductionNamespace());
 
 		extension.getProductionNamespace().finalizeValue();
 
@@ -286,10 +284,6 @@ public abstract class CompileConfiguration implements Runnable {
 			((ForgeMinecraftProvider) minecraftProvider).getPatchedProvider().provide();
 		}
 
-		if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime() && !extension.isUnobfuscatedForge()) {
-			extension.getRuntimeIntermediaryNamespace().set(MappingsNamespace.MOJANG.toString());
-		}
-
 		if (extension.isForgeLike()) {
 			extension.setForgeRunsProvider(ForgeRunsProvider.create(project));
 		}
@@ -331,8 +325,6 @@ public abstract class CompileConfiguration implements Runnable {
 			extension.setMojangMappedMinecraftProvider(mojangMappedMinecraftProvider);
 			mojangMappedMinecraftProvider.provide(provideContext);
 		}
-
-		extension.getRuntimeIntermediaryNamespace().finalizeValue();
 	}
 
 	private void registerGameProcessors(ConfigContext configContext) {

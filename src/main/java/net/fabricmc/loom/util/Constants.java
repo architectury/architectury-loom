@@ -235,6 +235,12 @@ public class Constants {
 		 */
 		public static final int MIN_USE_MOJANG_NS_VERSION = 50;
 
+		/**
+		 * The release time of 1.20.6, the minimum version of Minecraft where Forge uses "mojang" as the namespace in production.
+		 * Equivalent to {@link #MIN_USE_MOJANG_NS_VERSION}.
+		 */
+		public static final String RELEASE_TIME_1_20_6 = "2024-04-29T12:40:45+00:00";
+
 		private Forge() {
 		}
 	}

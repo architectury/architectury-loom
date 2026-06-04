@@ -110,7 +110,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	protected final Property<String> intermediary;
 	protected final Property<IntermediateMappingsProvider> intermediateMappingsProvider;
 	private final Property<String> productionNamespace;
-	private final Property<String> runtimeIntermediaryNamespace;
 	private final Property<Boolean> remapJsrAnnotationsToJetBrains;
 	private final Property<Boolean> runtimeOnlyLog4j;
 	private final Property<Boolean> splitModDependencies;
@@ -167,8 +166,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 				.convention(DEFAULT_INTERMEDIARY_URL);
 		this.productionNamespace = project.getObjects().property(String.class);
 		this.productionNamespace.finalizeValueOnRead();
-		this.runtimeIntermediaryNamespace = project.getObjects().property(String.class);
-		this.runtimeIntermediaryNamespace.finalizeValueOnRead();
 
 		this.intermediateMappingsProvider = project.getObjects().property(IntermediateMappingsProvider.class);
 		this.intermediateMappingsProvider.finalizeValueOnRead();
@@ -593,11 +590,6 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public boolean isSilentMojangMappingsLicenseEnabled() {
 		return silentMojangMappingsLicense.get();
-	}
-
-	@Override
-	public Property<String> getRuntimeIntermediaryNamespace() {
-		return runtimeIntermediaryNamespace;
 	}
 
 	@Override

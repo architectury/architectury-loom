@@ -46,7 +46,6 @@ import org.slf4j.Logger;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.task.service.LorenzMappingService;
 import net.fabricmc.loom.util.service.ServiceFactory;
@@ -61,7 +60,7 @@ public class SourceRemapper {
 	private Mercury mercury;
 
 	public SourceRemapper(Project project, ServiceFactory serviceFactory, boolean toNamed) {
-		this(project, serviceFactory, toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named", !toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named");
+		this(project, serviceFactory, toNamed ? LoomGradleExtension.get(project).getProductionNamespace().get() : "named", !toNamed ? LoomGradleExtension.get(project).getProductionNamespace().get() : "named");
 	}
 
 	public SourceRemapper(Project project, ServiceFactory serviceFactory, String from, String to) {
@@ -199,7 +198,7 @@ public class SourceRemapper {
 		}
 
 		if (extension.isForgeLike()) {
-			for (Path jar : extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project))) {
+			for (Path jar : extension.getMinecraftJars(LoomGradleExtension.get(project).getProductionNamespaceEnum())) {
 				mercury.getClassPath().add(jar);
 			}
 		}

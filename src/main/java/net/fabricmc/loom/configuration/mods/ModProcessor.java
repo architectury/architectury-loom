@@ -58,7 +58,6 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
 import net.fabricmc.loom.configuration.mods.extension.ModProcessorExtension;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
@@ -172,7 +171,7 @@ public class ModProcessor {
 	private void remapJars(List<ModDependency> remapList) throws IOException {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
-		String fromM = IntermediaryNamespaces.runtimeIntermediary(project);
+		String fromM = extension.getProductionNamespace().get();
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Set<String> knownIndyBsms = new HashSet<>(extension.getKnownIndyBsms().get());
 
@@ -221,7 +220,7 @@ public class ModProcessor {
 
 		final TinyRemapper remapper = builder.build();
 
-		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project)).toArray(Path[]::new));
+		remapper.readClassPath(extension.getMinecraftJars(extension.getProductionNamespaceEnum()).toArray(Path[]::new));
 
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();
 		final Map<ModDependency, Pair<byte[], String>> accessWidenerMap = new HashMap<>();
