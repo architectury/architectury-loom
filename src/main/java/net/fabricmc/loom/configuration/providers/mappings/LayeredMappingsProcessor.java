@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +41,6 @@ import net.fabricmc.loom.configuration.providers.mappings.extras.annotations.Ann
 import net.fabricmc.loom.configuration.providers.mappings.extras.annotations.AnnotationsLayer;
 import net.fabricmc.loom.configuration.providers.mappings.extras.signatures.SignatureFixesLayer;
 import net.fabricmc.loom.configuration.providers.mappings.extras.unpick.UnpickLayer;
-import net.fabricmc.mappingio.adapter.MappingNsCompleter;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 
@@ -56,7 +54,7 @@ public class LayeredMappingsProcessor {
 	}
 
 	public List<MappingLayer> resolveLayers(MappingContext context) {
-		List<MappingLayer> layers = new LinkedList<>();
+		List<MappingLayer> layers = new ArrayList<>();
 		List<Class<? extends MappingLayer>> visitedLayers = new ArrayList<>();
 
 		for (MappingsSpec<?> spec : layeredMappingSpec.layers()) {
@@ -107,13 +105,6 @@ public class LayeredMappingsProcessor {
 				mappingTree = new MemoryMappingTree();
 				workingTree.accept(new MappingSourceNsSwitch(mappingTree, MappingsNamespace.NAMED.toString()));
 			}
-		}
-
-		if (noIntermediateMappings) {
-			// HACK: Populate intermediary with named when there are no intermediary mappings being used.
-			MemoryMappingTree completedTree = new MemoryMappingTree();
-			mappingTree.accept(new MappingNsCompleter(completedTree, Map.of("intermediary", "named")));
-			return completedTree;
 		}
 
 		return mappingTree;

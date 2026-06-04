@@ -76,6 +76,6 @@ public record ProcessorContextImpl(ConfigContext configContext, MinecraftJar min
 
 	@Override
 	public MappingsNamespace getProductionNamespace() {
-		return configContext().extension().getProductionNamespaceEnum();
+		return configContext().extension().getProductionNamespaceEnum().get();
 	}
 }

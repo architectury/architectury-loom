@@ -69,8 +69,6 @@ import org.gradle.api.tasks.testing.Test;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.InterfaceInjectionExtensionAPI;
-import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.build.mixin.GroovyApInvoker;
 import net.fabricmc.loom.build.mixin.JavaApInvoker;
 import net.fabricmc.loom.build.mixin.KaptApInvoker;
@@ -95,7 +93,6 @@ import net.fabricmc.loom.configuration.providers.minecraft.mapped.SrgMinecraftPr
 import net.fabricmc.loom.extension.MixinExtension;
 import net.fabricmc.loom.task.service.ClasspathGroupService;
 import net.fabricmc.loom.util.Checksum;
-import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.ProcessUtil;
 import net.fabricmc.loom.util.gradle.GradleUtils;
@@ -220,16 +217,6 @@ public abstract class CompileConfiguration implements Runnable {
 
 		final MinecraftMetadataProvider metadataProvider = MinecraftMetadataProvider.create(configContext);
 		extension.setMetadataProvider(metadataProvider);
-
-		if (metadataProvider.getVersionMeta().isVersionOrNewer(Constants.RELEASE_TIME_1_21_11_UNOBFUSCATED_SNAPSHOTS) && !metadataProvider.getVersionMeta().downloads().containsKey("client_mappings")) {
-			extension.getProductionNamespace().convention(MappingsNamespace.OFFICIAL.toString());
-		} else if (extension.isForge() && metadataProvider.getVersionMeta().isVersionOrNewer(Constants.Forge.RELEASE_TIME_1_20_6)) {
-			extension.getProductionNamespace().convention(MappingsNamespace.MOJANG.toString());
-		} else {
-			extension.getProductionNamespace().convention(IntermediaryNamespaces.intermediaryNamespace(extension.getPlatform().get()).toString());
-		}
-
-		extension.getProductionNamespace().finalizeValue();
 
 		var jarConfiguration = extension.getMinecraftJarConfiguration().get();
 

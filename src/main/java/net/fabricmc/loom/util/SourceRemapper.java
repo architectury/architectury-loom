@@ -169,6 +169,7 @@ public class SourceRemapper {
 
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
+		MappingsNamespace prodNamespace = extension.getProductionNamespaceEnum().get();
 
 		LorenzMappingService lorenzMappingService = serviceFactory.get(LorenzMappingService.createOptions(
 				project,
@@ -189,18 +190,12 @@ public class SourceRemapper {
 			}
 		}
 
-		for (Path productionJar : extension.getMinecraftJars(extension.getProductionNamespaceEnum())) {
+		for (Path productionJar : extension.getMinecraftJars(prodNamespace)) {
 			mercury.getClassPath().add(productionJar);
 		}
 
 		for (Path intermediaryJar : extension.getMinecraftJars(MappingsNamespace.NAMED)) {
 			mercury.getClassPath().add(intermediaryJar);
-		}
-
-		if (extension.isForgeLike()) {
-			for (Path jar : extension.getMinecraftJars(LoomGradleExtension.get(project).getProductionNamespaceEnum())) {
-				mercury.getClassPath().add(jar);
-			}
 		}
 
 		Set<File> files = project.getConfigurations()

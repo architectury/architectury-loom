@@ -41,12 +41,14 @@ import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Provider;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.InstallerData;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
+import net.fabricmc.loom.configuration.mods.ArtifactMetadata;
 import net.fabricmc.loom.configuration.providers.mappings.LayeredMappingsFactory;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftMetadataProvider;
@@ -96,6 +98,10 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 
 	void setIntermediaryMinecraftProvider(IntermediaryMinecraftProvider<?> intermediaryMinecraftProvider);
 
+	Provider<MappingsNamespace> getProductionNamespaceEnum();
+
+	Provider<ArtifactMetadata.MixinRemapType> getDefaultMixinRemapTypeEnum();
+
 	SrgMinecraftProvider<?> getSrgMinecraftProvider();
 
 	void setSrgMinecraftProvider(SrgMinecraftProvider<?> srgMinecraftProvider);
@@ -103,8 +109,6 @@ public interface LoomGradleExtension extends LoomGradleExtensionAPI {
 	MojangMappedMinecraftProvider<?> getMojangMappedMinecraftProvider();
 
 	void setMojangMappedMinecraftProvider(MojangMappedMinecraftProvider<?> srgMinecraftProvider);
-
-	MappingsNamespace getProductionNamespaceEnum();
 
 	default List<Path> getMinecraftJars(MappingsNamespace mappingsNamespace) {
 		return switch (mappingsNamespace) {

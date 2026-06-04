@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.LoomNoRemapGradlePlugin;
 import net.fabricmc.loom.build.mixin.AnnotationProcessorInvoker;
 import net.fabricmc.loom.util.TinyRemapperHelper;
 import net.fabricmc.loom.util.gradle.GradleUtils;
@@ -108,6 +109,11 @@ public class MixinAPMappingService extends Service<MixinAPMappingService.Options
 			processProject.accept(thisProject);
 		} else {
 			GradleUtils.allLoomProjects(thisProject.getGradle(), project -> {
+				if (project.getPlugins().hasPlugin(LoomNoRemapGradlePlugin.NAME)) {
+					// Unobfuscated projects do not have mappings to provide.
+					return;
+				}
+
 				final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 				if (!mappingId.equals(extension.getMappingConfiguration().mappingsIdentifier)) {

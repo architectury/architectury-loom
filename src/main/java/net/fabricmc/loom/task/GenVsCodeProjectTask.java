@@ -32,7 +32,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -83,7 +82,7 @@ public abstract class GenVsCodeProjectTask extends AbstractLoomTask {
 	public GenVsCodeProjectTask() {
 		setGroup(Constants.TaskGroup.IDE);
 		getLaunchConfigurations().set(getProject().provider(this::getConfigurations));
-		getLaunchJson().convention(getProject().getRootProject().getLayout().getProjectDirectory().file(".vscode/launch.json"));
+		getLaunchJson().convention(getProject().getIsolated().getRootProject().getProjectDirectory().file(".vscode/launch.json"));
 		getModClassesOptions().set(ForgeModClassesService.createOptions(getProject()));
 	}
 
@@ -144,7 +143,7 @@ public abstract class GenVsCodeProjectTask extends AbstractLoomTask {
 				}
 			}
 
-			final List<JsonElement> toRemove = new LinkedList<>();
+			final List<JsonElement> toRemove = new ArrayList<>();
 
 			// Remove any existing with the same name
 			for (JsonElement jsonElement : configurations) {

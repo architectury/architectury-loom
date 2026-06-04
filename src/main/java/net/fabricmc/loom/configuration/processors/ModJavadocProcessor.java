@@ -149,7 +149,7 @@ public abstract class ModJavadocProcessor implements MinecraftJarProcessor<ModJa
 			}
 
 			if (!mappings.getSrcNamespace().equals(productionNamespace.toString())) {
-				throw new IllegalStateException("Javadoc provided by mod (%s) must be have an %s source namespace".formatted(modId, productionNamespace.toString()));
+				throw new IllegalStateException("Javadoc provided by mod (%s) must have an %s source namespace".formatted(modId, productionNamespace.toString()));
 			}
 
 			return new ModJavadoc(modId, mappings, mappingsHash);

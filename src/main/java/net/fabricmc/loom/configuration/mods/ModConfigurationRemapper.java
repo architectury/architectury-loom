@@ -166,7 +166,7 @@ public class ModConfigurationRemapper {
 			final Configuration clientRemappedConfig = clientConfigsToRemap.get(sourceConfig);
 			List<ArtifactRef> artifactRefs = resolveArtifacts(project, sourceConfig);
 			@Nullable Boolean forcesStaticMixinRemap = extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime() ? true : null;
-			Map<ArtifactRef, ArtifactMetadata> metadataMap = getMetadata(artifactRefs, metaCache, project, extension.getPlatform().get(), forcesStaticMixinRemap);
+			Map<ArtifactRef, ArtifactMetadata> metadataMap = getMetadata(artifactRefs, metaCache, project, extension.getPlatform().get(), forcesStaticMixinRemap, extension.getDefaultMixinRemapTypeEnum().get());
 			final List<ModDependency> modDependencies = new ArrayList<>();
 
 			for (ArtifactRef artifact : artifactRefs) {
@@ -234,13 +234,13 @@ public class ModConfigurationRemapper {
 		});
 	}
 
-	private static Map<ArtifactRef, ArtifactMetadata> getMetadata(List<ArtifactRef> artifacts, AsyncCache<ArtifactMetadata> cache, @Nullable Project project, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap) {
+	private static Map<ArtifactRef, ArtifactMetadata> getMetadata(List<ArtifactRef> artifacts, AsyncCache<ArtifactMetadata> cache, @Nullable Project project, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap, ArtifactMetadata.MixinRemapType defaultMixinRemapType) {
 		var futures = new HashMap<ArtifactRef, CompletableFuture<ArtifactMetadata>>();
 
 		for (ArtifactRef artifact : artifacts) {
 			CompletableFuture<ArtifactMetadata> future = cache.get(artifact, () -> {
 				try {
-					return ArtifactMetadata.create(project, artifact, LoomGradlePlugin.LOOM_VERSION, platform, forcesStaticMixinRemap);
+					return ArtifactMetadata.create(project, artifact, LoomGradlePlugin.LOOM_VERSION, platform, forcesStaticMixinRemap, defaultMixinRemapType);
 				} catch (IOException e) {
 					throw ExceptionUtil.createDescriptiveWrapper(UncheckedIOException::new, "Failed to read metadata from " + artifact.path(), e);
 				}

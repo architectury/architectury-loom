@@ -29,7 +29,8 @@ import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class DecompileTest extends Specification implements GradleProjectTestTrait {
@@ -111,18 +112,14 @@ class DecompileTest extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "CFR legacy"() {
 		setup:
-		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
 		gradle.buildGradle << '''
 				loom {
-					noIntermediateMappings()
 					clientOnlyMinecraftJar()
 				}
 
                 dependencies {
                     minecraft "com.mojang:minecraft:c0.30_01c"
-					mappings loom.layered() {
-						// No names
-					}
                 }
 		'''
 

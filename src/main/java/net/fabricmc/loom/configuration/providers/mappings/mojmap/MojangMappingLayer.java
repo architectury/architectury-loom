@@ -127,6 +127,10 @@ public record MojangMappingLayer(String minecraftVersion,
 
 	@Override
 	public List<Class<? extends MappingLayer>> dependsOn() {
+		if (intermediarySupplier == null) {
+			return List.of();
+		}
+
 		return List.of(IntermediaryMappingLayer.class);
 	}
 }

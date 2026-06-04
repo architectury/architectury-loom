@@ -35,8 +35,8 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
 
-import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 
 public interface RemappedProjectView extends ProjectView {
 	Function<RemapConfigurationSettings, Stream<Path>> resolveArtifacts(ArtifactUsage artifactUsage);
@@ -83,7 +83,7 @@ public interface RemappedProjectView extends ProjectView {
 
 		@Override
 		public MappingsNamespace getProductionNamespace() {
-			return extension.getProductionNamespaceEnum();
+			return extension.getProductionNamespaceEnum().get();
 		}
 	}
 }

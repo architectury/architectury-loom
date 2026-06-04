@@ -60,15 +60,16 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 	// ARCH: Quilt support
 	private static final String QUILT_INSTALLER_PATH = "quilt_installer.json";
 
-	public static ArtifactMetadata create(ArtifactRef artifact, String currentLoomVersion) throws IOException {
-		return create(null, artifact, currentLoomVersion, ModPlatform.FABRIC, null);
+	public static ArtifactMetadata create(ArtifactRef artifact, String currentLoomVersion, MixinRemapType defaultMixinRemapType) throws IOException {
+		return create(null, artifact, currentLoomVersion, ModPlatform.FABRIC, null, defaultMixinRemapType);
 	}
 
-	public static ArtifactMetadata create(@Nullable Project project, ArtifactRef artifact, String currentLoomVersion, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap) throws IOException {
+	// TODO (1.16): check if everything's ok here regarding the mixin remap types
+	public static ArtifactMetadata create(@Nullable Project project, ArtifactRef artifact, String currentLoomVersion, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap, MixinRemapType defaultMixinRemapType) throws IOException {
 		boolean isFabricMod;
 		RemapRequirements remapRequirements = RemapRequirements.DEFAULT;
 		InstallerData installerData = null;
-		MixinRemapType refmapRemapType = MixinRemapType.MIXIN;
+		MixinRemapType refmapRemapType = defaultMixinRemapType;
 		List<String> knownIndyBsms = new ArrayList<>();
 
 		// Force-remap all mods on Forge and NeoForge.
