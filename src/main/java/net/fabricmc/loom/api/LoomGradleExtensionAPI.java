@@ -331,6 +331,7 @@ public interface LoomGradleExtensionAPI {
 	 *
 	 * @return the runtime intermediary namespace property
 	 */
+	@ApiStatus.Experimental
 	Property<String> getRuntimeIntermediaryNamespace();
 
 	void silentMojangMappingsLicense();
