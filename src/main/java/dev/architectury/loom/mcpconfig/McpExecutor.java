@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2025 FabricMC
+ * Copyright (c) 2022-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,6 +52,8 @@ import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.util.download.Download;
@@ -95,6 +97,7 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 		 */
 		@Optional
 		@InputFile
+		@PathSensitive(PathSensitivity.NONE)
 		RegularFileProperty getMappings();
 
 		/**

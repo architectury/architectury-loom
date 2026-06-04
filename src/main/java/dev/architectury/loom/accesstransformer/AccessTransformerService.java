@@ -23,6 +23,8 @@ import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
@@ -41,6 +43,7 @@ public final class AccessTransformerService extends Service<AccessTransformerSer
 
 	public interface Options extends Service.Options {
 		@InputFiles
+		@PathSensitive(PathSensitivity.NONE)
 		ConfigurableFileCollection getAccessTransformers();
 
 		@Input

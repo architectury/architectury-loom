@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2025 FabricMC
+ * Copyright (c) 2022-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,10 @@ import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.task.service.SourceRemapperService;
@@ -68,17 +71,20 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
 // TODO: NeoForge support
+@DisableCachingByDefault
 public abstract class GenerateForgePatchedSourcesTask extends AbstractLoomTask {
 	/**
 	 * The SRG Minecraft file produced by the MCP executor.
 	 */
 	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getInputJar();
 
 	/**
 	 * The runtime Minecraft file.
 	 */
 	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getRuntimeJar();
 
 	/**
