@@ -49,9 +49,9 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
 
 		where:
-		apiVariant    | code
-		'legacy' | 'convertAccessWideners = true'
-		'new' | 'convertAccessWideners(tasks.named("remapJar"), "my.accesswidener")'
+		apiVariant | code
+		'legacy'   | 'convertAccessWideners = true'
+		'new'      | 'convertAccessWideners(tasks.named("remapJar"), "my.accesswidener")'
 	}
 
 	@Unroll
