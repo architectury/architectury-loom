@@ -301,7 +301,7 @@ public class ModProcessor {
 			if (extension.isForgeLike()) {
 				if (extension.isNeoForge()) {
 					// NeoForge: Fully map ATs
-					NeoForgeModDependencies.remapAts(output, mappings, fromM, toM);
+					NeoForgeModDependencies.remapAts(output, mappings, productionNamespace.toString(), toM);
 				} else {
 					// Forge: only map class names, the rest are mapped srg -> named at runtime
 					AtClassRemapper.remap(project, output, mappings);

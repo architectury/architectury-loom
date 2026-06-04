@@ -77,7 +77,7 @@ public final class ForgeSourcesService extends Service<ForgeSourcesService.Optio
 
 			if (!extension.isUnobfuscatedForge()) {
 				options.getSourceRemapperService().set(SourceRemapperService.TYPE.create(project, sro -> {
-					final MappingsNamespace sourceNamespace = extension.getProductionNamespaceEnum();
+					final MappingsNamespace sourceNamespace = extension.getProductionNamespaceEnum().get();
 					final String targetNamespace = MappingsNamespace.NAMED.toString();
 
 					sro.getMappings().set(MappingsService.createOptionsWithProjectMappings(

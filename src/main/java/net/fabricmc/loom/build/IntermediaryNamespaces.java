@@ -83,8 +83,8 @@ public final class IntermediaryNamespaces {
 		final MappingsNamespace prodNamespace = LoomGradleExtension.get(project).getProductionNamespaceEnum().get();
 
 		return switch (prodNamespace) {
-			case SRG, MOJANG -> prodNamespace.toString().equals(namespace) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
-			default -> namespace;
+		case SRG, MOJANG -> prodNamespace.toString().equals(namespace) ? MappingsNamespace.INTERMEDIARY.toString() : namespace;
+		default -> namespace;
 		};
 	}
 }
