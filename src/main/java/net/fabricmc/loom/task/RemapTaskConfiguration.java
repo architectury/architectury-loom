@@ -121,10 +121,6 @@ public abstract class RemapTaskConfiguration implements Runnable {
 				}
 
 				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(p);
-			} else if (extension.isNeoForge()) {
-				getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class, task -> {
-					task.getAtAccessWideners().addAll(extension.getNeoForge().getAtAccessWideners());
-				});
 			}
 		});
 

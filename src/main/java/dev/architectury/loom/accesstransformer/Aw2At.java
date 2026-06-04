@@ -36,21 +36,42 @@ import dev.architectury.at.AccessTransform;
 import dev.architectury.at.AccessTransformSet;
 import dev.architectury.at.ModifierChange;
 import org.cadixdev.bombe.type.signature.MethodSignature;
+import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.jvm.tasks.Jar;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import net.fabricmc.classtweaker.api.ClassTweakerReader;
 import net.fabricmc.classtweaker.api.visitor.AccessWidenerVisitor;
 import net.fabricmc.classtweaker.api.visitor.ClassTweakerVisitor;
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.aw2at.Aw2AtSettings;
+import net.fabricmc.loom.task.RemapJarTask;
 
 /**
  * Converts AW files to AT files.
  */
 public final class Aw2At {
+	public static void addToTask(Project project, TaskProvider<? extends Jar> jarTask, Action<? super Aw2AtSettings> action) {
+		// Create and configure the settings object
+		final Aw2AtSettings settings = project.getObjects().newInstance(Aw2AtSettings.class);
+		action.execute(settings);
+
+		// Add the AW conversion to the task. RemapJarTask simply gets the paths added to its own property,
+		// while the action is added to other jar tasks.
+		jarTask.configure(task -> {
+			if (task instanceof RemapJarTask rjt) {
+				rjt.getAtAccessWideners().addAll(settings.getAccessWideners());
+			} else {
+				Aw2AtAction.addToTask(task, settings.getAccessWideners());
+			}
+		});
+	}
+
 	/**
 	 * Gets all to-be-converted access wideners configured in the Loom extension on Forge.
 	 */
