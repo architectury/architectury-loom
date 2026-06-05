@@ -234,6 +234,11 @@ public class Constants {
 		 */
 		public static final int MIN_USE_MOJANG_NS_VERSION = 50;
 
+		/**
+		 * The minimum version of Forge that rename "forge" module name to "net.minecraftforge.forge".
+		 */
+		public static final int MIN_RENAMED_MODULE_NAME_VERSION = 52;
+
 		private Forge() {
 		}
 	}

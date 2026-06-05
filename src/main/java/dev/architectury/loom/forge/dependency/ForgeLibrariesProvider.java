@@ -24,14 +24,20 @@
 
 package dev.architectury.loom.forge.dependency;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 
+import dev.architectury.loom.forge.ModJarMetadataPatch;
 import dev.architectury.loom.forge.ModDirTransformerDiscovererPatch;
 import dev.architectury.loom.forge.RemapObjectHolderVisitor;
 import dev.architectury.loom.mappings.ForgeMappingsMerger;
@@ -61,6 +67,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ExceptionUtil;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.loom.util.LoomVersions;
+import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.mappingio.tree.MappingTree;
@@ -77,6 +84,7 @@ public class ForgeLibrariesProvider {
 
 	private static final String FORGE_OBJECT_HOLDER_FILE = "net/minecraftforge/fml/common/asm/ObjectHolderDefinalize.class";
 	private static final String FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE = "net/minecraftforge/fml/loading/ModDirTransformerDiscoverer.class";
+	private static final String FORGE_MOD_JAR_METADATA_FILE = "net/minecraftforge/fml/loading/moddiscovery/ModJarMetadata.class";
 	private static final String NEOFORGE_OBJECT_HOLDER_FILE = "net/neoforged/fml/common/asm/ObjectHolderDefinalize.class";
 	private static final String NEOFORGE_LAUNCH_HANDLER_FILE = "net/neoforged/fml/loading/targets/CommonUserdevLaunchHandler.class";
 	private static final String NEOFORGE_LOADER_FILE = "net/neoforged/fml/loading/FMLLoader.class";
@@ -233,6 +241,15 @@ public class ForgeLibrariesProvider {
 					ClassVisitorUtil.rewriteClassFile(fs.getPath(FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE), true, ModDirTransformerDiscovererPatch::new);
 				}
 
+				if (extension.isForge() && extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_RENAMED_MODULE_NAME_VERSION) {
+					File universalJar = extension.getForgeUniversalProvider().getForge();
+					boolean forgeUniversalJarModule = isForgeNewModuleName(universalJar.toPath());
+
+					if (forgeUniversalJarModule && Files.exists(fs.getPath(FORGE_MOD_JAR_METADATA_FILE))) {
+						ClassVisitorUtil.rewriteClassFile(fs.getPath(FORGE_MOD_JAR_METADATA_FILE), true, ModJarMetadataPatch::new);
+					}
+				}
+
 				if (Files.exists(fs.getPath(NEOFORGE_OBJECT_HOLDER_FILE))) {
 					remapNeoForgeObjectHolder(project, outputJar, mappingConfiguration);
 				}
@@ -318,5 +335,24 @@ public class ForgeLibrariesProvider {
 		}
 
 		return notation;
+	}
+
+	/**
+	 * Check if the forge universal JAR has new module name.
+	 */
+	private static boolean isForgeNewModuleName(Path jar) throws IOException {
+		if (Files.notExists(jar)) return false;
+
+		byte[] manifestBytes = ZipUtils.unpackNullable(jar, "META-INF/MANIFEST.MF");
+
+		if (manifestBytes == null) {
+			return false;
+		}
+
+		Manifest manifest = new Manifest(new ByteArrayInputStream(manifestBytes));
+		Attributes attributes = manifest.getMainAttributes();
+		String value = attributes.getValue("Automatic-Module-Name");
+
+		return Objects.equals(value, "net.minecraftforge.forge");
 	}
 }
