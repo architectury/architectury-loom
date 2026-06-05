@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -262,7 +263,8 @@ public class RunConfig {
 			return Collections.emptyList();
 		}
 
-		final BundleMetadata bundleMetadata = LoomGradleExtension.get(project).getMinecraftProvider().getServerBundleMetadata();
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		final BundleMetadata bundleMetadata = extension.getMinecraftProvider().getServerBundleMetadata();
 
 		if (bundleMetadata == null) {
 			// Legacy version
@@ -272,6 +274,25 @@ public class RunConfig {
 		final Set<ResolvedArtifact> clientLibraries = getArtifacts(project, Constants.Configurations.MINECRAFT_CLIENT_RUNTIME_LIBRARIES);
 		final Set<ResolvedArtifact> serverLibraries = getArtifacts(project, Constants.Configurations.MINECRAFT_SERVER_RUNTIME_LIBRARIES);
 		final List<String> clientOnlyLibraries = new LinkedList<>();
+
+		if (extension.isForge() && extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
+			// include all client native jars to be filtered out
+			final Set<ResolvedArtifact> allRuntime = getArtifacts(project, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
+			final Set<ResolvedArtifact> commonClientLibraries = new HashSet<>();
+
+			for (ResolvedArtifact library : allRuntime) {
+				if (containsLibrary(clientLibraries, library.getModuleVersion().getId())) {
+					commonClientLibraries.add(library);
+				}
+			}
+
+			for (ResolvedArtifact library : commonClientLibraries) {
+				if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {
+					clientOnlyLibraries.add(library.getFile().getAbsolutePath());
+				}
+			}
+			return clientOnlyLibraries;
+		}
 
 		for (ResolvedArtifact library : clientLibraries) {
 			if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {
