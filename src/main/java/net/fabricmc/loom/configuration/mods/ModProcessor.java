@@ -306,7 +306,8 @@ public class ModProcessor {
 					AtClassRemapper.remap(project, output, mappings);
 				}
 
-				CoreModClassRemapper.remapJar(project, extension.getPlatform().get(), output, mappings);
+				final boolean runtimeMojang = extension.getForgeProvider().usesMojangAtRuntime();
+				CoreModClassRemapper.remapJar(project, runtimeMojang, output, mappings);
 			}
 
 			dependency.copyToCache(project, output, null);

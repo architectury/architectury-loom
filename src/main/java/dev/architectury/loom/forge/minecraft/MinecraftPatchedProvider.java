@@ -516,7 +516,9 @@ public class MinecraftPatchedProvider {
 		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
 		final TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption);
 		final MappingTree mappings = mappingsService.getMappingTree();
-		CoreModClassRemapper.remapJar(project, getExtension().getPlatform().get(), patchedJar, mappings);
+
+		final boolean isRuntimeMojang = getExtension().getForgeProvider().usesMojangAtRuntime();
+		CoreModClassRemapper.remapJar(project, isRuntimeMojang, patchedJar, mappings);
 	}
 
 	private void patchJars() throws Exception {
