@@ -38,7 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.api.RunConfiguration;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.Platform;
 import net.fabricmc.loom.util.gradle.GradleUtils;
@@ -90,16 +90,16 @@ public abstract class SandboxConfiguration implements Runnable {
 		getProject().getDependencies().add(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME, dependency);
 
 		extension.getRuns().create("clientSandbox", settings -> {
-			RunConfigSettings clientRun = extension.getRuns().getByName("client");
+			RunConfiguration clientRun = extension.getRuns().getByName("client");
 
 			settings.inherit(clientRun);
 
-			settings.name("Client Sandbox");
+			settings.getDisplayName().set("Client Sandbox");
 
 			// The sandbox also acts as DLI
 			// Set the sandbox as the true main class
-			settings.devLaunchMainClass().set(metadata.mainClass());
-			settings.property("fabric.sandbox.realMain", clientRun.getMainClass().get());
+			settings.getDevLaunchMainClass().set(metadata.mainClass());
+			settings.getSystemProperties().put("fabric.sandbox.realMain", clientRun.getMainClass().get());
 		});
 	}
 }

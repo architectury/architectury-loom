@@ -105,7 +105,7 @@ public abstract class NestJarsAction implements Action<Task>, Serializable {
 
 			// Nest all collected jars
 			if (!jars.isEmpty()) {
-				JarNester.nestJars(jars, jarFile, getParameters().getPlatform().get(), LOGGER);
+				JarNester.nestJars(jars, jarFile, getParameters().getPlatform().get());
 				LOGGER.info("Nested {} jar(s) into {}", jars.size(), jarFile.getName());
 			}
 		}

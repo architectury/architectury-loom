@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.jspecify.annotations.Nullable;
@@ -37,10 +38,10 @@ import net.fabricmc.loom.configuration.mods.ArtifactRef;
 
 // Single jar in and out
 public final class SimpleModDependency extends ModDependency {
-	private final Configuration targetConfig;
+	private final NamedDomainObjectProvider<? extends Configuration> targetConfig;
 	private final LocalMavenHelper maven;
 
-	public SimpleModDependency(ArtifactRef artifact, ArtifactMetadata metadata, ModDependencyOptions options, Configuration targetConfig, Project project) {
+	public SimpleModDependency(ArtifactRef artifact, ArtifactMetadata metadata, ModDependencyOptions options, NamedDomainObjectProvider<? extends Configuration> targetConfig, Project project) {
 		super(artifact, metadata, options);
 		this.targetConfig = Objects.requireNonNull(targetConfig);
 		this.maven = createMavenHelper(project, null);

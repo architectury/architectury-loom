@@ -36,14 +36,14 @@ import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskProvider;
 import org.gradle.jvm.tasks.Jar;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.build.nesting.NestableJarGenerationTask;
+import net.fabricmc.loom.configuration.IncludeConfigurations;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.JarManifestService;
+import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
@@ -54,23 +54,16 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 public class NonRemappedJarTaskConfiguration {
 	private final Project project;
 	private final LoomGradleExtension extension;
-	private final TaskProvider<NestableJarGenerationTask> processIncludeJarsTask;
 
-	public NonRemappedJarTaskConfiguration(Project project, LoomGradleExtension extension, TaskProvider<NestableJarGenerationTask> processIncludeJarsTask) {
+	public NonRemappedJarTaskConfiguration(Project project, LoomGradleExtension extension) {
 		this.project = project;
 		this.extension = extension;
-		this.processIncludeJarsTask = processIncludeJarsTask;
 	}
 
 	public void configure() {
 		final Provider<JarManifestService> manifestServiceProvider = JarManifestService.get(project);
 
 		project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class).configure(task -> {
-			task.dependsOn(processIncludeJarsTask);
-
-			NestJarsAction.addToTask(task, project.fileTree(processIncludeJarsTask.flatMap(NestableJarGenerationTask::getOutputDirectory))
-					.matching(pattern -> pattern.include("*.jar")), extension.getPlatform().get());
-
 			task.doLast(new ManifestModificationAction(
 					manifestServiceProvider,
 					"official",
@@ -80,6 +73,13 @@ public class NonRemappedJarTaskConfiguration {
 
 			task.usesService(manifestServiceProvider);
 		});
+
+		IncludeConfigurations.nestJars(
+				project,
+				project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class),
+				project.getConfigurations().named(Constants.Configurations.INCLUDE),
+				Constants.Task.PROCESS_INCLUDE_JARS
+		);
 
 		extension.getUnmappedModCollection().from(project.getTasks().named(JavaPlugin.JAR_TASK_NAME));
 

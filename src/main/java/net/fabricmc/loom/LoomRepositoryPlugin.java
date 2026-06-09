@@ -94,10 +94,6 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 				sources.artifact();
 				sources.ignoreGradleMetadataRedirection();
 			});
-
-			// Fallback to maven central for artifacts such as sources or javadocs that are not mirrored on Mojang's repo.
-			// See: https://github.com/FabricMC/fabric-loom/issues/1032
-			repo.artifactUrls(ArtifactRepositoryContainer.MAVEN_CENTRAL_URL);
 		});
 		repositories.maven(repo -> {
 			repo.setName("Forge");

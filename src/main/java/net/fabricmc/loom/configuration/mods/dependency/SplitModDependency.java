@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.jspecify.annotations.Nullable;
@@ -40,15 +41,15 @@ import net.fabricmc.loom.configuration.mods.JarSplitter;
 
 // Single jar in, 2 out.
 public final class SplitModDependency extends ModDependency {
-	private final Configuration targetCommonConfig;
-	private final Configuration targetClientConfig;
+	private final NamedDomainObjectProvider<? extends Configuration> targetCommonConfig;
+	private final NamedDomainObjectProvider<? extends Configuration> targetClientConfig;
 	private final JarSplitter.Target target;
 	@Nullable
 	private final LocalMavenHelper commonMaven;
 	@Nullable
 	private final LocalMavenHelper clientMaven;
 
-	public SplitModDependency(ArtifactRef artifact, ArtifactMetadata metadata, ModDependencyOptions options, Configuration targetCommonConfig, Configuration targetClientConfig, JarSplitter.Target target, Project project) {
+	public SplitModDependency(ArtifactRef artifact, ArtifactMetadata metadata, ModDependencyOptions options, NamedDomainObjectProvider<? extends Configuration> targetCommonConfig, NamedDomainObjectProvider<? extends Configuration> targetClientConfig, JarSplitter.Target target, Project project) {
 		super(artifact, metadata, options);
 		this.targetCommonConfig = Objects.requireNonNull(targetCommonConfig);
 		this.targetClientConfig = Objects.requireNonNull(targetClientConfig);

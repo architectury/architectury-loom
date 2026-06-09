@@ -94,22 +94,22 @@ public abstract class FabricApiDataGeneration extends FabricApiAbstractSourceSet
 		if (settings.getCreateRunConfiguration().get()) {
 			extension.getRunConfigs().create("datagen", run -> {
 				run.inherit(extension.getRunConfigs().getByName(settings.getClient().get() ? "client" : "server"));
-				run.setConfigName("Data Generation");
+				run.getDisplayName().set("Data Generation");
 
-				run.property("fabric-api.datagen");
-				run.property("fabric-api.datagen.output-dir", outputDirectory.getAbsolutePath());
-				run.runDir("build/datagen");
+				run.getSystemProperties().put("fabric-api.datagen", "");
+				run.getSystemProperties().put("fabric-api.datagen.output-dir", outputDirectory.getAbsolutePath());
+				run.getRunDirectory().set(getProject().file("run/datagen"));
 
 				if (settings.getModId().isPresent()) {
-					run.property("fabric-api.datagen.modid", settings.getModId().get());
+					run.getSystemProperties().put("fabric-api.datagen.modid", settings.getModId().get());
 				}
 
 				if (settings.getStrictValidation().get()) {
-					run.property("fabric-api.datagen.strict-validation", "true");
+					run.getSystemProperties().put("fabric-api.datagen.strict-validation", "true");
 				}
 
 				if (settings.getCreateSourceSet().get()) {
-					run.source(getSourceSetName());
+					run.getSourceSet().set(getSourceSetName());
 				}
 			});
 
@@ -124,7 +124,7 @@ public abstract class FabricApiDataGeneration extends FabricApiAbstractSourceSet
 		final ConfigurationContainer configurations = project.getConfigurations();
 
 		configurations.named(name, configuration -> {
-			configuration.extendsFrom(configurations.getByName(extendsFrom));
+			configuration.extendsFrom(configurations.named(extendsFrom));
 		});
 	}
 

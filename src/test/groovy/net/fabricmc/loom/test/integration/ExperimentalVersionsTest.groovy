@@ -27,9 +27,10 @@ package net.fabricmc.loom.test.integration
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import net.fabricmc.loom.test.LoomTestVersions
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class ExperimentalVersionsTest extends Specification implements GradleProjectTestTrait {
@@ -38,13 +39,13 @@ class ExperimentalVersionsTest extends Specification implements GradleProjectTes
 		setup:
 		def gradle = gradleProject(project: "minimalBase", version: version)
 
-		gradle.buildGradle << '''
+		gradle.buildGradle << """
                 dependencies {
                     minecraft "com.mojang:minecraft:1.18_experimental-snapshot-1"
                     mappings "net.fabricmc:yarn:1.18_experimental-snapshot-1+build.2:v2"
-                    modImplementation "net.fabricmc:fabric-loader:0.11.6"
+                    modImplementation "${LoomTestVersions.FABRIC_LOADER.mavenNotation()}"
                 }
-            '''
+            """
 
 		when:
 		def result = gradle.run(task: "build")

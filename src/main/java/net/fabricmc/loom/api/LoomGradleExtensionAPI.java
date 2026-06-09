@@ -31,6 +31,8 @@ import java.util.function.Consumer;
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
+import org.gradle.api.NamedDomainObjectProvider;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
@@ -361,6 +363,37 @@ public interface LoomGradleExtensionAPI {
 	 */
 	@ApiStatus.Experimental
 	void nestJars(TaskProvider<? extends Jar> jarTask, FileCollection jars);
+
+	/**
+	 * Includes dependencies from a configuration in the specified jar task.
+	 *
+	 * <p>This is the task-bound equivalent of the default {@code include} configuration.
+	 * Dependencies are converted to nestable jars before they are nested into the jar task.
+	 *
+	 * <p>Example usage:
+	 * {@snippet lang=groovy :
+	 * loom {
+	 * 	   nestJars(tasks.jar, configurations.myInclude)
+	 * 	   nestJars(tasks.named('remapJar'), configurations.named('myRemapInclude'))
+	 * }
+	 * }
+	 *
+	 * @param jarTask the jar task to include dependencies in
+	 * @param configuration the configuration containing dependencies to include
+	 * @since 1.17
+	 */
+	@ApiStatus.Experimental
+	void nestJars(TaskProvider<? extends Jar> jarTask, Configuration configuration);
+
+	/**
+	 * Includes dependencies from a lazily provided configuration in the specified jar task.
+	 *
+	 * @param jarTask the jar task to include dependencies in
+	 * @param configuration the lazy configuration containing dependencies to include
+	 * @since 1.17
+	 */
+	@ApiStatus.Experimental
+	void nestJars(TaskProvider<? extends Jar> jarTask, NamedDomainObjectProvider<? extends Configuration> configuration);
 
 	// ===================
 	//  Architectury Loom

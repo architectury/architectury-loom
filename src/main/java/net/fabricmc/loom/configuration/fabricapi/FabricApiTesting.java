@@ -43,6 +43,7 @@ import org.gradle.api.tasks.TaskContainer;
 import org.gradle.work.DisableCachingByDefault;
 
 import net.fabricmc.loom.LoomGradleExtension;
+import net.fabricmc.loom.api.RunConfiguration;
 import net.fabricmc.loom.api.fabricapi.GameTestSettings;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.task.AbstractLoomTask;
@@ -85,17 +86,17 @@ public abstract class FabricApiTesting extends FabricApiAbstractSourceSet {
 			testSourceSet = SourceSetHelper.getMainSourceSet(getProject());
 		}
 
-		Consumer<RunConfigSettings> configureBase = run -> {
+		Consumer<RunConfiguration> configureBase = run -> {
 			if (settings.getCreateSourceSet().get()) {
-				run.source(getSourceSetName());
+				run.getSourceSet().set(getSourceSetName());
 			}
 		};
 
 		if (settings.getEnableGameTests().get()) {
-			RunConfigSettings gameTest = extension.getRunConfigs().create("gameTest", run -> {
+			RunConfiguration gameTest = extension.getRunConfigs().create("gameTest", run -> {
 				run.inherit(extension.getRunConfigs().getByName("server"));
-				run.property("fabric-api.gametest");
-				run.runDir("build/run/gameTest");
+				run.getSystemProperties().put("fabric-api.gametest", "");
+				run.getRunDirectory().set(getProject().file("build/run/gameTest"));
 				configureBase.accept(run);
 			});
 
@@ -108,16 +109,16 @@ public abstract class FabricApiTesting extends FabricApiAbstractSourceSet {
 
 			RunConfigSettings clientGameTest = extension.getRunConfigs().create("clientGameTest", run -> {
 				run.inherit(extension.getRunConfigs().getByName("client"));
-				run.property("fabric.client.gametest");
+				run.getSystemProperties().put("fabric.client.gametest", "");
 
 				if (resourcesDir != null) {
-					run.property("fabric.client.gametest.testModResourcesPath", resourcesDir.getAbsolutePath());
+					run.getSystemProperties().put("fabric.client.gametest.testModResourcesPath", resourcesDir.getAbsolutePath());
 				}
 
-				run.runDir("build/run/clientGameTest");
+				run.getRunDirectory().set(getProject().file("build/run/clientGameTest"));
 
 				if (settings.getUsername().isPresent()) {
-					run.programArgs("--username", settings.getUsername().get());
+					run.getProgramArguments().addAll("--username", settings.getUsername().get());
 				}
 
 				configureBase.accept(run);
@@ -126,7 +127,7 @@ public abstract class FabricApiTesting extends FabricApiAbstractSourceSet {
 			if (settings.getClearRunDirectory().get()) {
 				var deleteGameTestRunDir = tasks.register("deleteGameTestRunDir", Delete.class, task -> {
 					task.setGroup(Constants.TaskGroup.FABRIC);
-					task.delete(clientGameTest.getRunDir());
+					task.delete(clientGameTest.getRunDirectory());
 				});
 
 				tasks.named(LoomTasks.getRunConfigTaskName(clientGameTest), task -> task.dependsOn(deleteGameTestRunDir));
@@ -134,7 +135,7 @@ public abstract class FabricApiTesting extends FabricApiAbstractSourceSet {
 
 			if (settings.getEula().get()) {
 				var acceptEula = tasks.register("acceptGameTestEula", AcceptEulaTask.class, task -> {
-					task.getEulaFile().set(getProject().file(clientGameTest.getRunDir() + "/eula.txt"));
+					task.getEulaFile().set(getProject().file(clientGameTest.getRunDirectory().map(dir -> dir.file("eula.txt"))));
 
 					if (settings.getClearRunDirectory().get()) {
 						// Ensure that the eula is accepted after the run directory is cleared

@@ -36,6 +36,7 @@ public class Constants {
 	public static final String VERSION_MANIFESTS = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 	public static final String EXPERIMENTAL_VERSIONS = "https://maven.fabricmc.net/net/minecraft/experimental_versions.json";
 	public static final String FABRIC_REPOSITORY = "https://maven.fabricmc.net/";
+	public static final String DLI_ENTRYPOINT = "net.fabricmc.devlaunchinjector.Main";
 
 	public static final int ASM_VERSION = Opcodes.ASM9;
 	public static final String RELEASE_TIME_1_21_11_UNOBFUSCATED_SNAPSHOTS = "2025-11-01T00:00:00+00:00";
@@ -52,7 +53,6 @@ public class Constants {
 		public static final String MOD_COMPILE_CLASSPATH = "modCompileClasspath";
 		public static final String MOD_COMPILE_CLASSPATH_MAPPED = "modCompileClasspathMapped";
 		public static final String INCLUDE = "include";
-		public static final String INCLUDE_INTERNAL = "includeInternal";
 		public static final String MINECRAFT = "minecraft";
 
 		public static final String MINECRAFT_COMPILE_LIBRARIES = "minecraftLibraries";

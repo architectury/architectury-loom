@@ -24,6 +24,7 @@
 
 package net.fabricmc.loom.task;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -55,8 +56,10 @@ import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradlePlugin;
-import net.fabricmc.loom.configuration.ide.RunConfig;
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.api.RunConfiguration;
+import net.fabricmc.loom.configuration.ide.DefaultRunConfigurationSettings;
+import net.fabricmc.loom.configuration.ide.RunConfigUtils;
+import net.fabricmc.loom.util.Arguments;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.gradle.SyncTaskBuildService;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
@@ -91,12 +94,12 @@ public abstract class GenVsCodeProjectTask extends AbstractLoomTask {
 	private List<VsCodeConfiguration> getConfigurations() {
 		List<VsCodeConfiguration> configurations = new ArrayList<>();
 
-		for (RunConfigSettings settings : getExtension().getRunConfigs()) {
-			if (!settings.isIdeConfigGenerated()) {
+		for (RunConfiguration settings : getExtension().getRunConfigs()) {
+			if (!settings.getGenerateRunConfig().get()) {
 				continue;
 			}
 
-			final VsCodeConfiguration configuration = VsCodeConfiguration.fromRunConfig(getProject(), RunConfig.runConfig(getProject(), settings));
+			final VsCodeConfiguration configuration = VsCodeConfiguration.fromRunConfig(getProject(), DefaultRunConfigurationSettings.finialise(settings, getProject()));
 			configurations.add(configuration);
 		}
 
@@ -186,24 +189,23 @@ public abstract class GenVsCodeProjectTask extends AbstractLoomTask {
 			Map<String, Object> env,
 			String projectName,
 			String runDir) implements Serializable {
-		public static VsCodeConfiguration fromRunConfig(Project project, RunConfig runConfig) {
-			Path rootPath = project.getRootDir().toPath();
-			Path projectPath = project.getProjectDir().toPath();
-			String relativeRunDir = rootPath.relativize(projectPath).resolve(runConfig.runDir).toString();
+		public static VsCodeConfiguration fromRunConfig(Project project, RunConfiguration config) {
+			String cwd = RunConfigUtils.formatRunDir(config, project, File::getAbsolutePath, "${workspaceFolder}/%s"::formatted);
+
 			return new VsCodeConfiguration(
 					"java",
-					runConfig.configName,
-					runConfig.name,
+					RunConfigUtils.getDisplayName(config, project),
+					config.getName(),
 					"launch",
-					"${workspaceFolder}/" + relativeRunDir,
+					cwd,
 					"integratedTerminal",
 					false,
-					runConfig.mainClass,
-					RunConfig.joinArguments(runConfig.vmArgs),
-					RunConfig.joinArguments(runConfig.programArgs),
-					new HashMap<>(runConfig.environmentVariables),
-					runConfig.projectName,
-					rootPath.resolve(relativeRunDir).toAbsolutePath().toString()
+					config.getDevLaunchMainClass().get(),
+					Arguments.join(config.getJvmArguments().get()),
+					Arguments.join(config.getProgramArguments().get()),
+					new HashMap<>(config.getEnvironmentVars().get()),
+					project.getName(),
+					cwd
 			);
 		}
 	}

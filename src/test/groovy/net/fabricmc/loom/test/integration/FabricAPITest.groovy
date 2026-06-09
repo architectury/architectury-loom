@@ -34,7 +34,7 @@ import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import net.fabricmc.loom.test.util.ServerRunner
 import net.fabricmc.loom.util.ZipUtils
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 @Timeout(value = 30, unit = TimeUnit.MINUTES)
@@ -46,7 +46,8 @@ class FabricAPITest extends Specification implements GradleProjectTestTrait {
 				repo: "https://github.com/FabricMC/fabric.git",
 				commit: "f84dc5662589fd56ac4b36a4b94920a15b1da29d",
 				version: version,
-				patch: "fabric_api"
+				patch: "fabric_api",
+				warningMode: "all"
 				)
 
 		// Disable the mixin ap if needed. Fabric API is a large enough test project to see if something breaks.

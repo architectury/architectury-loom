@@ -26,12 +26,12 @@ package net.fabricmc.loom.test.unit
 
 import spock.lang.Specification
 
-import net.fabricmc.loom.configuration.ide.RunConfig
+import net.fabricmc.loom.util.Arguments
 
 class RunConfigUnitTest extends Specification {
 	def "escape arguments"() {
 		when:
-		def args = RunConfig.joinArguments([
+		def args = Arguments.join([
 			"-Dfabric.test=123",
 			"-Dfabric.test=abc 123"
 		])

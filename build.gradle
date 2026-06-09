@@ -23,7 +23,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 }
 
 group = "dev.architectury"
-def baseVersion = '1.16'
+def baseVersion = '1.17'
 
 def ENV = System.getenv()
 def runNumber = ENV.GITHUB_RUN_NUMBER ?: "9999"
@@ -335,6 +335,8 @@ publishing {
 				from components.java
 			}
 
+			def markerDependencyVersion = project.version.toString()
+
 			gradlePlugin.plugins.forEach { plugin ->
 				// Manually crate the plugin marker for snapshot versions
 				it.create(plugin.id + "SnapshotMarker", MavenPublication) { publication ->
@@ -353,7 +355,7 @@ publishing {
 						Node artifactId = dependency.appendChild(document.createElement('artifactId'))
 						artifactId.setTextContent(project.base.archivesName.get())
 						Node version = dependency.appendChild(document.createElement('version'))
-						version.setTextContent(project.version)
+						version.setTextContent(markerDependencyVersion)
 					})
 				}
 			}
@@ -373,45 +375,17 @@ publishing {
 	}
 }
 
-// A task to output a json file with a list of all the test to run
-tasks.register('writeActionsTestMatrix') {
-	doLast {
-		def testMatrix = []
-		def extendedTests = Boolean.parseBoolean(System.getenv('EXTENDED_TESTS') ?: 'false')
-		file('src/test/groovy/net/fabricmc/loom/test/integration').traverse {
-			if (it.name.endsWith("Test.groovy")) {
-				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
-					// This test gets a special case to run across all os's
-					return
-				}
+// The publish tasks appear to write to the same files, so we need to ensure they don't run in parallel.
+tasks.withType(PublishToMavenLocal).configureEach { publishTask ->
+	mustRunAfter(tasks.withType(PublishToMavenLocal).matching { it.name < publishTask.name })
+}
 
-				if (it.name.endsWith("DebugLineNumbersTest.groovy") && !extendedTests) {
-					// Known flakey test
-					return
-				}
-
-				if (it.name.endsWith("FabricAPITest.groovy")) {
-					// Arch: Disabled as it hangs
-					return
-				}
-
-				def className = it.path.toString().replace(".groovy", "")
-				className = className.substring(className.lastIndexOf("integration/") + "integration/".length()).replace('/', '.')
-
-				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
-			} else if (it.name.endsWith("noRemap")) {
-				testMatrix.add("net.fabricmc.loom.test.integration.noRemap.*")
-			}
-		}
-
-		// Run all the unit tests together
-		testMatrix.add("net.fabricmc.loom.test.unit.*")
-
-		def json = groovy.json.JsonOutput.toJson(testMatrix)
-		def output = file("build/test_matrix.json")
-		output.parentFile.mkdir()
-		output.text = json
-	}
+tasks.register('writeActionsTestMatrix', WriteActionsTestMatrix) {
+	integrationTestDirectory = layout.projectDirectory.dir('src/test/groovy/net/fabricmc/loom/test/integration')
+	outputFile = layout.buildDirectory.file('test_matrix.json')
+	extendedTests = providers.environmentVariable('EXTENDED_TESTS')
+			.map { Boolean.parseBoolean(it) }
+			.orElse(false)
 }
 
 tasks.named('wrapper') {
@@ -469,6 +443,57 @@ abstract class PrintActionsTestName extends DefaultTask {
 	def run() {
 		def sanitised = testName.replace('*', '_')
 		new File(System.getenv().GITHUB_OUTPUT) << "\ntest=$sanitised"
+	}
+}
+
+/**
+ * Outputs a json file with a list of all the tests to run in GitHub Actions.
+ */
+abstract class WriteActionsTestMatrix extends DefaultTask {
+	@InputDirectory
+	@PathSensitive(PathSensitivity.RELATIVE)
+	abstract DirectoryProperty getIntegrationTestDirectory()
+
+	@OutputFile
+	abstract RegularFileProperty getOutputFile()
+
+	@Input
+	abstract Property<Boolean> getExtendedTests()
+
+	@TaskAction
+	def run() {
+		def testMatrix = []
+
+		integrationTestDirectory.get().asFile.eachFile {
+			if (it.name.endsWith("Test.groovy")) {
+				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
+					// This test gets a special case to run across all os's
+					return
+				}
+
+				if (it.name.endsWith("DebugLineNumbersTest.groovy") && !extendedTests.get()) {
+					// Known flakey test
+					return
+				}
+
+				if (it.name.endsWith("FabricAPITest.groovy")) {
+					// Arch: Disabled as it hangs
+					return
+				}
+
+				def className = it.name.replace(".groovy", "")
+				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
+			} else if (it.name.endsWith("noRemap")) {
+				testMatrix.add("net.fabricmc.loom.test.integration.noRemap.*")
+			}
+		}
+
+		// Run all the unit tests together
+		testMatrix.add("net.fabricmc.loom.test.unit.*")
+
+		def output = outputFile.get().asFile
+		output.parentFile.mkdir()
+		output.text = groovy.json.JsonOutput.toJson(testMatrix)
 	}
 }
 

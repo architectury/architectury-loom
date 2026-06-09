@@ -1,0 +1,3 @@
+- Do not run the full Gradle build or the entire test suite at once; they take many hours in this repository.
+- Prefer targeted Gradle tasks that validate only the area you changed.
+- When verifying final changes, run `./gradlew build -x test`.

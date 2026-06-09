@@ -26,6 +26,7 @@ package net.fabricmc.loom.task;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,9 +51,11 @@ import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.ide.RunConfig;
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.api.RunConfiguration;
+import net.fabricmc.loom.configuration.ide.DefaultRunConfigurationSettings;
+import net.fabricmc.loom.configuration.ide.RunConfigUtils;
 import net.fabricmc.loom.configuration.ide.idea.IdeaSyncTask;
+import net.fabricmc.loom.util.Arguments;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
@@ -88,24 +91,24 @@ public abstract class GenEclipseRunsTask extends AbstractLoomTask {
 		}
 	}
 
-	private static List<EclipseRunConfig> getRunConfigs(Project project) {
+	private static List<EclipseRunConfig> getRunConfigs(Project project) throws IOException {
 		EclipseModel eclipseModel = project.getExtensions().getByType(EclipseModel.class);
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 
 		List<EclipseRunConfig> runConfigs = new ArrayList<>();
 
-		for (RunConfigSettings settings : extension.getRunConfigs()) {
-			if (!settings.isIdeConfigGenerated()) {
+		for (RunConfiguration settings : extension.getRunConfigs()) {
+			if (!settings.getGenerateRunConfig().get()) {
 				continue;
 			}
 
 			final String name = settings.getName();
 			final File configs = new File(project.getProjectDir(), eclipseModel.getProject().getName() + "_" + name + ".launch");
-			final RunConfig configInst = RunConfig.runConfig(project, settings);
+			final RunConfiguration runConfiguration = DefaultRunConfigurationSettings.finialise(settings, project);
 			final String config;
 
 			try {
-				config = configInst.fromDummy("eclipse_run_config_template.xml", false, project);
+				config = fromTemplate(runConfiguration, project);
 			} catch (IOException e) {
 				throw new UncheckedIOException("Failed to generate Eclipse run configuration", e);
 			}
@@ -116,10 +119,31 @@ public abstract class GenEclipseRunsTask extends AbstractLoomTask {
 			eclipseRunConfig.getName().set(name);
 			runConfigs.add(eclipseRunConfig);
 
-			settings.makeRunDir();
+			RunConfigUtils.createRunDirectory(settings);
 		}
 
 		return runConfigs;
+	}
+
+	private static String fromTemplate(RunConfiguration run, Project project) throws IOException {
+		String dummyConfig;
+
+		try (InputStream input = IdeaSyncTask.class.getClassLoader().getResourceAsStream("eclipse_run_config_template.xml")) {
+			dummyConfig = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+		}
+
+		String runDir = RunConfigUtils.formatRunDir(run, project, File::getAbsolutePath, "${workspace_loc:%ECLIPSE_PROJECT%}/"::concat);
+		String eclipseProjectName = project.getExtensions().getByType(EclipseModel.class).getProject().getName();
+
+		dummyConfig = dummyConfig.replace("%NAME%", RunConfigUtils.getDisplayName(run, project));
+		dummyConfig = dummyConfig.replace("%MAIN_CLASS%", run.getDevLaunchMainClass().get());
+		dummyConfig = dummyConfig.replace("%ECLIPSE_PROJECT%", eclipseProjectName);
+		dummyConfig = dummyConfig.replace("%RUN_DIRECTORY%", runDir);
+		dummyConfig = dummyConfig.replace("%PROGRAM_ARGS%", Arguments.join(run.getProgramArguments().get()).replaceAll("\"", "&quot;"));
+		dummyConfig = dummyConfig.replace("%VM_ARGS%", Arguments.join(run.getJvmArguments().get()).replaceAll("\"", "&quot;"));
+		dummyConfig = dummyConfig.replace("%ECLIPSE_ENV_VARS%", RunConfigUtils.formatEnvVars(run, "<mapEntry key=\"%s\" value=\"%s\"/>"));
+
+		return dummyConfig;
 	}
 
 	public interface EclipseRunConfig {
