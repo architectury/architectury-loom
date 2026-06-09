@@ -282,16 +282,16 @@ public class RunConfig {
 		if (extension.isForge() && extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
 			// include all client native jars to be filtered out
 			final Set<ResolvedArtifact> allRuntime = getArtifacts(project, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
-			final Set<ResolvedArtifact> commonClientLibraries = new HashSet<>();
+			final Set<ResolvedArtifact> clientOnlyArtifacts = new HashSet<>();
 
-			for (ResolvedArtifact library : allRuntime) {
-				if (containsLibrary(clientLibraries, library.getModuleVersion().getId())) {
-					commonClientLibraries.add(library);
+			for (ResolvedArtifact library : clientLibraries) {
+				if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {
+					clientOnlyArtifacts.add(library);
 				}
 			}
 
-			for (ResolvedArtifact library : commonClientLibraries) {
-				if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {
+			for (ResolvedArtifact library : allRuntime) {
+				if (containsLibrary(clientOnlyArtifacts, library.getModuleVersion().getId())) {
 					clientOnlyLibraries.add(library.getFile().getAbsolutePath());
 				}
 			}
