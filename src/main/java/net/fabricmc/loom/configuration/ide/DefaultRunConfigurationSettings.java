@@ -25,7 +25,10 @@
 package net.fabricmc.loom.configuration.ide;
 
 import java.util.Locale;
+import java.util.function.Consumer;
 
+import dev.architectury.loom.forge.config.ForgeRunTemplate;
+import dev.architectury.loom.forge.dependency.ForgeRunsProvider;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
 import org.gradle.api.tasks.SourceSet;
@@ -110,6 +113,22 @@ public class DefaultRunConfigurationSettings {
 			}
 		});
 
+		if (run.getForgeTemplate().isPresent()) {
+			final String templateName = run.getForgeTemplate().get();
+			final ForgeRunsProvider runsProvider = extension.getForgeRunsProvider();
+			final ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
+
+			if (template != null) {
+				template.applyTo(run, runsProvider);
+			} else {
+				project.getLogger().warn("Could not find Forge run template with name '{}'", templateName);
+			}
+		}
+
+		for (Consumer<RunConfiguration> consumer : extension.getSettingsPostEdit()) {
+			consumer.accept(run);
+		}
+
 		finialiseValues(run);
 
 		return RunConfigUtils.toSerialisable(run, project);
@@ -130,6 +149,7 @@ public class DefaultRunConfigurationSettings {
 		run.getPreferGradleTask().finalizeValue();
 		run.getIdeConfigFolder().finalizeValue();
 		run.getDevLaunchMainClass().finalizeValue();
+		run.getForgeTemplate().finalizeValue();
 	}
 
 	private static String encodeEscaped(String s) {

@@ -54,7 +54,6 @@ import net.fabricmc.loom.api.mappings.layered.spec.LayeredMappingSpecBuilder;
 import net.fabricmc.loom.api.processor.MinecraftJarProcessor;
 import net.fabricmc.loom.api.remapping.RemapperExtension;
 import net.fabricmc.loom.api.remapping.RemapperParameters;
-import net.fabricmc.loom.configuration.ide.RunConfig;
 import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.configuration.processors.JarProcessor;
 import net.fabricmc.loom.configuration.providers.minecraft.ManifestLocations;
@@ -425,13 +424,22 @@ public interface LoomGradleExtensionAPI {
 
 	boolean shouldGenerateSrgTiny();
 
+	/**
+	 * @deprecated Unsupported.
+	 */
+	@Deprecated
 	default void addTaskBeforeRun(String task) {
 		this.getTasksBeforeRun().add(task);
 	}
 
+	/**
+	 * @deprecated Unsupported.
+	 */
+	@Deprecated
 	List<String> getTasksBeforeRun();
 
-	List<Consumer<RunConfig>> getSettingsPostEdit();
+	@ApiStatus.Internal
+	List<Consumer<RunConfiguration>> getSettingsPostEdit();
 
 	/**
 	 * Gets the Forge extension used to configure Forge details.

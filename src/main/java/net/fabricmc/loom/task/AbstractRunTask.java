@@ -182,7 +182,7 @@ public abstract class AbstractRunTask extends JavaExec {
 		getArgFilePath().set(argFile.getAbsolutePath());
 
 		getModClassesOptions().set(ForgeModClassesService.createOptions(getProject()));
-		getRunConfigName().set(config.map(runConfig -> runConfig.name));
+		getRunConfigName().set(config.map(RunConfiguration::getName));
 	}
 
 	private boolean canUseArgFile() {

@@ -24,7 +24,9 @@
 
 package net.fabricmc.loom.api;
 
+import org.gradle.api.Action;
 import org.gradle.api.Named;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.MapProperty;
@@ -145,6 +147,8 @@ public interface RunConfiguration extends Named {
 		getPreferGradleTask().convention(parent.getPreferGradleTask());
 		getIdeConfigFolder().convention(parent.getIdeConfigFolder());
 		getDevLaunchMainClass().convention(parent.getDevLaunchMainClass());
+		getForgeTemplate().convention(parent.getForgeTemplate());
+		getMods().addAll(parent.getMods());
 	}
 
 	/**
@@ -152,6 +156,7 @@ public interface RunConfiguration extends Named {
 	 */
 	default void client() {
 		getRuntimeEnvironment().set("client");
+		getForgeTemplate().set("client");
 	}
 
 	/**
@@ -160,5 +165,58 @@ public interface RunConfiguration extends Named {
 	default void server() {
 		getRuntimeEnvironment().set("server");
 		getProgramArguments().add("nogui");
+		getForgeTemplate().set("server");
+	}
+
+	// ===================
+	//  Architectury Loom
+	// ===================
+
+	/**
+	 * The Forge or NeoForge run configuration template applied to this run configuration.
+	 */
+	Property<String> getForgeTemplate();
+
+	/**
+	 * Configure run config with the default data options.
+	 *
+	 * <p>This method can only be used on Forge and NeoForge.
+	 */
+	void data();
+
+	/**
+	 * Configure run config with the default data options.
+	 *
+	 * <p>This method can only be used on NeoForge.
+	 */
+	@ApiStatus.Experimental
+	void clientData();
+
+	/**
+	 * Configure run config with the default data options.
+	 *
+	 * <p>This method can only be used on NeoForge.
+	 */
+	@ApiStatus.Experimental
+	void serverData();
+
+	/**
+	 * {@return a container of mod settings for this run configuration}
+	 *
+	 * <p>If non-empty, this container will override the
+	 * {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getMods global container}
+	 * declared in the {@code loom} extension.
+	 *
+	 * <p>This method is currently only available on Forge and NeoForge.
+	 */
+	NamedDomainObjectContainer<ModSettings> getMods();
+
+	/**
+	 * Configures the {@linkplain #getMods mods} of this run configuration.
+	 *
+	 * <p>This method is currently only available on Forge.
+	 */
+	default void mods(Action<NamedDomainObjectContainer<ModSettings>> action) {
+		action.execute(getMods());
 	}
 }

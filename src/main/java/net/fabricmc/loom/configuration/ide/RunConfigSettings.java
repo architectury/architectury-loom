@@ -33,13 +33,13 @@ import java.util.function.Function;
 
 import javax.inject.Inject;
 
-import org.gradle.api.Action;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.SourceSet;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.api.RunConfiguration;
 import net.fabricmc.loom.util.ModPlatform;
@@ -52,20 +52,46 @@ public abstract class RunConfigSettings implements Named, RunConfiguration, RunC
 	private final Project project;
 
 	// Architectury
-	private final List<Runnable> evaluateLater = new ArrayList<>();
-	private boolean evaluated = false;
 	private final NamedDomainObjectContainer<ModSettings> mods;
 
 	@Inject
 	public RunConfigSettings(Project project, String name) {
 		this.name = name;
 		this.project = project;
+		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
 		DefaultRunConfigurationSettings.configureDefaults(this, project);
 	}
 
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public NamedDomainObjectContainer<ModSettings> getMods() {
+		ModPlatform.assertForgeLike(LoomGradleExtension.get(project));
+		return mods;
+	}
+
+	@Override
+	public void data() {
+		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.data() is only usable on Forge and NeoForge.");
+		getRuntimeEnvironment().set("data");
+		getForgeTemplate().set("data");
+	}
+
+	@Override
+	public void clientData() {
+		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.clientData() is only usable on NeoForge.");
+		getRuntimeEnvironment().set("dataClient");
+		getForgeTemplate().set("dataClient");
+	}
+
+	@Override
+	public void serverData() {
+		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.serverData() is only usable on NeoForge.");
+		getRuntimeEnvironment().set("dataServer");
+		getForgeTemplate().set("dataServer");
 	}
 
 	// Backwards compatibility shims:
@@ -419,25 +445,17 @@ public abstract class RunConfigSettings implements Named, RunConfiguration, RunC
 	}
 
 	/**
-	 * {@return a container of mod settings for this run configuration}
+	 * Applies a Forge run config template to these settings.
 	 *
-	 * <p>If non-empty, this container will override the
-	 * {@linkplain net.fabricmc.loom.api.LoomGradleExtensionAPI#getMods global container}
-	 * declared in the {@code loom} extension.
+	 * <p>Calling this method resets the {@link #getDefaultMainClass() defaultMainClass} of this
+	 * run config. If you don't want to use Forge's default main class, you need to specify one manually afterwards.
 	 *
-	 * <p>This method is currently only available on Forge and NeoForge.
+	 * @param templateName the template name (usually one of {@code server}, {@code client}, {@code data})
+	 * @since 1.0
 	 */
-	public NamedDomainObjectContainer<ModSettings> getMods() {
-		ModPlatform.assertForgeLike(extension);
-		return mods;
-	}
-
-	/**
-	 * Configures the {@linkplain #getMods mods} of this run configuration.
-	 *
-	 * <p>This method is currently only available on Forge.
-	 */
-	public void mods(Action<NamedDomainObjectContainer<ModSettings>> action) {
-		action.execute(getMods());
+	@Deprecated
+	public void forgeTemplate(String templateName) {
+		ModPlatform.assertForgeLike(LoomGradleExtension.get(project));
+		getForgeTemplate().set(templateName);
 	}
 }

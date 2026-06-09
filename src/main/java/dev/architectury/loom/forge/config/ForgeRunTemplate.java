@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2023 FabricMC
+ * Copyright (c) 2022-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,9 +38,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.architectury.loom.forge.dependency.ForgeModClassesService;
 import dev.architectury.loom.util.collection.CollectionUtil;
 import org.gradle.api.Named;
+import org.gradle.api.provider.MapProperty;
 
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
-import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.api.RunConfiguration;
 
 public record ForgeRunTemplate(
 		String name,
@@ -106,20 +106,23 @@ public record ForgeRunTemplate(
 		return name;
 	}
 
-	public void applyTo(RunConfigSettings settings, ConfigValue.Resolver configValueResolver) {
-		if (settings.getDefaultMainClass().equals(Constants.Forge.UNDETERMINED_MAIN_CLASS)) {
-			settings.defaultMainClass(main);
-		}
-
-		settings.vmArgs(CollectionUtil.map(jvmArgs, value -> value.resolve(configValueResolver)));
+	public void applyTo(RunConfiguration settings, ConfigValue.Resolver configValueResolver) {
+		settings.getMainClass().convention(main);
+		settings.getJvmArguments().addAll(CollectionUtil.map(jvmArgs, value -> value.resolve(configValueResolver)));
 
 		env.forEach((key, value) -> {
 			String resolved = value.resolve(configValueResolver);
-			settings.getEnvironmentVariables().putIfAbsent(key, resolved);
+			putIfAbsent(settings.getEnvironmentVars(), key, resolved);
 		});
 
 		// Add MOD_CLASSES, this is something that ForgeGradle does
-		settings.getEnvironmentVariables().putIfAbsent(ForgeModClassesService.ENVIRONMENT_VARIABLE, ForgeModClassesService.VARIABLE_KEY);
+		putIfAbsent(settings.getEnvironmentVars(), ForgeModClassesService.ENVIRONMENT_VARIABLE, ForgeModClassesService.VARIABLE_KEY);
+	}
+
+	private static <K, V> void putIfAbsent(MapProperty<K, V> property, K key, V value) {
+		if (property.getting(key).getOrNull() == null) {
+			property.put(key, value);
+		}
 	}
 
 	public Resolved resolve(ConfigValue.Resolver configValueResolver) {

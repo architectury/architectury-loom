@@ -64,7 +64,7 @@ public class JarNester {
 		try {
 			for (File file : sortedJars) {
 				String nestedJarPath = "META-INF/jars/" + file.getName();
-				Check.require(FabricModJsonFactory.isModJar(file), "Cannot nest none mod jar: " + file.getName());
+				Check.require(FabricModJsonFactory.isNestableModJar(file, platform), "Cannot nest none mod jar: " + file.getName());
 
 				try (var is = Files.newInputStream(file.toPath())) {
 					ZipReprocessorUtil.appendZipEntry(modJar.toPath(), nestedJarPath, is);
