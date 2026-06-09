@@ -113,7 +113,7 @@ public class DefaultRunConfigurationSettings {
 			}
 		});
 
-		if (run.getForgeTemplate().isPresent()) {
+		if (extension.isForgeLike() && run.getForgeTemplate().isPresent()) {
 			final String templateName = run.getForgeTemplate().get();
 			final ForgeRunsProvider runsProvider = extension.getForgeRunsProvider();
 			final ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
