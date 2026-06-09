@@ -84,6 +84,22 @@ public class DefaultRunConfigurationSettings {
 		LibraryContext context = new LibraryContext(extension.getMinecraftProvider().getVersionInfo(), JavaVersion.current());
 		MinecraftVersionMeta.JavaVersion javaVersion = extension.getMinecraftProvider().getVersionInfo().javaVersion();
 
+		if (extension.isForgeLike() && run.getForgeTemplate().isPresent()) {
+			final String templateName = run.getForgeTemplate().get();
+			final ForgeRunsProvider runsProvider = extension.getForgeRunsProvider();
+			final ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
+
+			if (template != null) {
+				template.applyTo(run, runsProvider);
+			} else {
+				project.getLogger().warn("Could not find Forge run template with name '{}'", templateName);
+			}
+		}
+
+		for (Consumer<RunConfiguration> consumer : extension.getSettingsPostEdit()) {
+			consumer.accept(run);
+		}
+
 		String environment = run.getRuntimeEnvironment().get().toLowerCase(Locale.ROOT);
 
 		run.getJvmArguments().add("-Dfabric.dli.config=" + encodeEscaped(extension.getFiles().getDevLauncherConfig().getAbsolutePath()));
@@ -112,22 +128,6 @@ public class DefaultRunConfigurationSettings {
 				run.getJvmArguments().add("-D%s=%s".formatted(key, value));
 			}
 		});
-
-		if (extension.isForgeLike() && run.getForgeTemplate().isPresent()) {
-			final String templateName = run.getForgeTemplate().get();
-			final ForgeRunsProvider runsProvider = extension.getForgeRunsProvider();
-			final ForgeRunTemplate template = runsProvider.getTemplates().findByName(templateName);
-
-			if (template != null) {
-				template.applyTo(run, runsProvider);
-			} else {
-				project.getLogger().warn("Could not find Forge run template with name '{}'", templateName);
-			}
-		}
-
-		for (Consumer<RunConfiguration> consumer : extension.getSettingsPostEdit()) {
-			consumer.accept(run);
-		}
 
 		finialiseValues(run);
 
