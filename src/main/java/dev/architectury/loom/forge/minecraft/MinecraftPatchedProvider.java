@@ -525,7 +525,7 @@ public class MinecraftPatchedProvider {
 	}
 
 	private void remapPatchedJar(ServiceFactory serviceFactory) throws Exception {
-		logger.lifecycle(":remapping minecraft (TinyRemapper, srg -> official)");
+		logger.lifecycle(":remapping minecraft (TinyRemapper, {} -> official)", IntermediaryNamespaces.intermediary(project));
 		Path mcInput = minecraftPatchedIntermediateAtJar;
 		Path mcOutput = minecraftPatchedJar;
 		Path forgeJar = getForgeJar().toPath();
