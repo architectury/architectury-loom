@@ -65,10 +65,10 @@ public final class TinyRemapperHelper {
 	}
 
 	public static TinyRemapper getTinyRemapper(Project project, ServiceFactory serviceFactory, String fromM, String toM) throws IOException {
-		return getTinyRemapper(project, serviceFactory, fromM, toM, false, (builder) -> { }, Set.of());
+		return getTinyRemapper(project, serviceFactory, fromM, toM, false, true, (builder) -> { }, Set.of());
 	}
 
-	public static TinyRemapper getTinyRemapper(Project project, ServiceFactory serviceFactory, String fromM, String toM, boolean fixRecords, Consumer<TinyRemapper.Builder> builderConsumer, Set<String> fromClassNames) throws IOException {
+	public static TinyRemapper getTinyRemapper(Project project, ServiceFactory serviceFactory, String fromM, String toM, boolean fixRecords, boolean validateTargetNamespace, Consumer<TinyRemapper.Builder> builderConsumer, Set<String> fromClassNames) throws IOException {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MappingOption mappingOption = MappingOption.forPlatform(extension);
 		MemoryMappingTree mappingTree = extension.getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption).getMappingTree();
@@ -82,7 +82,7 @@ public final class TinyRemapperHelper {
 		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
 				.ignoreConflicts(extension.isForgeLike())
 				.threads(Runtime.getRuntime().availableProcessors())
-				.withMappings(create(mappingTree, fromM, toM, true))
+				.withMappings(create(mappingTree, fromM, toM, true, validateTargetNamespace))
 				.renameInvalidLocals(true)
 				.rebuildSourceFilenames(true)
 				.invalidLvNamePattern(MC_LV_PATTERN)
@@ -115,15 +115,15 @@ public final class TinyRemapperHelper {
 	public static IMappingProvider create(Path mappings, String from, String to, boolean remapLocalVariables) throws IOException {
 		MemoryMappingTree mappingTree = new MemoryMappingTree();
 		MappingReader.read(mappings, mappingTree);
-		return create(mappingTree, from, to, remapLocalVariables);
+		return create(mappingTree, from, to, remapLocalVariables, true);
 	}
 
-	public static IMappingProvider create(MappingTree mappings, String from, String to, boolean remapLocalVariables) {
+	public static IMappingProvider create(MappingTree mappings, String from, String to, boolean remapLocalVariables, boolean validateTargetNamespace) {
 		return (acceptor) -> {
 			final int fromId = mappings.getNamespaceId(from);
 			final int toId = mappings.getNamespaceId(to);
 
-			if (toId == MappingTreeView.NULL_NAMESPACE_ID) {
+			if (validateTargetNamespace && toId == MappingTreeView.NULL_NAMESPACE_ID) {
 				throw new MappingException(
 						"Trying to remap from '%s' (id: %d) to unknown namespace '%s'. Available namespaces: [%s -> %s]"
 								.formatted(from, fromId, to, mappings.getSrcNamespace(), String.join(", ", mappings.getDstNamespaces()))

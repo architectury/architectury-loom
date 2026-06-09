@@ -279,7 +279,11 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		final MinecraftVersionMeta.JavaVersion javaVersion = minecraftProvider.getVersionInfo().javaVersion();
 		final boolean fixRecords = javaVersion != null && javaVersion.majorVersion() >= 16;
 
-		TinyRemapper remapper = TinyRemapperHelper.getTinyRemapper(getProject(), configContext.serviceFactory(), fromM, toM, fixRecords, (builder) -> {
+		// Arch: disable namespace validation for toM = intermediary when intermediate mappings are disabled.
+		// See https://github.com/FabricMC/fabric-loom/issues/1576.
+		final boolean validateTargetNamespace = !(getTargetNamespace() == MappingsNamespace.INTERMEDIARY && !extension.getUseIntermediateMappings().get());
+
+		TinyRemapper remapper = TinyRemapperHelper.getTinyRemapper(getProject(), configContext.serviceFactory(), fromM, toM, fixRecords, validateTargetNamespace, (builder) -> {
 			if (remappedAnnotations != null) {
 				builder.extraPostApplyVisitor(new AnnotationsApplyVisitor(remappedAnnotations));
 			}
