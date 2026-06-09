@@ -335,6 +335,8 @@ publishing {
 				from components.java
 			}
 
+			def projectGroup = project.group
+			def projectArtifactId = project.base.archivesName.get()
 			def markerDependencyVersion = project.version.toString()
 
 			gradlePlugin.plugins.forEach { plugin ->
@@ -351,9 +353,9 @@ publishing {
 						Node dependencies = root.appendChild(document.createElement('dependencies'))
 						Node dependency = dependencies.appendChild(document.createElement('dependency'))
 						Node groupId = dependency.appendChild(document.createElement('groupId'))
-						groupId.setTextContent(project.group)
+						groupId.setTextContent(projectGroup)
 						Node artifactId = dependency.appendChild(document.createElement('artifactId'))
-						artifactId.setTextContent(project.base.archivesName.get())
+						artifactId.setTextContent(projectArtifactId)
 						Node version = dependency.appendChild(document.createElement('version'))
 						version.setTextContent(markerDependencyVersion)
 					})
