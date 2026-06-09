@@ -139,7 +139,7 @@ public final class Aw2At {
 					}
 				};
 			}
-		}).read(reader, "unused"); // the mod ID is unused as of CT 0.1.1
+		}).read(reader);
 
 		return atSet;
 	}
