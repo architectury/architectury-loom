@@ -275,6 +275,10 @@ public class RunConfig {
 		final Set<ResolvedArtifact> serverLibraries = getArtifacts(project, Constants.Configurations.MINECRAFT_SERVER_RUNTIME_LIBRARIES);
 		final List<String> clientOnlyLibraries = new LinkedList<>();
 
+		// In Forge versions that use bootstrap-dev, we need to exclude all client libraries,
+		// including natives which is not excluded by default. i.e. lwjgl which has module-info in their natives,
+		// which loading it will cause module related exception since the main lwjgl has been excluded.
+		// https://github.com/architectury/architectury-loom/issues/191#issuecomment-2030567486
 		if (extension.isForge() && extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
 			// include all client native jars to be filtered out
 			final Set<ResolvedArtifact> allRuntime = getArtifacts(project, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
