@@ -126,7 +126,7 @@ class KotlinClassMetadataRemappingAnnotationVisitorTest extends Specification {
 	private IMappingProvider readMappings(String name) {
 		def mappingTree = new MemoryMappingTree()
 		MappingReader.read(Paths.get("src/test/resources/mappings/${name}.mappings"), mappingTree)
-		return TinyRemapperHelper.create(mappingTree, "named", "intermediary", false)
+		return TinyRemapperHelper.create(mappingTree, "named", "intermediary", false, true)
 	}
 
 	private ClassVisitor stringWriterVisitor(StringWriter writer) {

@@ -35,6 +35,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,11 @@ import net.fabricmc.loom.util.fmj.FabricModJsonFactory;
 public class JarNester {
 	private static final Logger LOGGER = LoggerFactory.getLogger(JarNester.class);
 	private static final Gson GSON = new Gson();
+
+	@VisibleForTesting
+	public static void nestJars(Collection<File> jars, File modJar) {
+		nestJars(jars, modJar, ModPlatform.FABRIC);
+	}
 
 	public static void nestJars(Collection<File> jars, File modJar, ModPlatform platform) {
 		if (jars.isEmpty()) {
