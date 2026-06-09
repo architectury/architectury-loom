@@ -182,7 +182,10 @@ public interface RunConfiguration extends Named {
 	 *
 	 * <p>This method can only be used on Forge and NeoForge.
 	 */
-	void data();
+	default void data() {
+		getRuntimeEnvironment().set("data");
+		getForgeTemplate().set("data");
+	}
 
 	/**
 	 * Configure run config with the default data options.
@@ -190,7 +193,10 @@ public interface RunConfiguration extends Named {
 	 * <p>This method can only be used on NeoForge.
 	 */
 	@ApiStatus.Experimental
-	void clientData();
+	default void clientData() {
+		getRuntimeEnvironment().set("dataClient");
+		getForgeTemplate().set("dataClient");
+	}
 
 	/**
 	 * Configure run config with the default data options.
@@ -198,7 +204,10 @@ public interface RunConfiguration extends Named {
 	 * <p>This method can only be used on NeoForge.
 	 */
 	@ApiStatus.Experimental
-	void serverData();
+	default void serverData() {
+		getRuntimeEnvironment().set("dataServer");
+		getForgeTemplate().set("dataServer");
+	}
 
 	/**
 	 * {@return a container of mod settings for this run configuration}

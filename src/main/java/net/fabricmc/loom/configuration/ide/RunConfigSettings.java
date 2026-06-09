@@ -34,13 +34,11 @@ import java.util.function.Function;
 import javax.inject.Inject;
 
 import org.gradle.api.Named;
-import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.SourceSet;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.api.ModSettings;
 import net.fabricmc.loom.api.RunConfiguration;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Platform;
@@ -51,47 +49,16 @@ public abstract class RunConfigSettings implements Named, RunConfiguration, RunC
 	private final String name;
 	private final Project project;
 
-	// Architectury
-	private final NamedDomainObjectContainer<ModSettings> mods;
-
 	@Inject
 	public RunConfigSettings(Project project, String name) {
 		this.name = name;
 		this.project = project;
-		this.mods = project.getObjects().domainObjectContainer(ModSettings.class);
 		DefaultRunConfigurationSettings.configureDefaults(this, project);
 	}
 
 	@Override
 	public String getName() {
 		return name;
-	}
-
-	@Override
-	public NamedDomainObjectContainer<ModSettings> getMods() {
-		ModPlatform.assertForgeLike(LoomGradleExtension.get(project));
-		return mods;
-	}
-
-	@Override
-	public void data() {
-		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.data() is only usable on Forge and NeoForge.");
-		getRuntimeEnvironment().set("data");
-		getForgeTemplate().set("data");
-	}
-
-	@Override
-	public void clientData() {
-		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.clientData() is only usable on NeoForge.");
-		getRuntimeEnvironment().set("dataClient");
-		getForgeTemplate().set("dataClient");
-	}
-
-	@Override
-	public void serverData() {
-		ModPlatform.assertForgeLike(LoomGradleExtension.get(project), () -> "RunConfiguration.serverData() is only usable on NeoForge.");
-		getRuntimeEnvironment().set("dataServer");
-		getForgeTemplate().set("dataServer");
 	}
 
 	// Backwards compatibility shims:
@@ -114,6 +81,24 @@ public abstract class RunConfigSettings implements Named, RunConfiguration, RunC
 	@Override
 	public void server() {
 		RunConfigurationInternal.super.server();
+	}
+
+	// Note: Overridden for backwards compatibility
+	@Override
+	public void data() {
+		RunConfigurationInternal.super.data();
+	}
+
+	// Note: Overridden for backwards compatibility
+	@Override
+	public void clientData() {
+		RunConfigurationInternal.super.clientData();
+	}
+
+	// Note: Overridden for backwards compatibility
+	@Override
+	public void serverData() {
+		RunConfigurationInternal.super.serverData();
 	}
 
 	// Note: Overload method for backwards compatibility
