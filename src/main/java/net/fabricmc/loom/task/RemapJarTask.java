@@ -29,7 +29,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -40,6 +39,7 @@ import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonGrammar;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.JsonObject;
+import dev.architectury.loom.extensions.AccessWidenerInjection;
 import dev.architectury.loom.extensions.ModBuildExtensions;
 import dev.architectury.loom.metadata.QuiltModJson;
 import org.gradle.api.artifacts.ConfigurationContainer;
@@ -334,24 +334,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 			if (!getParameters().getInjectAccessWidener().isPresent()) return false;
 
 			Path path = getParameters().getInjectAccessWidener().getAsFile().get().toPath();
-
-			byte[] remapped = remapAccessWidener(Files.readAllBytes(path));
-
-			ZipUtils.add(outputFile, path.getFileName().toString(), remapped);
-
-			if (getParameters().getPlatform().get() == ModPlatform.QUILT) {
-				ZipUtils.transformJson(JsonObject.class, outputFile, Map.of("quilt.mod.json", json -> {
-					json.addProperty("access_widener", path.getFileName().toString());
-					return json;
-				}));
-				return true;
-			}
-
-			ZipUtils.transformJson(JsonObject.class, outputFile, Map.of("fabric.mod.json", json -> {
-				json.addProperty("accessWidener", path.getFileName().toString());
-				return json;
-			}));
-
+			AccessWidenerInjection.injectAccessWidener(outputFile, path, this::remapAccessWidener, getParameters().getPlatform().get());
 			return true;
 		}
 
