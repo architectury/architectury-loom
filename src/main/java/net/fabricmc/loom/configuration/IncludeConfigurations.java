@@ -46,6 +46,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.build.nesting.NestableJarGenerationTask;
 import net.fabricmc.loom.task.NestJarsAction;
 import net.fabricmc.loom.task.RemapJarTask;
+import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.Strings;
 
 /**
@@ -80,7 +81,8 @@ public final class IncludeConfigurations {
 				remapJarTask.getNestedJars().from(outputJars);
 				remapJarTask.getNestedJars().builtBy(processTask);
 			} else {
-				NestJarsAction.addToTask(task, outputJars);
+				final ModPlatform platform = LoomGradleExtension.get(project).getPlatform().get();
+				NestJarsAction.addToTask(task, outputJars, platform);
 			}
 		});
 	}

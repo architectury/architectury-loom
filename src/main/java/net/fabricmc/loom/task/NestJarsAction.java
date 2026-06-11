@@ -64,10 +64,6 @@ public abstract class NestJarsAction implements Action<Task>, Serializable {
 	@Inject
 	protected abstract WorkerExecutor getWorkerExecutor();
 
-	public static void addToTask(Jar task, FileCollection jars) {
-		addToTask(task, jars, ModPlatform.FABRIC);
-	}
-
 	public static void addToTask(Jar task, FileCollection jars, ModPlatform platform) {
 		NestJarsAction nestJarsAction = task.getProject().getObjects().newInstance(NestJarsAction.class);
 		nestJarsAction.getJars().from(jars);

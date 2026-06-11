@@ -627,7 +627,7 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 				remapJarTask.getNestedJars().from(jars);
 			} else {
 				// For regular Jar tasks (non-remap mode), add a NestJarsAction with the FileCollection
-				NestJarsAction.addToTask(task, jars);
+				NestJarsAction.addToTask(task, jars, getPlatform().get());
 			}
 		});
 	}
