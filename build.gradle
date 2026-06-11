@@ -397,22 +397,9 @@ tasks.named('wrapper') {
 /**
  * Run this task to download the gradle sources next to the api jar, you may need to manually attach the sources jar
  */
-tasks.register('downloadGradleSources') {
-	doLast {
-		// Awful hack to find the gradle api location
-		def gradleApiFile = project.configurations.detachedConfiguration(dependencies.gradleApi()).files.stream()
-				.find {
-					it.name.startsWith("gradle-api")
-				}
-
-		def gradleApiSources = new File(gradleApiFile.absolutePath.replace(".jar", "-sources.jar"))
-		def url = "https://services.gradle.org/distributions/gradle-${GradleVersion.current().getVersion()}-src.zip"
-
-		gradleApiSources.delete()
-
-		println("Downloading (${url}) to (${gradleApiSources})")
-		gradleApiSources << new URL(url).newInputStream()
-	}
+tasks.register('downloadGradleSources', DownloadGradleSources) {
+	gradleApi.from(configurations.detachedConfiguration(dependencies.gradleApi()))
+	gradleVersion.set(GradleVersion.current().getVersion())
 }
 
 tasks.withType(GenerateModuleMetadata) {
@@ -445,6 +432,38 @@ abstract class PrintActionsTestName extends DefaultTask {
 	def run() {
 		def sanitised = testName.replace('*', '_')
 		new File(System.getenv().GITHUB_OUTPUT) << "\ntest=$sanitised"
+	}
+}
+
+abstract class DownloadGradleSources extends DefaultTask {
+	@Classpath
+	abstract ConfigurableFileCollection getGradleApi()
+
+	@Input
+	abstract Property<String> getGradleVersion()
+
+	@TaskAction
+	def run() {
+		// Awful hack to find the gradle api location
+		def gradleApiFile = gradleApi.files.find {
+			it.name.startsWith("gradle-api")
+		}
+
+		if (gradleApiFile == null) {
+			throw new GradleException("Unable to find Gradle API jar")
+		}
+
+		def gradleApiSources = new File(gradleApiFile.absolutePath.replace(".jar", "-sources.jar"))
+		def url = "https://services.gradle.org/distributions/gradle-${gradleVersion.get()}-src.zip"
+
+		gradleApiSources.delete()
+
+		println("Downloading (${url}) to (${gradleApiSources})")
+		gradleApiSources.withOutputStream { output ->
+			new URI(url).toURL().withInputStream { input ->
+				output << input
+			}
+		}
 	}
 }
 
