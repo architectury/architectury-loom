@@ -129,7 +129,7 @@ public class SourceMappingsService extends Service<SourceMappingsService.Options
 		try {
 			Files.createDirectories(dir);
 			Files.deleteIfExists(path);
-			final Path inputMappings = disableObf ? emptyMappingsPath : extension.getMappingConfiguration().tinyMappings;
+			final Path inputMappings = disableObf ? emptyMappingsPath : extension.getPlatformMappingFile();
 			createMappings(project, jarProcessor, inputMappings, path);
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to create source mappings", e);
