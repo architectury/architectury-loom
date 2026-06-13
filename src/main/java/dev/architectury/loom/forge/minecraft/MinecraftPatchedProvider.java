@@ -326,9 +326,11 @@ public class MinecraftPatchedProvider {
 
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(minecraftClientExtra, true)) {
 			Path manifestPath = fs.getPath("META-INF", "MANIFEST.MF");
+
 			if (getExtension().isNeoForge()) {
 				generateNeoForgeDistManifest(serviceFactory, manifestPath);
 			}
+
 			if (getExtension().isForge()) {
 				// Generates an empty manifest for forge client-extra jar.
 				// In ForgeGradle, it copies the client manifest when generating client-extra.
@@ -753,6 +755,7 @@ public class MinecraftPatchedProvider {
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
 
 		Files.createDirectories(manifestPath.getParent());
+
 		try (OutputStream out = Files.newOutputStream(manifestPath)) {
 			manifest.write(out);
 		}
