@@ -24,28 +24,31 @@
 
 package net.fabricmc.loom.task;
 
-import java.io.File;
-
 import javax.inject.Inject;
 
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.ExecOperations;
 import org.gradle.process.ExecResult;
+import org.gradle.work.DisableCachingByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
+import net.fabricmc.loom.api.RunConfiguration;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.Platform;
 
+@DisableCachingByDefault
 public abstract class RenderDocRunTask extends RunGameTask {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RenderDocRunTask.class);
 
 	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getRenderDocExecutable();
 
 	@Input
@@ -55,7 +58,7 @@ public abstract class RenderDocRunTask extends RunGameTask {
 	protected abstract ExecOperations getExecOperations();
 
 	@Inject
-	public RenderDocRunTask(RunConfigSettings settings) {
+	public RenderDocRunTask(RunConfiguration settings) {
 		super(settings);
 		setGroup(Constants.TaskGroup.FABRIC);
 		dependsOn("configureClientLaunch");
@@ -65,13 +68,13 @@ public abstract class RenderDocRunTask extends RunGameTask {
 	@Override
 	public void exec() {
 		ExecResult result = getExecOperations().exec(exec -> {
-			exec.workingDir(new File(getProjectDir().get(), getInternalRunDir().get()));
+			exec.workingDir(getInternalRunDir());
 			exec.environment(getInternalEnvironmentVars().get());
 			configureForgeModClasses(exec);
 
 			exec.commandLine(getRenderDocExecutable().get().getAsFile());
 			exec.args(getRenderDocArgs().get());
-			exec.args("--working-dir", new File(getProjectDir().get(), getInternalRunDir().get()));
+			exec.args("--working-dir", getInternalRunDir().get().getAsFile().getAbsolutePath());
 			exec.args(getJavaLauncher().get().getExecutablePath());
 			exec.args(getJvmArgs());
 			exec.args("-D%s=true".formatted(Constants.Properties.RENDER_DOC));

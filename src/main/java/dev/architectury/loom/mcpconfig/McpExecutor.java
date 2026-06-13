@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2022-2025 FabricMC
+ * Copyright (c) 2022-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,10 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
-import org.jetbrains.annotations.Nullable;
+import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.util.download.Download;
 import net.fabricmc.loom.util.download.DownloadBuilder;
@@ -90,8 +93,11 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 
 		/**
 		 * Mappings extracted from {@code data.mappings} in the MCPConfig JSON.
+		 * Optional for spec 6+ where mappings are absent.
 		 */
+		@Optional
 		@InputFile
+		@PathSensitive(PathSensitivity.NONE)
 		RegularFileProperty getMappings();
 
 		/**
@@ -217,6 +223,10 @@ public final class McpExecutor extends Service<McpExecutor.Options> {
 
 		@Override
 		public Path mappings() {
+			if (!getOptions().getMappings().isPresent()) {
+				throw new UnsupportedOperationException("Mappings are not available (spec 6+ unobfuscated)");
+			}
+
 			return getOptions().getMappings().get().getAsFile().toPath();
 		}
 

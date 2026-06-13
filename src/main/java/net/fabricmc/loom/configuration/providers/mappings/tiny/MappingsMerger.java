@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediateMappingsService;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
+import net.fabricmc.loom.util.Pair;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.tiny.Tiny2FileReader;
 import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter;
@@ -76,6 +78,7 @@ public final class MappingsMerger {
 		intermediaryTree.accept(nsSwitch);
 
 		inheritMappedNamesOfEnclosingClasses(officialTree);
+		cleanupMappingLeakageToOfficial(officialTree);
 
 		try (var writer = new Tiny2FileWriter(Files.newBufferedWriter(out, StandardCharsets.UTF_8), false)) {
 			officialTree.accept(writer);
@@ -115,5 +118,32 @@ public final class MappingsMerger {
 		tree.setIndexByDstNames(true);
 
 		tree.propagateOuterClassNames("intermediary", List.of("named"), false);
+	}
+
+	/**
+	 * When merging mappings, intermediary names for methods can ended up leaking into the official namespace.
+	 * This is because mapping-io does not have class inheritance information when doing so.
+	 * Workaround this problem by deleting invalid mapping entries.
+	 */
+	private static void cleanupMappingLeakageToOfficial(MemoryMappingTree tree) {
+		int intermediaryId = tree.getNamespaceId("intermediary");
+		int officialId = tree.getNamespaceId("official");
+
+		List<Pair<String, String>> entriesToRemove = new ArrayList<>();
+
+		for (MappingTree.ClassMapping classMapping : tree.getClasses()) {
+			for (MappingTree.MethodMapping methodMapping : classMapping.getMethods()) {
+				String intermediary = methodMapping.getName(intermediaryId);
+				String official = methodMapping.getName(officialId);
+
+				if (intermediary != null && official != null && intermediary.startsWith("method_") && intermediary.equals(official)) {
+					entriesToRemove.add(new Pair<>(methodMapping.getSrcName(), methodMapping.getSrcDesc()));
+				}
+			}
+
+			for (Pair<String, String> entry : entriesToRemove) {
+				classMapping.removeMethod(entry.left(), entry.right());
+			}
+		}
 	}
 }

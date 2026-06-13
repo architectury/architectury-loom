@@ -54,7 +54,7 @@ import org.apache.tools.ant.util.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.provider.Provider;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -362,10 +362,16 @@ public class MappingConfiguration {
 		}
 
 		if (areMappingsV2(baseTinyMappings)) {
-			// These are unmerged v2 mappings
-			IntermediateMappingsService intermediateMappingsService = serviceFactory.get(IntermediateMappingsService.createOptions(project, minecraftProvider));
+			final LoomGradleExtension extension = LoomGradleExtension.get(project);
 
-			MappingsMerger.mergeAndSaveMappings(baseTinyMappings, tinyMappings, minecraftProvider, intermediateMappingsService);
+			if (extension.getUseIntermediateMappings().get()) {
+				// These are unmerged v2 mappings
+				IntermediateMappingsService intermediateMappingsService = serviceFactory.get(IntermediateMappingsService.createOptions(project, minecraftProvider));
+
+				MappingsMerger.mergeAndSaveMappings(baseTinyMappings, tinyMappings, minecraftProvider, intermediateMappingsService);
+			} else {
+				Files.copy(baseTinyMappings, tinyMappings, StandardCopyOption.REPLACE_EXISTING);
+			}
 		} else {
 			if (LoomGradleExtension.get(project).isForgeLike()) {
 				// (2022-09-11) This is due to ordering issues.

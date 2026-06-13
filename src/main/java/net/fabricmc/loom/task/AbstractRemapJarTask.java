@@ -46,14 +46,18 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.bundling.ZipEntryCompression;
 import org.gradle.jvm.tasks.Jar;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.workers.WorkAction;
 import org.gradle.workers.WorkParameters;
 import org.gradle.workers.WorkQueue;
@@ -64,7 +68,6 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.JarManifestService;
 import net.fabricmc.loom.util.Check;
@@ -76,6 +79,7 @@ import net.fabricmc.loom.util.ZipUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
+@DisableCachingByDefault(because = "Jar task cannot be cached")
 public abstract class AbstractRemapJarTask extends Jar {
 	/**
 	 * The main input jar to remap.
@@ -83,10 +87,11 @@ public abstract class AbstractRemapJarTask extends Jar {
 	 *
 	 * <p>The input file's manifest will be copied into the remapped jar.
 	 */
+	@PathSensitive(PathSensitivity.NONE)
 	@InputFile
 	public abstract RegularFileProperty getInputFile();
 
-	@InputFiles
+	@Classpath
 	public abstract ConfigurableFileCollection getClasspath();
 
 	@Input
@@ -113,6 +118,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 	 */
 	@ApiStatus.Experimental
 	@InputFiles
+	@PathSensitive(PathSensitivity.NONE)
 	@Optional
 	public abstract ConfigurableFileCollection getCustomMappings();
 
@@ -135,7 +141,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 	public AbstractRemapJarTask() {
 		from(getProject().zipTree(getInputFile()));
 		getSourceNamespace().convention(MappingsNamespace.NAMED.toString()).finalizeValueOnRead();
-		getTargetNamespace().convention(getProject().provider(() -> IntermediaryNamespaces.runtimeIntermediary(getProject()))).finalizeValueOnRead();
+		getTargetNamespace().convention(getProject().provider(() -> LoomGradleExtension.get(getProject()).getProductionNamespace().get())).finalizeValueOnRead();
 		getIncludesClientOnlyClasses().convention(false).finalizeValueOnRead();
 		getJarType().finalizeValueOnRead();
 
@@ -322,6 +328,7 @@ public abstract class AbstractRemapJarTask extends Jar {
 
 	@Deprecated
 	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
 	public RegularFileProperty getInput() {
 		return getInputFile();
 	}

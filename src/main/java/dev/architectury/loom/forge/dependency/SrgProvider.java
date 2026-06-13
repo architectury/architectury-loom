@@ -37,7 +37,7 @@ import dev.architectury.loom.forge.tool.ForgeToolValueSource;
 import dev.architectury.loom.util.DependencyDownloader;
 import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Project;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingContext;

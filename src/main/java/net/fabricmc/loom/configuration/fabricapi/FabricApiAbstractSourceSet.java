@@ -76,7 +76,9 @@ abstract class FabricApiAbstractSourceSet {
 			mod.sourceSet(getSourceSetName());
 		});
 
-		extension.createRemapConfigurations(sourceSets.getByName(getSourceSetName()));
+		if (!extension.disableObfuscation()) {
+			extension.createRemapConfigurations(sourceSets.getByName(getSourceSetName()));
+		}
 
 		return sourceSet;
 	}
@@ -84,9 +86,7 @@ abstract class FabricApiAbstractSourceSet {
 	private static void extendsFrom(Project project, String name, String extendsFrom) {
 		final ConfigurationContainer configurations = project.getConfigurations();
 
-		configurations.named(name, configuration -> {
-			configuration.extendsFrom(configurations.getByName(extendsFrom));
-		});
+		configurations.named(name, configuration -> configuration.extendsFrom(configurations.named(extendsFrom)));
 	}
 
 	private void dependsOn(SourceSet sourceSet, SourceSet other) {

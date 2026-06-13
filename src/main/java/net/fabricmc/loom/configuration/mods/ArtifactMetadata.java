@@ -26,7 +26,6 @@ package net.fabricmc.loom.configuration.mods;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -40,10 +39,12 @@ import java.util.jar.Manifest;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import org.gradle.api.Project;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.configuration.InstallerData;
 import net.fabricmc.loom.util.Constants;
@@ -61,15 +62,16 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 	// ARCH: Quilt support
 	private static final String QUILT_INSTALLER_PATH = "quilt_installer.json";
 
-	public static ArtifactMetadata create(ArtifactRef artifact, String currentLoomVersion) throws IOException {
-		return create(null, artifact, currentLoomVersion, ModPlatform.FABRIC, null);
+	@VisibleForTesting
+	public static ArtifactMetadata create(ArtifactRef artifact, String currentLoomVersion, MixinRemapType defaultMixinRemapType) throws IOException {
+		return create(null, artifact, currentLoomVersion, ModPlatform.FABRIC, defaultMixinRemapType);
 	}
 
-	public static ArtifactMetadata create(@Nullable Project project, ArtifactRef artifact, String currentLoomVersion, ModPlatform platform, @Nullable Boolean forcesStaticMixinRemap) throws IOException {
+	public static ArtifactMetadata create(@Nullable Project project, ArtifactRef artifact, String currentLoomVersion, ModPlatform platform, MixinRemapType defaultMixinRemapType) throws IOException {
 		boolean isFabricMod;
 		RemapRequirements remapRequirements = RemapRequirements.DEFAULT;
 		InstallerData installerData = null;
-		MixinRemapType refmapRemapType = MixinRemapType.MIXIN;
+		MixinRemapType refmapRemapType = defaultMixinRemapType;
 		List<String> knownIndyBsms = new ArrayList<>();
 
 		// Force-remap all mods on Forge and NeoForge.
@@ -105,10 +107,6 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 					// On Forge, we support both mixins with and without refmaps.
 					// Check for mixins without them, and if any are found, mark the remap type as static.
 					refmapRemapType = MixinRemapType.STATIC;
-				} else if (forcesStaticMixinRemap != null) {
-					// The mixin remap type is not specified in the manifest, but we have a forced value
-					// This is forced to be static on NeoForge or Forge 50+.
-					refmapRemapType = forcesStaticMixinRemap ? MixinRemapType.STATIC : MixinRemapType.MIXIN;
 				}
 
 				if (loomVersion != null && refmapRemapType == MixinRemapType.STATIC) {
@@ -125,8 +123,7 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 			final Path installerPath = fs.getPath(installerFile);
 
 			if (isFabricMod && Files.exists(installerPath)) {
-				final JsonObject jsonObject = LoomGradlePlugin.GSON.fromJson(Files.readString(installerPath, StandardCharsets.UTF_8), JsonObject.class);
-				installerData = new InstallerData(artifact.version(), jsonObject);
+				installerData = InstallerData.fromBytes(Files.readAllBytes(installerPath), artifact.version());
 			}
 		}
 
@@ -211,6 +208,18 @@ public record ArtifactMetadata(boolean isFabricMod, RemapRequirements remapRequi
 
 		public String manifestValue() {
 			return name().toLowerCase(Locale.ROOT);
+		}
+
+		public static MixinRemapType getDefaultValue(Project project) {
+			final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+			// Upstream logic: STATIC on unobf, MIXIN otherwise
+			if (extension.getMetadataProvider().isUnobfuscated()) return STATIC;
+
+			// We change the default to STATIC on NeoForge or Forge 50+.
+			if (extension.isForgeLike() && extension.getForgeProvider().usesMojangAtRuntime()) return STATIC;
+
+			return MIXIN;
 		}
 	}
 }

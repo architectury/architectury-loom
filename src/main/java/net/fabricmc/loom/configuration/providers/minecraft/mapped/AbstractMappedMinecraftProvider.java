@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.ConfigContext;
 import net.fabricmc.loom.configuration.mods.dependency.LocalMavenHelper;
 import net.fabricmc.loom.configuration.providers.mappings.IntermediaryMappingsProvider;
@@ -280,7 +279,11 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 		final MinecraftVersionMeta.JavaVersion javaVersion = minecraftProvider.getVersionInfo().javaVersion();
 		final boolean fixRecords = javaVersion != null && javaVersion.majorVersion() >= 16;
 
-		TinyRemapper remapper = TinyRemapperHelper.getTinyRemapper(getProject(), configContext.serviceFactory(), fromM, toM, fixRecords, (builder) -> {
+		// Arch: disable namespace validation for toM = intermediary when intermediate mappings are disabled.
+		// See https://github.com/FabricMC/fabric-loom/issues/1576.
+		final boolean validateTargetNamespace = !(getTargetNamespace() == MappingsNamespace.INTERMEDIARY && !extension.getUseIntermediateMappings().get());
+
+		TinyRemapper remapper = TinyRemapperHelper.getTinyRemapper(getProject(), configContext.serviceFactory(), fromM, toM, fixRecords, validateTargetNamespace, (builder) -> {
 			if (remappedAnnotations != null) {
 				builder.extraPostApplyVisitor(new AnnotationsApplyVisitor(remappedAnnotations));
 			}
@@ -318,7 +321,7 @@ public abstract class AbstractMappedMinecraftProvider<M extends MinecraftProvide
 				className = "net.minecraftforge.registries.ObjectHolderRegistry";
 			}
 
-			final String sourceNamespace = IntermediaryNamespaces.runtimeIntermediary(project);
+			final String sourceNamespace = extension.getProductionNamespace().get();
 			final MemoryMappingTree mappings = mappingsService.getMappingTree();
 			RemapObjectHolderVisitor.remapObjectHolder(remappedJars.outputJar().getPath(), className, mappings, sourceNamespace, "named");
 		}

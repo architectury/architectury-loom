@@ -74,9 +74,11 @@ class InterfaceInjectionProcessorTest extends Specification {
 		specContext.localMods() >> [fmj]
 		specContext.modDependenciesCompileRuntime() >> []
 		specContext.modDependenciesCompileRuntimeClient() >> []
+		specContext.productionNamespace() >> MappingsNamespace.INTERMEDIARY
 
 		def processorContext = Mock(ProcessorContext)
 		processorContext.getMappings() >> createMappings()
+		processorContext.getProductionNamespace() >> MappingsNamespace.INTERMEDIARY
 
 		def jar = tempDir.resolve("test.jar")
 		packageJar(jar)
@@ -192,7 +194,7 @@ class InterfaceInjectionProcessorTest extends Specification {
 	static LazyCloseable<TinyRemapper> createRemapper(Path jar, MemoryMappingTree mappings) {
 		return new LazyCloseable<>({
 			TinyRemapper.Builder builder = TinyRemapper.newRemapper()
-			builder.withMappings(TinyRemapperHelper.create(mappings, MappingsNamespace.INTERMEDIARY.toString(), MappingsNamespace.NAMED.toString(), false))
+			builder.withMappings(TinyRemapperHelper.create(mappings, MappingsNamespace.INTERMEDIARY.toString(), MappingsNamespace.NAMED.toString(), false, true))
 			TinyRemapper tinyRemapper = builder.build()
 			tinyRemapper.readClassPath(jar)
 			return tinyRemapper

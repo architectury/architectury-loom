@@ -29,8 +29,8 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A simple version class that can be used to compare versions.
@@ -74,7 +74,7 @@ public record Version(int major, int minor, int micro, int patch, @Nullable Stri
 	}
 
 	@Override
-	public int compareTo(@NotNull Version other) {
+	public int compareTo(@NonNull Version other) {
 		if (this.major != other.major) {
 			return this.major - other.major;
 		} else if (this.minor != other.minor) {

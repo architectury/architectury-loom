@@ -34,6 +34,7 @@ import javax.inject.Inject;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.SourceSet;
 
@@ -41,6 +42,7 @@ import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.SourceRemapperService;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
+@CacheableTask
 public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
 	@Nested
 	abstract Property<SourceRemapperService.Options> getSourcesRemapperServiceOptions();
@@ -48,7 +50,7 @@ public abstract class RemapSourcesJarTask extends AbstractRemapJarTask {
 	@Inject
 	public RemapSourcesJarTask() {
 		super();
-		getClasspath().from(getProject().getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+		getClasspath().from(getProject().getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
 		getJarType().set("sources");
 
 		getSourcesRemapperServiceOptions().set(SourceRemapperService.createOptions(this));

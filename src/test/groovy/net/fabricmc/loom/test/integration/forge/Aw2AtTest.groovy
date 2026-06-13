@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2023 FabricMC
+ * Copyright (c) 2021-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,15 +29,17 @@ import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 	@Unroll
-	def "build (gradle #version)"() {
+	def "build (#apiVariant)"() {
 		// 1.17+ uses a new srg naming pattern
 		setup:
-		def gradle = gradleProject(project: "forge/aw2At", version: version)
+		def gradle = gradleProject(project: "forge/aw2At", version: DEFAULT_GRADLE)
+		gradle.buildGradle.text = gradle.buildGradle.text.replace('AW2AT_CODE', code)
 
 		when:
 		def result = gradle.run(task: "build")
@@ -47,7 +49,9 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
 
 		where:
-		version << STANDARD_TEST_VERSIONS
+		apiVariant | code
+		'legacy'   | 'convertAccessWideners = true'
+		'new'      | 'convertAccessWideners(tasks.named("remapJar"), "my.accesswidener")'
 	}
 
 	@Unroll

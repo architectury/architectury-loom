@@ -60,16 +60,17 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 
 	public abstract void afterEvaluate(Project project);
 
-	protected void createConfigurations(Project project) {
+	protected void registerConfigurations(Project project) {
 		final ConfigurationContainer configurations = project.getConfigurations();
 
 		for (ConfigurationName configurationName : getConfigurations()) {
 			configurations.register(configurationName.runtime(), configuration -> {
 				configuration.setTransitive(false);
-				configuration.extendsFrom(configurations.getByName(configurationName.mcLibsRuntimeName()));
-				configuration.extendsFrom(configurations.getByName(Constants.Configurations.LOADER_DEPENDENCIES));
-				configuration.extendsFrom(configurations.getByName(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES));
+				configuration.extendsFrom(configurations.named(configurationName.mcLibsRuntimeName()));
+				configuration.extendsFrom(configurations.named(Constants.Configurations.LOADER_DEPENDENCIES));
+				configuration.extendsFrom(configurations.named(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES));
 
+				// TODO: Make this lazy
 				if (LoomGradleExtension.get(project).isForgeLike()) {
 					configurations.getByName(Constants.Configurations.FORGE_RUNTIME_LIBRARY).extendsFrom(configuration);
 				}
@@ -77,8 +78,8 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 
 			configurations.register(configurationName.compile(), configuration -> {
 				configuration.setTransitive(false);
-				configuration.extendsFrom(configurations.getByName(configurationName.mcLibsCompileName()));
-				configuration.extendsFrom(configurations.getByName(Constants.Configurations.LOADER_DEPENDENCIES));
+				configuration.extendsFrom(configurations.named(configurationName.mcLibsCompileName()));
+				configuration.extendsFrom(configurations.named(Constants.Configurations.LOADER_DEPENDENCIES));
 			});
 		}
 	}
@@ -86,9 +87,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 	protected void extendsFrom(Project project, String name, String extendsFrom) {
 		final ConfigurationContainer configurations = project.getConfigurations();
 
-		configurations.named(name, configuration -> {
-			configuration.extendsFrom(configurations.getByName(extendsFrom));
-		});
+		configurations.named(name, configuration -> configuration.extendsFrom(configurations.named(extendsFrom)));
 	}
 
 	/**
@@ -124,7 +123,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 		@Override
 		public void afterEvaluate(Project project) {
 			// This is done in afterEvaluate as we need to be sure that split source sets was not enabled.
-			createConfigurations(project);
+			registerConfigurations(project);
 
 			extendsFrom(project, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME, MINECRAFT_NAMED.compile());
 			extendsFrom(project, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, MINECRAFT_NAMED.runtime());
@@ -177,7 +176,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 
 		// Called during evaluation, when the loom extension method is called.
 		private void evaluate(Project project) {
-			createConfigurations(project);
+			registerConfigurations(project);
 			final ConfigurationContainer configurations = project.getConfigurations();
 
 			// Register our new client only source set, main becomes common only, with their respective jars.
@@ -228,7 +227,7 @@ public abstract sealed class MinecraftSourceSets permits MinecraftSourceSets.Sin
 			// Remap with the client compile classpath.
 			project.getTasks().withType(AbstractRemapJarTask.class).configureEach(remapJarTask -> {
 				remapJarTask.getClasspath().from(
-						project.getConfigurations().getByName(clientOnlySourceSet.getCompileClasspathConfigurationName())
+						project.getConfigurations().named(clientOnlySourceSet.getCompileClasspathConfigurationName())
 				);
 			});
 

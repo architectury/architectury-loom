@@ -23,7 +23,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 }
 
 group = "dev.architectury"
-def baseVersion = '1.13'
+def baseVersion = '1.17'
 
 def ENV = System.getenv()
 def runNumber = ENV.GITHUB_RUN_NUMBER ?: "9999"
@@ -65,11 +65,11 @@ configurations.configureEach {
 		// I am sorry, for now
 		// failOnNonReproducibleResolution()
 	}
+}
 
-	if (canBeConsumed)  {
-		attributes {
-			attribute(GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE, objects.named(GradlePluginApiVersion, GradleVersion.current().getVersion()))
-		}
+configurations.named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME) {
+	attributes {
+		attribute(GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE, objects.named(GradlePluginApiVersion, GradleVersion.current().getVersion()))
 	}
 }
 
@@ -83,11 +83,6 @@ sourceSets {
 	commonDecompiler {
 		java {
 			srcDir("src/decompilers/common")
-		}
-	}
-	fernflower {
-		java {
-			srcDir("src/decompilers/fernflower")
 		}
 	}
 	cfr {
@@ -113,6 +108,7 @@ dependencies {
 	implementation (libs.fabric.stitch) {
 		exclude module: 'mercury'
 		exclude module: 'enigma'
+		exclude module: 'guava'
 	}
 
 	// tinyfile management
@@ -127,21 +123,16 @@ dependencies {
 	implementation libs.fabric.loom.nativelib
 
 	// decompilers
-	fernflowerCompileOnly runtimeLibs.fernflower
-	fernflowerCompileOnly libs.fabric.mapping.io
-
 	cfrCompileOnly runtimeLibs.cfr
 	cfrCompileOnly libs.fabric.mapping.io
 
 	vineflowerCompileOnly runtimeLibs.vineflower
 	vineflowerCompileOnly libs.fabric.mapping.io
 
-	fernflowerApi sourceSets.commonDecompiler.output
 	cfrApi sourceSets.commonDecompiler.output
 	vineflowerApi sourceSets.commonDecompiler.output
 
 	implementation sourceSets.commonDecompiler.output
-	implementation sourceSets.fernflower.output
 	implementation sourceSets.cfr.output
 	implementation sourceSets.vineflower.output
 
@@ -206,7 +197,6 @@ jar {
 
 	from sourceSets.commonDecompiler.output.classesDirs
 	from sourceSets.cfr.output.classesDirs
-	from sourceSets.fernflower.output.classesDirs
 	from sourceSets.vineflower.output.classesDirs
 }
 
@@ -274,9 +264,21 @@ gradlePlugin {
 			id = 'dev.architectury.loom'
 			implementationClass = 'net.fabricmc.loom.LoomGradlePlugin'
 		}
+		fabricLoomNoRemap {
+			id = 'dev.architectury.loom-no-remap'
+			implementationClass = 'net.fabricmc.loom.LoomNoRemapGradlePlugin'
+		}
+		fabricLoomRemap {
+			id = 'dev.architectury.loom-remap'
+			implementationClass = 'net.fabricmc.loom.LoomRemapGradlePlugin'
+		}
 		fabricLoomCompanion {
 			id = 'dev.architectury.loom-companion'
 			implementationClass = 'net.fabricmc.loom.LoomCompanionGradlePlugin'
+		}
+		fabricLoomRepositories {
+			id = 'dev.architectury.loom-repositories'
+			implementationClass = 'net.fabricmc.loom.LoomRepositoryPlugin'
 		}
 	}
 }
@@ -333,6 +335,10 @@ publishing {
 				from components.java
 			}
 
+			def projectGroup = project.group
+			def projectArtifactId = project.base.archivesName.get()
+			def markerDependencyVersion = project.version.toString()
+
 			gradlePlugin.plugins.forEach { plugin ->
 				// Manually crate the plugin marker for snapshot versions
 				it.create(plugin.id + "SnapshotMarker", MavenPublication) { publication ->
@@ -347,11 +353,11 @@ publishing {
 						Node dependencies = root.appendChild(document.createElement('dependencies'))
 						Node dependency = dependencies.appendChild(document.createElement('dependency'))
 						Node groupId = dependency.appendChild(document.createElement('groupId'))
-						groupId.setTextContent(project.group)
+						groupId.setTextContent(projectGroup)
 						Node artifactId = dependency.appendChild(document.createElement('artifactId'))
-						artifactId.setTextContent(project.archivesBaseName)
+						artifactId.setTextContent(projectArtifactId)
 						Node version = dependency.appendChild(document.createElement('version'))
-						version.setTextContent(project.version)
+						version.setTextContent(markerDependencyVersion)
 					})
 				}
 			}
@@ -371,43 +377,17 @@ publishing {
 	}
 }
 
-// A task to output a json file with a list of all the test to run
-tasks.register('writeActionsTestMatrix') {
-	doLast {
-		def testMatrix = []
-		def extendedTests = Boolean.parseBoolean(System.getenv('EXTENDED_TESTS') ?: 'false')
-		file('src/test/groovy/net/fabricmc/loom/test/integration').traverse {
-			if (it.name.endsWith("Test.groovy")) {
-				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
-					// This test gets a special case to run across all os's
-					return
-				}
+// The publish tasks appear to write to the same files, so we need to ensure they don't run in parallel.
+tasks.withType(PublishToMavenLocal).configureEach { publishTask ->
+	mustRunAfter(tasks.withType(PublishToMavenLocal).matching { it.name < publishTask.name })
+}
 
-				if (it.name.endsWith("DebugLineNumbersTest.groovy") && !extendedTests) {
-					// Known flakey test
-					return
-				}
-
-				if (it.name.endsWith("FabricAPITest.groovy")) {
-					// Arch: Disabled as it hangs
-					return
-				}
-
-				def className = it.path.toString().replace(".groovy", "")
-				className = className.substring(className.lastIndexOf("integration/") + "integration/".length()).replace('/', '.')
-
-				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
-			}
-		}
-
-		// Run all the unit tests together
-		testMatrix.add("net.fabricmc.loom.test.unit.*")
-
-		def json = groovy.json.JsonOutput.toJson(testMatrix)
-		def output = file("build/test_matrix.json")
-		output.parentFile.mkdir()
-		output.text = json
-	}
+tasks.register('writeActionsTestMatrix', WriteActionsTestMatrix) {
+	integrationTestDirectory = layout.projectDirectory.dir('src/test/groovy/net/fabricmc/loom/test/integration')
+	outputFile = layout.buildDirectory.file('test_matrix.json')
+	extendedTests = providers.environmentVariable('EXTENDED_TESTS')
+			.map { Boolean.parseBoolean(it) }
+			.orElse(false)
 }
 
 tasks.named('wrapper') {
@@ -417,22 +397,9 @@ tasks.named('wrapper') {
 /**
  * Run this task to download the gradle sources next to the api jar, you may need to manually attach the sources jar
  */
-tasks.register('downloadGradleSources') {
-	doLast {
-		// Awful hack to find the gradle api location
-		def gradleApiFile = project.configurations.detachedConfiguration(dependencies.gradleApi()).files.stream()
-				.find {
-					it.name.startsWith("gradle-api")
-				}
-
-		def gradleApiSources = new File(gradleApiFile.absolutePath.replace(".jar", "-sources.jar"))
-		def url = "https://services.gradle.org/distributions/gradle-${GradleVersion.current().getVersion()}-src.zip"
-
-		gradleApiSources.delete()
-
-		println("Downloading (${url}) to (${gradleApiSources})")
-		gradleApiSources << new URL(url).newInputStream()
-	}
+tasks.register('downloadGradleSources', DownloadGradleSources) {
+	gradleApi.from(configurations.detachedConfiguration(dependencies.gradleApi()))
+	gradleVersion.set(GradleVersion.current().getVersion())
 }
 
 tasks.withType(GenerateModuleMetadata) {
@@ -440,6 +407,17 @@ tasks.withType(GenerateModuleMetadata) {
 }
 
 tasks.register('printActionsTestName', PrintActionsTestName) {
+}
+
+tasks.register('exportVersion') {
+	def versionFile = file("${layout.buildDirectory.get()}/version.txt")
+	outputs.file(versionFile)
+
+	def v = project.version
+	doLast {
+		versionFile.text = v
+		println("Exported version: ${v}")
+	}
 }
 
 /**
@@ -457,4 +435,88 @@ abstract class PrintActionsTestName extends DefaultTask {
 	}
 }
 
+abstract class DownloadGradleSources extends DefaultTask {
+	@Classpath
+	abstract ConfigurableFileCollection getGradleApi()
+
+	@Input
+	abstract Property<String> getGradleVersion()
+
+	@TaskAction
+	def run() {
+		// Awful hack to find the gradle api location
+		def gradleApiFile = gradleApi.files.find {
+			it.name.startsWith("gradle-api")
+		}
+
+		if (gradleApiFile == null) {
+			throw new GradleException("Unable to find Gradle API jar")
+		}
+
+		def gradleApiSources = new File(gradleApiFile.absolutePath.replace(".jar", "-sources.jar"))
+		def url = "https://services.gradle.org/distributions/gradle-${gradleVersion.get()}-src.zip"
+
+		gradleApiSources.delete()
+
+		println("Downloading (${url}) to (${gradleApiSources})")
+		gradleApiSources.withOutputStream { output ->
+			new URI(url).toURL().withInputStream { input ->
+				output << input
+			}
+		}
+	}
+}
+
+/**
+ * Outputs a json file with a list of all the tests to run in GitHub Actions.
+ */
+abstract class WriteActionsTestMatrix extends DefaultTask {
+	@InputDirectory
+	@PathSensitive(PathSensitivity.RELATIVE)
+	abstract DirectoryProperty getIntegrationTestDirectory()
+
+	@OutputFile
+	abstract RegularFileProperty getOutputFile()
+
+	@Input
+	abstract Property<Boolean> getExtendedTests()
+
+	@TaskAction
+	def run() {
+		def testMatrix = []
+
+		integrationTestDirectory.get().asFile.eachFile {
+			if (it.name.endsWith("Test.groovy")) {
+				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
+					// This test gets a special case to run across all os's
+					return
+				}
+
+				if (it.name.endsWith("DebugLineNumbersTest.groovy") && !extendedTests.get()) {
+					// Known flakey test
+					return
+				}
+
+				if (it.name.endsWith("FabricAPITest.groovy")) {
+					// Arch: Disabled as it hangs
+					return
+				}
+
+				def className = it.name.replace(".groovy", "")
+				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
+			} else if (it.name.endsWith("noRemap")) {
+				testMatrix.add("net.fabricmc.loom.test.integration.noRemap.*")
+			}
+		}
+
+		// Run all the unit tests together
+		testMatrix.add("net.fabricmc.loom.test.unit.*")
+
+		def output = outputFile.get().asFile
+		output.parentFile.mkdir()
+		output.text = groovy.json.JsonOutput.toJson(testMatrix)
+	}
+}
+
 apply from: rootProject.file('gradle/versions.gradle')
+apply from: rootProject.file('gradle/package-info.gradle')

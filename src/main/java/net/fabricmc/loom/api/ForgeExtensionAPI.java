@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2021-2024 FabricMC
+ * Copyright (c) 2021-2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,12 @@ import org.gradle.api.Action;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.jvm.tasks.Jar;
 import org.jetbrains.annotations.ApiStatus;
+
+import net.fabricmc.loom.api.aw2at.Aw2AtSettings;
+import net.fabricmc.loom.util.Check;
 
 /**
  * This is the Forge extension API available to build scripts.
@@ -41,6 +46,10 @@ public interface ForgeExtensionAPI {
 	 * If true, {@linkplain LoomGradleExtensionAPI#getAccessWidenerPath() the project access widener file}
 	 * will be remapped to an access transformer file if set.
 	 *
+	 * <p>Note that {@link #convertAccessWideners(TaskProvider, String...)} can be used instead of this
+	 * method for more fine-grained control over which jar task converts the access wideners.
+	 * This method targets the {@code remapJar} task on obfuscated versions and the {@code jar} task on unobfuscated versions.
+	 *
 	 * @return the property
 	 */
 	Property<Boolean> getConvertAccessWideners();
@@ -49,6 +58,10 @@ public interface ForgeExtensionAPI {
 	 * A set of additional access widener files that will be converted to access transformers
 	 * {@linkplain #getConvertAccessWideners() if enabled}. The files are specified as paths in jar files
 	 * (e.g. {@code path/to/my_aw.accesswidener}).
+	 *
+	 * <p>Note that {@link #convertAccessWideners(TaskProvider, String...)} can be used instead of this
+	 * method for more fine-grained control over which jar task converts the access wideners.
+	 * This method targets the {@code remapJar} task on obfuscated versions and the {@code jar} task on unobfuscated versions.
 	 *
 	 * @return the property
 	 */
@@ -71,6 +84,54 @@ public interface ForgeExtensionAPI {
 	 * @param file the file, evaluated as per {@link org.gradle.api.Project#file(Object)}
 	 */
 	void accessTransformer(Object file);
+
+	/**
+	 * Sets up AW → AT conversion for the provided jar task.
+	 *
+	 * <p>The file paths are relative to the mod jar root, corresponding to {@code resources} directories in
+	 * a development environment, <strong>not</strong> the project directory!
+	 * For example, {@code "my_mod.accesswidener"} corresponds to the source file {@code src/main/resources/my_mod.accesswidener}.
+	 *
+	 * <p>The specified files will be converted and removed from the final jar.
+	 *
+	 * <p>In projects with an obfuscated version of Minecraft, this method must target {@code remapJar} or another
+	 * {@link net.fabricmc.loom.task.RemapJarTask} in order for the access transformer to be remapped properly.
+	 *
+	 * <p>When the provided task is a {@link net.fabricmc.loom.task.RemapJarTask}, the AW paths will simply be added
+	 * to the corresponding {@link net.fabricmc.loom.task.RemapJarTask#getAtAccessWideners() atAccessWideners} property.
+	 */
+	@ApiStatus.Experimental
+	void convertAccessWideners(TaskProvider<? extends Jar> jarTask, Action<? super Aw2AtSettings> action);
+
+	/**
+	 * Sets up AW → AT conversion for the provided jar task.
+	 *
+	 * <p>The file paths are relative to the mod jar root, corresponding to {@code resources} directories in
+	 * a development environment, <strong>not</strong> the project directory!
+	 * For example, {@code "my_mod.accesswidener"} corresponds to the source file {@code src/main/resources/my_mod.accesswidener}.
+	 *
+	 * <p>The specified files will be converted and removed from the final jar.
+	 *
+	 * <p>In projects with an obfuscated version of Minecraft, this method must target {@code remapJar} or another
+	 * {@link net.fabricmc.loom.task.RemapJarTask} in order for the access transformer to be remapped properly.
+	 *
+	 * <p>When the provided task is a {@link net.fabricmc.loom.task.RemapJarTask}, the AW paths will simply be added
+	 * to the corresponding {@link net.fabricmc.loom.task.RemapJarTask#getAtAccessWideners() atAccessWideners} property.
+	 *
+	 * <p>Usage example on unobfuscated versions:
+	 * {@snippet : lang=groovy
+	 * loom.forge.convertAccessWideners(tasks.jar, "my_mod.accesswidener")
+	 * }
+	 *
+	 * @param awPaths the paths of the access wideners relative to the mod jar root, cannot be empty
+	 */
+	@ApiStatus.Experimental
+	default void convertAccessWideners(TaskProvider<? extends Jar> jarTask, String... awPaths) {
+		Check.require(awPaths.length >= 1, "At least one access widener path must be provided");
+		convertAccessWideners(jarTask, settings -> {
+			settings.getAccessWideners().addAll(awPaths);
+		});
+	}
 
 	/**
 	 * A set of all mixin configs related to source set resource roots.

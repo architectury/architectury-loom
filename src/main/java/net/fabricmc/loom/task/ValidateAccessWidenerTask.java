@@ -37,10 +37,13 @@ import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SkipWhenEmpty;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import net.fabricmc.classtweaker.api.ClassTweakerReader;
 import net.fabricmc.classtweaker.validator.ClassTweakerValidatingVisitor;
@@ -49,12 +52,14 @@ import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.util.TinyRemapperLoggerAdapter;
 import net.fabricmc.tinyremapper.TinyRemapper;
 
+@DisableCachingByDefault
 public abstract class ValidateAccessWidenerTask extends DefaultTask {
 	@SkipWhenEmpty
 	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getAccessWidener();
 
-	@InputFiles
+	@Classpath
 	public abstract ConfigurableFileCollection getTargetJars();
 
 	@Inject
@@ -86,7 +91,7 @@ public abstract class ValidateAccessWidenerTask extends DefaultTask {
 		final ClassTweakerReader accessWidenerReader = ClassTweakerReader.create(validator);
 
 		try (BufferedReader reader = Files.newBufferedReader(getAccessWidener().get().getAsFile().toPath(), StandardCharsets.UTF_8)) {
-			accessWidenerReader.read(reader, "named");
+			accessWidenerReader.read(reader);
 		} catch (IOException e) {
 			throw new UncheckedIOException("Failed to read access widener", e);
 		} finally {

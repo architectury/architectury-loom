@@ -37,7 +37,7 @@ import dev.architectury.loom.metadata.JsonBackedModMetadataFile;
 import dev.architectury.loom.metadata.ModMetadataFile;
 import org.gradle.api.Project;
 import org.gradle.api.tasks.SourceSet;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 

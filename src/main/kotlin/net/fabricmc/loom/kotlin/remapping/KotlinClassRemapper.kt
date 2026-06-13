@@ -68,7 +68,6 @@ class KotlinClassRemapper(
         clazz.constructors.replaceAll(this::remap)
         clazz.nestedClasses.replaceAll(this::remap)
         clazz.sealedSubclasses.replaceAll(this::remap)
-        clazz.contextReceiverTypes.replaceAll(this::remap)
         clazz.localDelegatedProperties.replaceAll(this::remap)
         return clazz
     }
@@ -123,6 +122,7 @@ class KotlinClassRemapper(
     private fun remap(function: KmFunction): KmFunction {
         function.typeParameters.replaceAll(this::remap)
         function.receiverParameterType = function.receiverParameterType?.let { remap(it) }
+        @Suppress("DEPRECATION_ERROR")
         function.contextReceiverTypes.replaceAll(this::remap)
         function.valueParameters.replaceAll(this::remap)
         function.returnType = remap(function.returnType)
@@ -133,6 +133,7 @@ class KotlinClassRemapper(
     private fun remap(property: KmProperty): KmProperty {
         property.typeParameters.replaceAll(this::remap)
         property.receiverParameterType = property.receiverParameterType?.let { remap(it) }
+        @Suppress("DEPRECATION_ERROR")
         property.contextReceiverTypes.replaceAll(this::remap)
         property.setterParameter = property.setterParameter?.let { remap(it) }
         property.returnType = remap(property.returnType)

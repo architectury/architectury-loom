@@ -24,12 +24,10 @@
 
 package net.fabricmc.loom.task;
 
-import java.util.Map;
-import java.util.Set;
-
 import javax.inject.Inject;
 
 import dev.architectury.loom.accesstransformer.Aw2At;
+import dev.architectury.loom.extensions.ModBuildExtensions;
 import dev.architectury.loom.util.PropertyUtil;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
@@ -45,7 +43,7 @@ import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 import org.gradle.jvm.tasks.Jar;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.build.nesting.NestableJarGenerationTask;
+import net.fabricmc.loom.configuration.IncludeConfigurations;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
@@ -73,16 +71,11 @@ public abstract class RemapTaskConfiguration implements Runnable {
 		SyncTaskBuildService.register(getProject());
 
 		if (extension.dontRemapOutputs()) {
-			extension.getUnmappedModCollection().from(getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
+			new NonRemappedJarTaskConfiguration(getProject(), extension).configure();
 			return;
 		}
 
-		Configuration includeConfiguration = getProject().getConfigurations().getByName(Constants.Configurations.INCLUDE_INTERNAL);
-		getTasks().register(Constants.Task.PROCESS_INCLUDE_JARS, NestableJarGenerationTask.class, task -> {
-			task.from(includeConfiguration);
-			task.getOutputDirectory().set(getProject().getLayout().getBuildDirectory().dir(task.getName()));
-		});
-
+		// Remapping needed - use the traditional remapJar task with JIJ support (original logic)
 		Action<RemapJarTask> remapJarTaskAction = task -> {
 			final TaskProvider<AbstractArchiveTask> jarTask = getTasks().named(JavaPlugin.JAR_TASK_NAME, AbstractArchiveTask.class);
 
@@ -102,6 +95,12 @@ public abstract class RemapTaskConfiguration implements Runnable {
 		// must not be lazy to ensure that the prepare tasks get setup for other projects to depend on.
 		// Being lazy also breaks maven publishing, see: https://github.com/FabricMC/fabric-loom/issues/1023
 		getTasks().create(REMAP_JAR_TASK_NAME, RemapJarTask.class, remapJarTaskAction);
+		IncludeConfigurations.nestJars(
+				getProject(),
+				getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class),
+				getConfigurations().named(Constants.Configurations.INCLUDE),
+				Constants.Task.PROCESS_INCLUDE_JARS
+		);
 
 		// Configure the default jar task
 		getTasks().named(JavaPlugin.JAR_TASK_NAME, AbstractArchiveTask.class).configure(task -> {
@@ -116,18 +115,12 @@ public abstract class RemapTaskConfiguration implements Runnable {
 		getProject().afterEvaluate(p -> {
 			if (extension.isForge()) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-					Aw2At.setup(getProject(), (RemapJarTask) getTasks().getByName(REMAP_JAR_TASK_NAME));
-				}
-
-				Set<String> mixinConfigs = PropertyUtil.getAndFinalize(extension.getForge().getMixinConfigs());
-
-				if (!mixinConfigs.isEmpty()) {
-					getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class, task -> {
-						task.manifest(manifest -> {
-							manifest.attributes(Map.of(Constants.Forge.MIXIN_CONFIGS_MANIFEST_KEY, String.join(",", mixinConfigs)));
-						});
+					getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class, task -> {
+						task.getAtAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(task.getProject()));
 					});
 				}
+
+				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(p);
 			}
 		});
 

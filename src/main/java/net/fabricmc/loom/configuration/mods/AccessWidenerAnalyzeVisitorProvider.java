@@ -31,6 +31,8 @@ import org.objectweb.asm.ClassVisitor;
 
 import net.fabricmc.classtweaker.api.ClassTweaker;
 import net.fabricmc.classtweaker.api.ClassTweakerReader;
+import net.fabricmc.classtweaker.api.visitor.ClassTweakerVisitor;
+import net.fabricmc.classtweaker.visitors.ForwardingVisitor;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
@@ -48,8 +50,8 @@ public record AccessWidenerAnalyzeVisitorProvider(ClassTweaker accessWidener) im
 				continue;
 			}
 
-			final var reader = ClassTweakerReader.create(accessWidener);
-			reader.read(accessWidenerData.content(), null); // TODO pass mod id
+			final var reader = ClassTweakerReader.create(new ClassTweakerRemapFilter(accessWidener));
+			reader.read(accessWidenerData.content());
 		}
 
 		return new AccessWidenerAnalyzeVisitorProvider(accessWidener);
@@ -58,5 +60,16 @@ public record AccessWidenerAnalyzeVisitorProvider(ClassTweaker accessWidener) im
 	@Override
 	public ClassVisitor insertAnalyzeVisitor(int mrjVersion, String className, ClassVisitor next) {
 		return accessWidener.createClassVisitor(Constants.ASM_VERSION, next, null);
+	}
+
+	private static class ClassTweakerRemapFilter extends ForwardingVisitor {
+		private ClassTweakerRemapFilter(ClassTweakerVisitor... visitors) {
+			super(visitors);
+		}
+
+		@Override
+		public void visitEnumExtension(String owner, String addedConstant, boolean transitive) {
+			// Ignore enum extensions, as they are not required exist in the remapping context
+		}
 	}
 }

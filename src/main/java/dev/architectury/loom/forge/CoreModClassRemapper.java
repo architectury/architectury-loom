@@ -45,7 +45,7 @@ import dev.architectury.loom.util.collection.CollectionUtil;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
-import net.fabricmc.loom.build.IntermediaryNamespaces;
+import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.tree.MappingTree;
 
@@ -58,7 +58,7 @@ public final class CoreModClassRemapper {
 
 	public static void remapJar(Project project, boolean isRuntimeMojang, Path jar, MappingTree mappings) throws IOException {
 		final Logger logger = project.getLogger();
-		final String sourceNamespace = IntermediaryNamespaces.runtimeIntermediary(project);
+		final String sourceNamespace = LoomGradleExtension.get(project).getProductionNamespace().get();
 
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(jar, false)) {
 			Path coremodsJsonPath = fs.getPath("META-INF", "coremods.json");

@@ -52,13 +52,13 @@ import dev.architectury.loom.util.Stopwatch;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.provider.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.mods.dependency.ModDependency;
 import net.fabricmc.loom.configuration.mods.extension.ModProcessorExtension;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
@@ -87,10 +87,10 @@ public class ModProcessor {
 	private static final Pattern COPY_CONFIGURATION_PATTERN = Pattern.compile("^(.+)Copy[0-9]*$");
 
 	private final Project project;
-	private final Configuration sourceConfiguration;
+	private final Provider<? extends Configuration> sourceConfiguration;
 	private final ServiceFactory serviceFactory;
 
-	public ModProcessor(Project project, Configuration sourceConfiguration, ServiceFactory serviceFactory) {
+	public ModProcessor(Project project, Provider<? extends Configuration> sourceConfiguration, ServiceFactory serviceFactory) {
 		this.project = project;
 		this.sourceConfiguration = sourceConfiguration;
 		this.serviceFactory = serviceFactory;
@@ -108,8 +108,8 @@ public class ModProcessor {
 	// Creates a human-readable descriptive string for the configuration.
 	// This consists primarily of the name with any copy suffixes stripped
 	// (they're not informative), and the usage attribute if present.
-	private String describeConfiguration(Configuration configuration) {
-		String description = configuration.getName();
+	private String describeConfiguration(Provider<? extends Configuration> configuration) {
+		String description = configuration.get().getName();
 		final Matcher copyMatcher = COPY_CONFIGURATION_PATTERN.matcher(description);
 
 		// If we find a copy suffix, remove it.
@@ -123,7 +123,7 @@ public class ModProcessor {
 		}
 
 		// Add the usage if present, e.g. "modImplementation (java-api)"
-		final Usage usage = configuration.getAttributes().getAttribute(Usage.USAGE_ATTRIBUTE);
+		final Usage usage = configuration.get().getAttributes().getAttribute(Usage.USAGE_ATTRIBUTE);
 
 		if (usage != null) {
 			description += " (" + usage.getName() + ")";
@@ -172,8 +172,10 @@ public class ModProcessor {
 	private void remapJars(List<ModDependency> remapList) throws IOException {
 		final LoomGradleExtension extension = LoomGradleExtension.get(project);
 		final MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
-		String fromM = IntermediaryNamespaces.runtimeIntermediary(project);
+
+		MappingsNamespace productionNamespace = extension.getProductionNamespaceEnum().get();
 		Stopwatch stopwatch = Stopwatch.createStarted();
+
 		Set<String> knownIndyBsms = new HashSet<>(extension.getKnownIndyBsms().get());
 
 		for (ModDependency modDependency : remapList) {
@@ -186,9 +188,9 @@ public class ModProcessor {
 
 		TinyRemapper.Builder builder = TinyRemapper.newRemapper(TinyRemapperLoggerAdapter.INSTANCE)
 				.withKnownIndyBsm(knownIndyBsms)
-				.withMappings(TinyRemapperHelper.create(mappings, fromM, toM, false))
+				.withMappings(TinyRemapperHelper.create(mappings, productionNamespace.toString(), toM, true, true))
 				.renameInvalidLocals(false)
-				.extraAnalyzeVisitor(AccessWidenerAnalyzeVisitorProvider.createFromMods(fromM, remapList, extension.getPlatform().get()));
+				.extraAnalyzeVisitor(AccessWidenerAnalyzeVisitorProvider.createFromMods(productionNamespace.toString(), remapList, extension.getPlatform().get()));
 
 		final KotlinClasspathService kotlinClasspathService = serviceFactory.getOrNull(KotlinClasspathService.createOptions(project));
 		KotlinRemapperClassloader kotlinRemapperClassloader = null;
@@ -202,7 +204,7 @@ public class ModProcessor {
 		final List<ModProcessorExtension> activeExtensions = ModProcessorExtension.EXTENSIONS.stream()
 				.filter(e -> remapList.stream().anyMatch(e::appliesTo))
 				.toList();
-		final ModProcessorExtension.Context context = new ModProcessorExtension.Context(fromM, toM, remapList);
+		final ModProcessorExtension.Context context = new ModProcessorExtension.Context(productionNamespace.toString(), toM, remapList);
 
 		for (ModProcessorExtension modProcessorExtension : activeExtensions) {
 			LOGGER.info("Applying mod processor extension: {}", modProcessorExtension.getClass().getSimpleName());
@@ -216,12 +218,12 @@ public class ModProcessor {
 		}
 
 		for (RemapperExtensionHolder holder : extension.getRemapperExtensions().get()) {
-			holder.apply(builder, fromM, toM);
+			holder.apply(builder, productionNamespace.toString(), toM);
 		}
 
 		final TinyRemapper remapper = builder.build();
 
-		remapper.readClassPath(extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project)).toArray(Path[]::new));
+		remapper.readClassPath(extension.getMinecraftJars(productionNamespace).toArray(Path[]::new));
 
 		final Map<ModDependency, OutputConsumerPath> outputConsumerMap = new HashMap<>();
 		final Map<ModDependency, Pair<byte[], String>> accessWidenerMap = new HashMap<>();
@@ -259,7 +261,7 @@ public class ModProcessor {
 
 					if (accessWidenerData != null) {
 						LOGGER.debug("Remapping access widener in {}", dependency.getInputFile());
-						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper());
+						byte[] remappedAw = AccessWidenerUtils.remapAccessWidener(accessWidenerData.content(), remapper.getEnvironment().getRemapper(), productionNamespace.toString(), toM);
 						accessWidenerMap.put(dependency, new Pair<>(remappedAw, accessWidenerData.path()));
 					}
 
@@ -276,7 +278,7 @@ public class ModProcessor {
 			}
 		}
 
-		project.getLogger().lifecycle(":remapped {} mods ({} -> {}) in {}", remapList.size(), fromM, toM, stopwatch.stop());
+		project.getLogger().lifecycle(":remapped {} mods ({} -> {}) in {}", remapList.size(), productionNamespace.toString(), toM, stopwatch.stop());
 
 		for (ModDependency dependency : remapList) {
 			outputConsumerMap.get(dependency).close();
@@ -300,7 +302,7 @@ public class ModProcessor {
 			if (extension.isForgeLike()) {
 				if (extension.isNeoForge()) {
 					// NeoForge: Fully map ATs
-					NeoForgeModDependencies.remapAts(output, mappings, fromM, toM);
+					NeoForgeModDependencies.remapAts(output, mappings, productionNamespace.toString(), toM);
 				} else {
 					// Forge: only map class names, the rest are mapped srg -> named at runtime
 					AtClassRemapper.remap(project, output, mappings);

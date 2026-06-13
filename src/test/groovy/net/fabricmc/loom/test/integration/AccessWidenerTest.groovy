@@ -30,7 +30,8 @@ import spock.lang.Unroll
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import net.fabricmc.loom.util.ZipUtils
 
-import static net.fabricmc.loom.test.LoomTestConstants.*
+import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
+import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 class AccessWidenerTest extends Specification implements GradleProjectTestTrait {
@@ -62,6 +63,38 @@ class AccessWidenerTest extends Specification implements GradleProjectTestTrait 
 
 		then:
 		result.task(":build").outcome == SUCCESS
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
+
+	@Unroll
+	def "transitive accesswidener official production (gradle #version)"() {
+		setup:
+		def gradle = gradleProject(project: "transitiveAccesswidenerOfficialProd", version: version)
+		ZipUtils.pack(new File(gradle.projectDir, "dummyDependency").toPath(), new File(gradle.projectDir, "dummy.jar").toPath())
+
+		when:
+		def result = gradle.run(task: "build")
+
+		then:
+		result.task(":build").outcome == SUCCESS
+
+		where:
+		version << STANDARD_TEST_VERSIONS
+	}
+
+	@Unroll
+	def "transitive accesswidener official production genSources (gradle #version)"() {
+		setup:
+		def gradle = gradleProject(project: "transitiveAccesswidenerOfficialProd", version: version)
+		ZipUtils.pack(new File(gradle.projectDir, "dummyDependency").toPath(), new File(gradle.projectDir, "dummy.jar").toPath())
+
+		when:
+		def result = gradle.run(task: "genSources")
+
+		then:
+		result.task(":genSources").outcome == SUCCESS
 
 		where:
 		version << STANDARD_TEST_VERSIONS

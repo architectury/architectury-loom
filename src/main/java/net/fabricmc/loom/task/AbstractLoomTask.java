@@ -29,6 +29,7 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Optional;
+import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
@@ -36,6 +37,7 @@ import net.fabricmc.loom.LoomGradlePlugin;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 
+@DisableCachingByDefault
 public abstract class AbstractLoomTask extends DefaultTask {
 	@Input
 	@Optional

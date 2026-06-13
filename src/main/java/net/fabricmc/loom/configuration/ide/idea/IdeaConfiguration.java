@@ -32,12 +32,9 @@ import javax.inject.Inject;
 import org.gradle.StartParameter;
 import org.gradle.TaskExecutionRequest;
 import org.gradle.api.Project;
-import org.gradle.internal.DefaultTaskExecutionRequest;
 
 import net.fabricmc.loom.LoomGradleExtension;
-import net.fabricmc.loom.configuration.ide.RunConfigSettings;
 import net.fabricmc.loom.task.LoomTasks;
-import net.fabricmc.loom.util.gradle.GradleUtils;
 
 public abstract class IdeaConfiguration implements Runnable {
 	@Inject
@@ -45,14 +42,12 @@ public abstract class IdeaConfiguration implements Runnable {
 
 	public void run() {
 		getProject().getTasks().register("ideaSyncTask", IdeaSyncTask.class, task -> {
-			if (LoomGradleExtension.get(getProject()).getRunConfigs().stream().anyMatch(RunConfigSettings::isIdeConfigGenerated)) {
+			if (LoomGradleExtension.get(getProject()).getRunConfigs().stream().anyMatch(config -> config.getGenerateRunConfig().get())) {
 				task.dependsOn(LoomTasks.getIDELaunchConfigureTaskName(getProject()));
 			} else {
 				task.setEnabled(false);
 			}
 		});
-
-		hookDownloadSources();
 
 		if (!IdeaUtils.isIdeaSync()) {
 			return;
@@ -61,29 +56,9 @@ public abstract class IdeaConfiguration implements Runnable {
 		final StartParameter startParameter = getProject().getGradle().getStartParameter();
 		final List<TaskExecutionRequest> taskRequests = new ArrayList<>(startParameter.getTaskRequests());
 
-		taskRequests.add(new DefaultTaskExecutionRequest(List.of("ideaSyncTask")));
+		// This doesnt overwrite any existing task requests, use Gradle to create a TaskExecutionRequest for us before adding it to the list of existing ones.
+		startParameter.setTaskNames(List.of("ideaSyncTask"));
+		taskRequests.addAll(startParameter.getTaskRequests());
 		startParameter.setTaskRequests(taskRequests);
-	}
-
-	private void hookDownloadSources() {
-		if (!GradleUtils.isRootProject(getProject())) {
-			return;
-		}
-
-		if (!DownloadSourcesHook.hasInitScript(getProject())) {
-			return;
-		}
-
-		getProject().getTasks().configureEach(task -> {
-			if (task.getName().startsWith(DownloadSourcesHook.INIT_SCRIPT_NAME)) {
-				getProject().allprojects(subProject -> {
-					if (!GradleUtils.isLoomProject(subProject)) {
-						return;
-					}
-
-					new DownloadSourcesHook(subProject, task).tryHook();
-				});
-			}
-		});
 	}
 }

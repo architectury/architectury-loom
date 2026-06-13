@@ -22,7 +22,7 @@ loom {
 	accessWidenerPath = file('src/main/resources/my.accesswidener')
 
 	forge {
-		convertAccessWideners = true
+		AW2AT_CODE
 	}
 }
 

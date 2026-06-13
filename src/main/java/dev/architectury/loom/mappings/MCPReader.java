@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.util.FileSystemUtil;
 import net.fabricmc.mappingio.MappingReader;
@@ -276,7 +276,7 @@ public class MCPReader {
 
 	private record MemberToken(
 			TokenType type,
-			@Nullable MCPReader.MemberToken owner,
+			MCPReader.@Nullable MemberToken owner,
 			String name,
 			@Nullable String descriptor
 	) {

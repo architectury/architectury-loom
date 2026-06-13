@@ -51,15 +51,17 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
+import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskProvider;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +70,6 @@ import net.fabricmc.classtweaker.api.ClassTweakerWriter;
 import net.fabricmc.classtweaker.visitors.ClassTweakerRemapperVisitor;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.build.nesting.JarNester;
-import net.fabricmc.loom.build.nesting.NestableJarGenerationTask;
 import net.fabricmc.loom.configuration.accesswidener.AccessWidenerFile;
 import net.fabricmc.loom.configuration.mods.ArtifactMetadata;
 import net.fabricmc.loom.task.service.ClientEntriesService;
@@ -89,8 +90,10 @@ import net.fabricmc.loom.util.service.ServiceFactory;
 import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
 
+@CacheableTask
 public abstract class RemapJarTask extends AbstractRemapJarTask {
 	@InputFiles
+	@PathSensitive(PathSensitivity.NAME_ONLY)
 	public abstract ConfigurableFileCollection getNestedJars();
 
 	@Input
@@ -140,6 +143,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	 */
 	@InputFile
 	@Optional
+	@PathSensitive(PathSensitivity.NAME_ONLY)
 	public abstract RegularFileProperty getInjectedAccessWidenerPath();
 
 	@Input
@@ -153,18 +157,17 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 	@Inject
 	public RemapJarTask() {
 		super();
+		LoomGradleExtension extension = LoomGradleExtension.get(getProject());
 		final ConfigurationContainer configurations = getProject().getConfigurations();
-		getClasspath().from(configurations.getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+		getClasspath().from(configurations.named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
 		getAddNestedDependencies().convention(true).finalizeValueOnRead();
 		getOptimizeFabricModJson().convention(false).finalizeValueOnRead();
 		getReadMixinConfigsFromManifest().convention(LoomGradleExtension.get(getProject()).isForgeLike()).finalizeValueOnRead();
 		getInjectAccessWidener().convention(false);
 
-		TaskProvider<NestableJarGenerationTask> processIncludeJars = getProject().getTasks().named(Constants.Task.PROCESS_INCLUDE_JARS, NestableJarGenerationTask.class);
-		getNestedJars().from(processIncludeJars.map(task -> getProject().fileTree(task.getOutputDirectory())));
-		getNestedJars().builtBy(processIncludeJars);
+		getTargetNamespace().set(extension.getProductionNamespace());
 
-		getUseMixinAP().set(LoomGradleExtension.get(getProject()).getMixin().getUseLegacyMixinAp());
+		getUseMixinAP().set(extension.getMixin().getUseLegacyMixinAp());
 
 		// Make outputs reproducible by default
 		setReproducibleFileOrder(true);
@@ -324,7 +327,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 							(ZipUtils.AsmClassOperator) classVisitor -> SidedClassVisitor.CLIENT.insertApplyVisitor(null, classVisitor)
 					));
 
-			ZipUtils.transform(outputFile, tranformers);
+			ZipUtils.transformAsync(outputFile, tranformers);
 		}
 
 		private boolean injectAccessWidener() throws IOException {
@@ -382,7 +385,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 					getParameters().getTargetNamespace().get()
 			);
 			ClassTweakerReader reader = ClassTweakerReader.create(remapper);
-			reader.read(input, null); // TODO pass mod id
+			reader.read(input);
 
 			return writer.getOutput();
 		}
@@ -395,7 +398,7 @@ public abstract class RemapJarTask extends AbstractRemapJarTask {
 				return;
 			}
 
-			JarNester.nestJars(nestedJars.getFiles(), outputFile.toFile(), getParameters().getPlatform().get(), LOGGER);
+			JarNester.nestJars(nestedJars.getFiles(), outputFile.toFile(), getParameters().getPlatform().get());
 		}
 
 		private void addRefmaps(ServiceFactory serviceFactory) throws IOException {

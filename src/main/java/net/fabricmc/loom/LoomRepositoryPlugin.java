@@ -36,7 +36,6 @@ import org.gradle.api.initialization.Settings;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.PluginAware;
-import org.jetbrains.annotations.NotNull;
 
 import net.fabricmc.loom.extension.LoomFiles;
 import net.fabricmc.loom.util.MirrorUtil;
@@ -51,7 +50,7 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 	);
 
 	@Override
-	public void apply(@NotNull PluginAware target) {
+	public void apply(PluginAware target) {
 		if (target instanceof Settings settings) {
 			declareRepositories(settings.getDependencyResolutionManagement().getRepositories(), LoomFiles.create(settings), settings);
 
@@ -95,10 +94,6 @@ public class LoomRepositoryPlugin implements Plugin<PluginAware> {
 				sources.artifact();
 				sources.ignoreGradleMetadataRedirection();
 			});
-
-			// Fallback to maven central for artifacts such as sources or javadocs that are not mirrored on Mojang's repo.
-			// See: https://github.com/FabricMC/fabric-loom/issues/1032
-			repo.artifactUrls(ArtifactRepositoryContainer.MAVEN_CENTRAL_URL);
 		});
 		repositories.maven(repo -> {
 			repo.setName("Forge");

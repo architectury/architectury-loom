@@ -11,7 +11,7 @@ import java.util.StringJoiner;
 
 import org.gradle.api.Project;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.FileSystemUtil;

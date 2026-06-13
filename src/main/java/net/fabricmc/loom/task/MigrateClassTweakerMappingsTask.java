@@ -32,6 +32,8 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SkipWhenEmpty;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.UntrackedTask;
@@ -48,6 +50,7 @@ import net.fabricmc.loom.util.service.ScopedServiceFactory;
 public abstract class MigrateClassTweakerMappingsTask extends AbstractMigrateMappingsTask {
 	@InputFile
 	@SkipWhenEmpty
+	@PathSensitive(PathSensitivity.NONE)
 	@Option(option = "input", description = "Access widener file")
 	public abstract RegularFileProperty getInputFile();
 
@@ -74,7 +77,7 @@ public abstract class MigrateClassTweakerMappingsTask extends AbstractMigrateMap
 
 			final ClassTweakerWriter writer = ClassTweakerWriter.create(ctVersion);
 			final var remapper = new ClassTweakerRemapperVisitor(writer, service.getRemapper(), MappingsNamespace.NAMED.toString(), MappingsNamespace.NAMED.toString());
-			ClassTweakerReader.create(remapper).read(inputBytes, "unused_id");
+			ClassTweakerReader.create(remapper).read(inputBytes);
 
 			final boolean inPlace = getOverrideInputs().get();
 			final Path targetFile = inPlace ? inputFile : getOutputFile().get().getAsFile().toPath();

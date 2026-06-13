@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Set;
 
 import dev.architectury.loom.util.collection.CollectionUtil;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.configuration.ifaceinject.InterfaceInjectionProcessor;
 import net.fabricmc.loom.util.ModPlatform;

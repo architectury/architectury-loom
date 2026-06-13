@@ -47,7 +47,6 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 		tasks.register('verifyRunConfigs') {
 			doLast {
 				loom.runs.each {
-					it.evaluateNow()
 					def expected = '$mainClass'
 					def found = it.mainClass.get()
 					if (expected != found) {

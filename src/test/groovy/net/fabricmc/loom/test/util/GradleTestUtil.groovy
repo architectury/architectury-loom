@@ -25,7 +25,6 @@
 package net.fabricmc.loom.test.util
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -34,10 +33,10 @@ import org.gradle.api.internal.tasks.DefaultSourceSet
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.ExtensionContainer
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.util.PatternFilterable
-import org.jetbrains.annotations.Nullable
+import org.gradle.testfixtures.ProjectBuilder
+import org.jspecify.annotations.Nullable
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 
@@ -48,7 +47,6 @@ import net.fabricmc.loom.util.download.Download
 
 import static org.mockito.ArgumentMatchers.any
 import static org.mockito.Mockito.*
-import static org.mockito.Mockito.mock
 
 class GradleTestUtil {
 	static <T> Property<T> mockProperty(T value) {
@@ -66,26 +64,21 @@ class GradleTestUtil {
 	}
 
 	static Project mockProject() {
-		def project = mock(Project.class)
-		def serviceRegistry = TestServiceFactory.createServiceRegistry(project)
-		def objectFactory = serviceRegistry.get(ObjectFactory)
-		def providerFactory = serviceRegistry.get(ProviderFactory)
-		def extensions = mockExtensionContainer()
-		def configurationContainer = mock(ConfigurationContainer.class)
-		when(project.getExtensions()).thenReturn(extensions)
-		when(project.getObjects()).thenReturn(objectFactory)
-		when(project.provider(any())).thenAnswer {
-			providerFactory.provider(it.getArgument(0))
-		}
-		when(project.getConfigurations()).thenReturn(configurationContainer)
-		return project
+		return mockProject("test")
 	}
 
-	static ExtensionContainer mockExtensionContainer() {
-		def mock = mock(ExtensionContainer.class)
+	static Project mockProject(String name) {
 		def extension = mockLoomGradleExtension()
-		when(mock.getByName("loom")).thenReturn(extension)
-		return mock
+		def realProject = ProjectBuilder.builder().withName(name).build()
+		realProject.extensions.add("loom", extension)
+		return realProject
+	}
+
+	static Project mockProject(String name, Project parent) {
+		def extension = mockLoomGradleExtension()
+		def realProject = ProjectBuilder.builder().withName(name).withParent(parent).build()
+		realProject.extensions.add("loom", extension)
+		return realProject
 	}
 
 	static LoomGradleExtension mockLoomGradleExtension() {

@@ -54,11 +54,15 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 import org.jetbrains.annotations.ApiStatus;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.LoomGradlePlugin;
+import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
 import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftVersionMeta;
 import net.fabricmc.loom.configuration.providers.minecraft.mapped.MappedMinecraftProvider;
@@ -68,6 +72,7 @@ import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
+@DisableCachingByDefault
 public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@Input
 	protected abstract Property<String> getVersionInfoJson();
@@ -101,7 +106,15 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 	@Input
 	protected abstract Property<String> getNativesDirectoryPath();
 
+	@Input
+	protected abstract Property<String> getProductionNamespace();
+
+	@Input
+	protected abstract Property<String> getDefaultMixinRemapType();
+
 	@InputFile
+	@PathSensitive(PathSensitivity.ABSOLUTE)
+	@Optional
 	public abstract RegularFileProperty getRemapClasspathFile();
 
 	@OutputFile
@@ -117,10 +130,14 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 
 	@ApiStatus.Internal
 	@InputFile
+	@Optional
+	@PathSensitive(PathSensitivity.ABSOLUTE)
 	protected abstract RegularFileProperty getPlatformMappingFile();
 
 	@ApiStatus.Internal
 	@InputFiles
+	@Optional
+	@PathSensitive(PathSensitivity.ABSOLUTE)
 	protected abstract ConfigurableFileCollection getMappingJars();
 
 	@ApiStatus.Internal
@@ -145,10 +162,14 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		getAssetsDirectoryPath().set(new File(getExtension().getFiles().getUserCache(), "assets").getAbsolutePath());
 		getNativesDirectoryPath().set(getExtension().getFiles().getNativesDirectory(getProject()).getAbsolutePath());
 		getDevLauncherConfig().set(getExtension().getFiles().getDevLauncherConfig());
+		getProductionNamespace().set(getExtension().getProductionNamespaceEnum().map(MappingsNamespace::toString));
+		getDefaultMixinRemapType().set(getExtension().getDefaultMixinRemapTypeEnum().map(remapType -> remapType.toString().toLowerCase(Locale.ROOT)));
 
-		getPlatformMappingFile().set(getProject().getLayout().file(getProject().provider(() -> getExtension().getPlatformMappingFile().toFile())));
-		getPlatformMappingFile().finalizeValue();
-		getMappingJars().from(getProject().getConfigurations().getByName(Constants.Configurations.MAPPINGS_FINAL));
+		if (!getExtension().disableObfuscation()) {
+			getPlatformMappingFile().set(getProject().getLayout().file(getProject().provider(() -> getExtension().getPlatformMappingFile().toFile())));
+			getPlatformMappingFile().finalizeValue();
+			getMappingJars().from(getProject().getConfigurations().getByName(Constants.Configurations.MAPPINGS_FINAL));
+		}
 
 		if (getExtension().isForgeLike()) {
 			getRunTemplates().addAll(getProject().provider(() -> {
@@ -159,7 +180,7 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 						.toList();
 			}));
 
-			if (getExtension().isForge()) {
+			if (getExtension().isForge() && !getExtension().disableObfuscation()) {
 				getForgeInputs().set(getProject().provider(() -> new ForgeInputs(getProject(), getExtension())));
 			}
 		} else {
@@ -180,9 +201,14 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		boolean quilt = platform == ModPlatform.QUILT;
 		final LaunchConfig launchConfig = new LaunchConfig()
 				.property(!quilt ? "fabric.development" : "loader.development", "true")
-				.property(!quilt ? "fabric.remapClasspathFile" : "loader.remapClasspathFile", getRemapClasspathFile().get().getAsFile().getAbsolutePath())
 				.property("log4j.configurationFile", getLog4jConfigPaths().get())
-				.property("log4j2.formatMsgNoLookups", "true");
+				.property("log4j2.formatMsgNoLookups", "true")
+				.property("fabric.defaultModDistributionNamespace", getProductionNamespace().get())
+				.property("fabric.defaultMixinRemapType", getDefaultMixinRemapType().get());
+
+		if (getRemapClasspathFile().isPresent()) {
+			launchConfig.property(!quilt ? "fabric.remapClasspathFile" : "loader.remapClasspathFile", getRemapClasspathFile().get().getAsFile().getAbsolutePath());
+		}
 
 		if (versionInfo.hasNativesToExtract()) {
 			String nativesPath = getNativesDirectoryPath().get();
@@ -221,60 +247,62 @@ public abstract class GenerateDLIConfigTask extends AbstractLoomTask {
 		}
 
 		if (platform.isForgeLike()) {
-			// Find the mapping files for Unprotect to use for figuring out
-			// which classes are from Minecraft.
-			String unprotectMappings = getMappingJars()
-					.getFiles()
-					.stream()
-					.map(File::getAbsolutePath)
-					.collect(Collectors.joining(File.pathSeparator));
+			if (getPlatformMappingFile().isPresent()) {
+				// Find the mapping files for Unprotect to use for figuring out
+				// which classes are from Minecraft.
+				String unprotectMappings = getMappingJars()
+						.getFiles()
+						.stream()
+						.map(File::getAbsolutePath)
+						.collect(Collectors.joining(File.pathSeparator));
 
-			final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform).toString();
-			final String mappingsPath = getPlatformMappingFile().get().getAsFile().getAbsolutePath();
+				final String intermediateNs = IntermediaryNamespaces.intermediaryNamespace(platform).toString();
+				final String mappingsPath = getPlatformMappingFile().get().getAsFile().getAbsolutePath();
 
-			launchConfig
-					.property("unprotect.mappings", unprotectMappings)
-					// See ArchitecturyNamingService in forge-runtime
-					.property("architectury.naming.sourceNamespace", intermediateNs)
-					.property("architectury.naming.mappingsPath", mappingsPath);
+				launchConfig
+						.property("unprotect.mappings", unprotectMappings)
+						// See ArchitecturyNamingService in forge-runtime
+						.property("architectury.naming.sourceNamespace", intermediateNs)
+						.property("architectury.naming.mappingsPath", mappingsPath);
 
-			if (platform == ModPlatform.FORGE) {
-				final ForgeInputs forgeInputs = Objects.requireNonNull(getForgeInputs().getOrNull());
-				final List<String> dataGenMods = forgeInputs.dataGenMods();
+				if (platform == ModPlatform.FORGE) {
+					final ForgeInputs forgeInputs = Objects.requireNonNull(getForgeInputs().getOrNull());
+					final List<String> dataGenMods = forgeInputs.dataGenMods();
 
-				// Only apply the hardcoded data arguments if the deprecated data generator API is being used.
-				if (!dataGenMods.isEmpty()) {
-					launchConfig
-							.argument("data", "--all")
-							.argument("data", "--mod")
-							.argument("data", String.join(",", dataGenMods))
-							.argument("data", "--output")
-							.argument("data", forgeInputs.legacyDataGenDir());
-				}
+					// Only apply the hardcoded data arguments if the deprecated data generator API is being used.
+					if (!dataGenMods.isEmpty()) {
+						launchConfig
+								.argument("data", "--all")
+								.argument("data", "--mod")
+								.argument("data", String.join(",", dataGenMods))
+								.argument("data", "--output")
+								.argument("data", forgeInputs.legacyDataGenDir());
+					}
 
-				launchConfig.property("mixin.env.remapRefMap", "true");
+					launchConfig.property("mixin.env.remapRefMap", "true");
 
-				if (forgeInputs.useCustomMixin()) {
-					// See mixin remapper service in forge-runtime
-					launchConfig
-							.property("architectury.mixinRemapper.sourceNamespace", intermediateNs)
-							.property("architectury.mixinRemapper.mappingsPath", mappingsPath);
-				} else {
-					launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", forgeInputs.srgToNamedSrg());
-				}
+					if (forgeInputs.useCustomMixin()) {
+						// See mixin remapper service in forge-runtime
+						launchConfig
+								.property("architectury.mixinRemapper.sourceNamespace", intermediateNs)
+								.property("architectury.mixinRemapper.mappingsPath", mappingsPath);
+					} else {
+						launchConfig.property("net.minecraftforge.gradle.GradleStart.srg.srg-mcp", forgeInputs.srgToNamedSrg());
+					}
 
-				Set<String> mixinConfigs = forgeInputs.mixinConfigs();
+					Set<String> mixinConfigs = forgeInputs.mixinConfigs();
 
-				if (!mixinConfigs.isEmpty()) {
-					for (String config : mixinConfigs) {
-						launchConfig.argument("-mixin.config");
-						launchConfig.argument(config);
+					if (!mixinConfigs.isEmpty()) {
+						for (String config : mixinConfigs) {
+							launchConfig.argument("-mixin.config");
+							launchConfig.argument(config);
+						}
 					}
 				}
 			}
 
 			for (ForgeRunTemplate.Resolved template : getRunTemplates().get()) {
-				// Note: lowercase to match RunConfig which lowercases all user input for
+				// Note: lowercase to match DefaultRunConfigurationSettings which lowercases all user input for
 				// RunConfigSettings.environment
 				var env = template.name().toLowerCase(Locale.ROOT);
 

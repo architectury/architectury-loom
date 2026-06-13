@@ -35,7 +35,7 @@ import com.google.gson.JsonObject;
 import dev.architectury.loom.forge.config.ConfigValue;
 import dev.architectury.loom.mcpconfig.steplogic.StepLogic;
 import dev.architectury.loom.util.collection.CollectionUtil;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An executable program for {@linkplain McpConfigStep steps}.
@@ -47,6 +47,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public record McpConfigFunction(String version, List<ConfigValue> args, List<ConfigValue> jvmArgs, @Nullable String repo) implements Serializable {
 	private static final String VERSION_KEY = "version";
+	private static final String CLASSPATH_KEY = "classpath";
 	private static final String ARGS_KEY = "args";
 	private static final String JVM_ARGS_KEY = "jvmargs";
 	private static final String REPO_KEY = "repo";
@@ -82,11 +83,21 @@ public record McpConfigFunction(String version, List<ConfigValue> args, List<Con
 	}
 
 	public static McpConfigFunction fromJson(JsonObject json) {
-		String version = json.get(VERSION_KEY).getAsString();
+		String version;
+
+		if (json.has(VERSION_KEY)) {
+			version = json.get(VERSION_KEY).getAsString();
+		} else if (json.has(CLASSPATH_KEY)) {
+			// Spec 6+: uses classpath array instead of version string
+			version = json.getAsJsonArray(CLASSPATH_KEY).get(0).getAsString();
+		} else {
+			throw new IllegalArgumentException("MCP config function has neither 'version' nor 'classpath'");
+		}
+
 		List<ConfigValue> args = json.has(ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(ARGS_KEY)) : List.of();
 		List<ConfigValue> jvmArgs = json.has(JVM_ARGS_KEY) ? configValuesFromJson(json.getAsJsonArray(JVM_ARGS_KEY)) : List.of();
-		JsonElement repoJson = json.get(REPO_KEY);
-		@Nullable String repo = repoJson.isJsonPrimitive() ? repoJson.getAsString() : null;
+		@Nullable JsonElement repoJson = json.get(REPO_KEY);
+		@Nullable String repo = repoJson != null && repoJson.isJsonPrimitive() ? repoJson.getAsString() : null;
 		return new McpConfigFunction(version, args, jvmArgs, repo);
 	}
 

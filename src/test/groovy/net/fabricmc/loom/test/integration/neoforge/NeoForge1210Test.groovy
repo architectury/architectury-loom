@@ -59,5 +59,7 @@ class NeoForge1210Test extends Specification implements GradleProjectTestTrait {
 		'1.21'  | '21.0.77-beta' | "'net.fabricmc:yarn:1.21+build.1:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.21+build.4'"
 		'1.21.10' | '21.10.63' | 'loom.officialMojangMappings()' | ''
 		'1.21.10' | '21.10.64' | 'loom.officialMojangMappings()' | ''
+		'1.21.11' | '21.11.38-beta' | 'loom.officialMojangMappings()' | ''
+		'1.21.11' | '21.11.38-beta' | "'net.fabricmc:yarn:1.21.11+build.1:v2'" | "'dev.architectury:yarn-mappings-patch-neoforge:1.21+build.6'"
 	}
 }

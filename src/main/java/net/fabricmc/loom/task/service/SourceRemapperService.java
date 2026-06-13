@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.cadixdev.mercury.Mercury;
 import org.cadixdev.mercury.remapper.MercuryRemapper;
@@ -39,8 +38,9 @@ import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -66,7 +66,7 @@ public final class SourceRemapperService extends Service<SourceRemapperService.O
 		Property<MappingsService.Options> getMappings();
 		@Input
 		Property<Integer> getJavaCompileRelease();
-		@InputFiles
+		@Classpath
 		ConfigurableFileCollection getClasspath();
 
 		// Architectury: support additional class mappings for Forge sources remapping
@@ -150,27 +150,22 @@ public final class SourceRemapperService extends Service<SourceRemapperService.O
 		return mercury;
 	}
 
-	public static int getJavaCompileRelease(Project project) {
-		AtomicInteger release = new AtomicInteger(-1);
+	public static Provider<Integer> getJavaCompileRelease(Project project) {
+		ProviderFactory providers = project.getProviders();
+		Provider<Integer> result = providers.provider(() -> -1);
 
-		project.getTasks().withType(JavaCompile.class, javaCompile -> {
-			Property<Integer> releaseProperty = javaCompile.getOptions().getRelease();
-
-			if (!releaseProperty.isPresent()) {
-				return;
-			}
-
-			int compileRelease = releaseProperty.get();
-			release.set(Math.max(release.get(), compileRelease));
-		});
-
-		final int i = release.get();
-
-		if (i < 0) {
-			// Unable to find the release used to compile with, default to the current version
-			return Integer.parseInt(JavaVersion.current().getMajorVersion());
+		for (JavaCompile task : project.getTasks().withType(JavaCompile.class)) {
+			result = result.zip(
+					task.getOptions().getRelease().orElse(-1),
+					Math::max
+			);
 		}
 
-		return i;
+		return result.map(i ->
+				// Unable to find the release used to compile with, default to the current version
+				i < 0
+					? Integer.parseInt(JavaVersion.current().getMajorVersion())
+					: i
+		);
 	}
 }

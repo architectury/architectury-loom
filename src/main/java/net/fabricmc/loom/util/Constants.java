@@ -36,8 +36,10 @@ public class Constants {
 	public static final String VERSION_MANIFESTS = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 	public static final String EXPERIMENTAL_VERSIONS = "https://maven.fabricmc.net/net/minecraft/experimental_versions.json";
 	public static final String FABRIC_REPOSITORY = "https://maven.fabricmc.net/";
+	public static final String DLI_ENTRYPOINT = "net.fabricmc.devlaunchinjector.Main";
 
 	public static final int ASM_VERSION = Opcodes.ASM9;
+	public static final String RELEASE_TIME_1_21_11_UNOBFUSCATED_SNAPSHOTS = "2025-11-01T00:00:00+00:00";
 	public static final String RELEASE_TIME_1_3 = "2012-07-25T22:00:00+00:00";
 	public static final String RELEASE_TIME_BETA_1_0 = "2010-12-19T22:00:00+00:00";
 
@@ -51,7 +53,6 @@ public class Constants {
 		public static final String MOD_COMPILE_CLASSPATH = "modCompileClasspath";
 		public static final String MOD_COMPILE_CLASSPATH_MAPPED = "modCompileClasspathMapped";
 		public static final String INCLUDE = "include";
-		public static final String INCLUDE_INTERNAL = "includeInternal";
 		public static final String MINECRAFT = "minecraft";
 
 		public static final String MINECRAFT_COMPILE_LIBRARIES = "minecraftLibraries";
@@ -127,8 +128,8 @@ public class Constants {
 	}
 
 	public static final class MixinArguments {
-		public static final String IN_MAP_FILE_NAMED_INTERMEDIARY = "inMapFileNamedIntermediary";
-		public static final String OUT_MAP_FILE_NAMED_INTERMEDIARY = "outMapFileNamedIntermediary";
+		public static final String IN_MAP_FILE_NAMED = "inMapFileNamed";
+		public static final String OUT_MAP_FILE_NAMED = "outMapFileNamed";
 		public static final String OUT_REFMAP_FILE = "outRefMapFile";
 		public static final String DEFAULT_OBFUSCATION_ENV = "defaultObfuscationEnv";
 		public static final String QUIET = "quiet";
@@ -185,7 +186,7 @@ public class Constants {
 		/**
 		 * Skip the signature verification of the Minecraft jar after downloading it.
 		 */
-		public static final String DISABLE_MINECRAFT_VERIFICATION = "fabric.loom.disableMinecraftVerification";
+		public static final String ENABLE_MINECRAFT_VERIFICATION = "fabric.loom.enableMinecraftVerification";
 		/**
 		 * When using the MojangMappingLayer this will remove names for non root methods by using the intermediary mappings.
 		 */
@@ -233,6 +234,12 @@ public class Constants {
 		 * The minimum version of Forge that uses "mojang" as the namespace in production.
 		 */
 		public static final int MIN_USE_MOJANG_NS_VERSION = 50;
+
+		/**
+		 * The release time of 1.20.6, the minimum version of Minecraft where Forge uses "mojang" as the namespace in production.
+		 * Equivalent to {@link #MIN_USE_MOJANG_NS_VERSION}.
+		 */
+		public static final String RELEASE_TIME_1_20_6 = "2024-04-29T12:40:45+00:00";
 
 		private Forge() {
 		}

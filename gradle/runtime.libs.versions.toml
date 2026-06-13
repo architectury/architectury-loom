@@ -1,8 +1,7 @@
 [versions]
 # Decompilers
-fernflower = "2.0.0"
 cfr = "0.2.2"
-vineflower = "1.11.1"
+vineflower = "1.12.0"
 
 # Runtime depedencies
 mixin-compile-extensions = "0.6.0"
@@ -23,14 +22,13 @@ access-transformers = "3.0.1"
 access-transformers-new = "8.0.5"
 access-transformers-neo = "10.0.2"
 unprotect = "2.0.2"
-asm = "9.7"
+asm = "9.9.1"
 access-transformers-log4j = "2.17.1"
 forge-installer-tools = "1.2.0"
 neoforge-installer-tools = "4.0.6"
 
 [libraries]
 # Decompilers
-fernflower = { module = "net.fabricmc:fabric-fernflower", version.ref = "fernflower" }
 cfr = { module = "net.fabricmc:cfr", version.ref = "cfr" }
 vineflower = { module = "org.vineflower:vineflower", version.ref = "vineflower" }
 

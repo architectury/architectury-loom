@@ -24,25 +24,15 @@
 
 package net.fabricmc.loom.configuration;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.inject.Inject;
 
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
-import org.gradle.api.attributes.Bundling;
-import org.gradle.api.attributes.Category;
-import org.gradle.api.attributes.HasConfigurableAttributes;
-import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.provider.Provider;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.Constants;
@@ -72,8 +62,8 @@ public abstract class LoomConfigurations implements Runnable {
 		var minecraftServerCompile = registerNonTransitive(Constants.Configurations.MINECRAFT_SERVER_COMPILE_LIBRARIES, Role.RESOLVABLE);
 		var minecraftCompile = registerNonTransitive(Constants.Configurations.MINECRAFT_COMPILE_LIBRARIES, Role.RESOLVABLE);
 		minecraftCompile.configure(configuration -> {
-			configuration.extendsFrom(minecraftClientCompile.get());
-			configuration.extendsFrom(minecraftServerCompile.get());
+			configuration.extendsFrom(minecraftClientCompile);
+			configuration.extendsFrom(minecraftServerCompile);
 		});
 
 		// Set up the minecraft runtime configurations, this extends from the compile configurations.
@@ -81,12 +71,12 @@ public abstract class LoomConfigurations implements Runnable {
 		var minecraftServerRuntime = registerNonTransitive(Constants.Configurations.MINECRAFT_SERVER_RUNTIME_LIBRARIES, Role.RESOLVABLE);
 
 		// Runtime extends from compile
-		minecraftClientRuntime.configure(configuration -> configuration.extendsFrom(minecraftClientCompile.get()));
-		minecraftServerRuntime.configure(configuration -> configuration.extendsFrom(minecraftServerCompile.get()));
+		minecraftClientRuntime.configure(configuration -> configuration.extendsFrom(minecraftClientCompile));
+		minecraftServerRuntime.configure(configuration -> configuration.extendsFrom(minecraftServerCompile));
 
 		registerNonTransitive(Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES, Role.RESOLVABLE).configure(minecraftRuntime -> {
-			minecraftRuntime.extendsFrom(minecraftClientRuntime.get());
-			minecraftRuntime.extendsFrom(minecraftServerRuntime.get());
+			minecraftRuntime.extendsFrom(minecraftClientRuntime);
+			minecraftRuntime.extendsFrom(minecraftServerRuntime);
 		});
 
 		registerNonTransitive(Constants.Configurations.MINECRAFT_NATIVES, Role.RESOLVABLE);
@@ -94,48 +84,17 @@ public abstract class LoomConfigurations implements Runnable {
 
 		registerNonTransitive(Constants.Configurations.MINECRAFT, Role.NONE);
 
-		Provider<Configuration> include = register(Constants.Configurations.INCLUDE, Role.NONE);
-		register(Constants.Configurations.INCLUDE_INTERNAL, Role.RESOLVABLE).configure(configuration -> {
-			configuration.getDependencies().addAllLater(getProject().provider(() -> {
-				List<Dependency> dependencies = new ArrayList<>();
-
-				for (Dependency dependency : include.get().getIncoming().getDependencies()) {
-					if (dependency instanceof HasConfigurableAttributes<?> hasAttributes) {
-						Category category = hasAttributes.getAttributes().getAttribute(Category.CATEGORY_ATTRIBUTE);
-
-						if (category != null && (category.getName().equals(Category.ENFORCED_PLATFORM) || category.getName().equals(Category.REGULAR_PLATFORM))) {
-							dependencies.add(dependency);
-							continue;
-						} else if (dependency instanceof ModuleDependency moduleDependency) {
-							ModuleDependency copy = moduleDependency.copy();
-							copy.setTransitive(false);
-							dependencies.add(copy);
-							continue;
-						}
-					}
-
-					dependencies.add(dependency);
-				}
-
-				return dependencies;
-			}));
-			configuration.attributes(attributes -> {
-				attributes.attribute(Usage.USAGE_ATTRIBUTE, getProject().getObjects().named(Usage.class, Usage.JAVA_RUNTIME));
-				attributes.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, getProject().getObjects().named(LibraryElements.class, LibraryElements.JAR));
-				attributes.attribute(Category.CATEGORY_ATTRIBUTE, getProject().getObjects().named(Category.class, Category.LIBRARY));
-				attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, getProject().getObjects().named(Bundling.class, Bundling.EXTERNAL));
-			});
-		});
-
-		registerNonTransitive(Constants.Configurations.MAPPING_CONSTANTS, Role.RESOLVABLE);
-
-		register(Constants.Configurations.NAMED_ELEMENTS, Role.CONSUMABLE).configure(configuration -> {
-			configuration.extendsFrom(getConfigurations().getByName(JavaPlugin.API_CONFIGURATION_NAME));
-		});
-
-		extendsFrom(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, Constants.Configurations.MAPPING_CONSTANTS);
+		register(Constants.Configurations.INCLUDE, Role.NONE);
 
 		if (!extension.disableObfuscation()) {
+			registerNonTransitive(Constants.Configurations.MAPPING_CONSTANTS, Role.RESOLVABLE);
+
+			register(Constants.Configurations.NAMED_ELEMENTS, Role.CONSUMABLE).configure(configuration -> {
+				configuration.extendsFrom(getConfigurations().named(JavaPlugin.API_CONFIGURATION_NAME));
+			});
+
+			extendsFrom(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, Constants.Configurations.MAPPING_CONSTANTS);
+
 			register(Constants.Configurations.MAPPINGS, Role.RESOLVABLE);
 			register(Constants.Configurations.MAPPINGS_FINAL, Role.RESOLVABLE);
 			extendsFrom(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME, Constants.Configurations.MAPPINGS_FINAL);
@@ -236,7 +195,7 @@ public abstract class LoomConfigurations implements Runnable {
 	}
 
 	public void extendsFrom(String a, String b) {
-		getConfigurations().getByName(a, configuration -> configuration.extendsFrom(getConfigurations().getByName(b)));
+		getConfigurations().named(a, configuration -> configuration.extendsFrom(getConfigurations().named(b)));
 	}
 
 	public enum Role {

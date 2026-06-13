@@ -46,7 +46,6 @@ import org.slf4j.Logger;
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.api.RemapConfigurationSettings;
 import net.fabricmc.loom.api.mappings.layered.MappingsNamespace;
-import net.fabricmc.loom.build.IntermediaryNamespaces;
 import net.fabricmc.loom.configuration.providers.mappings.MappingConfiguration;
 import net.fabricmc.loom.task.service.LorenzMappingService;
 import net.fabricmc.loom.util.service.ServiceFactory;
@@ -61,7 +60,7 @@ public class SourceRemapper {
 	private Mercury mercury;
 
 	public SourceRemapper(Project project, ServiceFactory serviceFactory, boolean toNamed) {
-		this(project, serviceFactory, toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named", !toNamed ? IntermediaryNamespaces.runtimeIntermediary(project) : "named");
+		this(project, serviceFactory, toNamed ? LoomGradleExtension.get(project).getProductionNamespace().get() : "named", !toNamed ? LoomGradleExtension.get(project).getProductionNamespace().get() : "named");
 	}
 
 	public SourceRemapper(Project project, ServiceFactory serviceFactory, String from, String to) {
@@ -77,7 +76,10 @@ public class SourceRemapper {
 				logger.progress("remapping sources - " + source.getName());
 				Files.deleteIfExists(destination.toPath());
 				remapSourcesInner(source, destination);
-				ZipReprocessorUtil.reprocessZip(destination.toPath(), reproducibleFileOrder, preserveFileTimestamps);
+
+				if (reproducibleFileOrder || !preserveFileTimestamps) {
+					ZipReprocessorUtil.reprocessZip(destination.toPath(), reproducibleFileOrder, preserveFileTimestamps);
+				}
 
 				// Set the remapped sources creation date to match the sources if we're likely succeeded in making it
 				destination.setLastModified(source.lastModified());
@@ -170,12 +172,13 @@ public class SourceRemapper {
 
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
 		MappingConfiguration mappingConfiguration = extension.getMappingConfiguration();
+		MappingsNamespace prodNamespace = extension.getProductionNamespaceEnum().get();
 
 		LorenzMappingService lorenzMappingService = serviceFactory.get(LorenzMappingService.createOptions(
 				project,
 				mappingConfiguration,
-															Objects.requireNonNull(MappingsNamespace.of(from)),
-															Objects.requireNonNull(MappingsNamespace.of(to))));
+				Objects.requireNonNull(MappingsNamespace.of(from)),
+				Objects.requireNonNull(MappingsNamespace.of(to))));
 		MappingSet mappings = lorenzMappingService.getMappings();
 
 		Mercury mercury = createMercuryWithClassPath(project, MappingsNamespace.of(to) == MappingsNamespace.NAMED);
@@ -190,18 +193,12 @@ public class SourceRemapper {
 			}
 		}
 
-		for (Path intermediaryJar : extension.getMinecraftJars(MappingsNamespace.INTERMEDIARY)) {
-			mercury.getClassPath().add(intermediaryJar);
+		for (Path productionJar : extension.getMinecraftJars(prodNamespace)) {
+			mercury.getClassPath().add(productionJar);
 		}
 
 		for (Path intermediaryJar : extension.getMinecraftJars(MappingsNamespace.NAMED)) {
 			mercury.getClassPath().add(intermediaryJar);
-		}
-
-		if (extension.isForgeLike()) {
-			for (Path jar : extension.getMinecraftJars(IntermediaryNamespaces.runtimeIntermediaryNamespace(project))) {
-				mercury.getClassPath().add(jar);
-			}
 		}
 
 		Set<File> files = project.getConfigurations()

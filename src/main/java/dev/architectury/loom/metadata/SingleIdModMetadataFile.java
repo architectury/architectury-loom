@@ -2,7 +2,7 @@ package dev.architectury.loom.metadata;
 
 import java.util.Set;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 interface SingleIdModMetadataFile extends ModMetadataFile {
 	@Override

@@ -2,7 +2,7 @@ package dev.architectury.loom.metadata;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A mod metadata file backed by a JSON object.

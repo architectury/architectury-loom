@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 
@@ -58,7 +59,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.provider.Provider;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.configuration.providers.minecraft.MinecraftProvider;
@@ -81,7 +82,7 @@ public final class McpExecutorBuilder {
 	private final Map<String, McpConfigFunction> functions;
 	private final Map<String, String> config = new HashMap<>();
 	private final StepLogic.SetupContext setupContext = new SetupContextImpl();
-	private @Nullable StepLogic.StepLogicProvider stepLogicProvider = null;
+	private StepLogic.@Nullable StepLogicProvider stepLogicProvider = null;
 
 	public McpExecutorBuilder(Project project, MinecraftProvider minecraftProvider, Path cache, McpConfigProvider provider, String environment) {
 		this.project = project;
@@ -194,7 +195,11 @@ public final class McpExecutorBuilder {
 			}
 
 			options.getStepsToExecute().set(toExecute);
-			options.getMappings().set(extension.getMcpConfigProvider().getMappings().toFile());
+
+			if (extension.getMcpConfigProvider().hasMappings()) {
+				options.getMappings().set(extension.getMcpConfigProvider().getMappings().toFile());
+			}
+
 			options.getInitialConfig().set(config);
 			options.getOffline().set(project.getGradle().getStartParameter().isOffline());
 			options.getManualRefreshDeps().set(extension.manualRefreshDeps());
@@ -208,7 +213,7 @@ public final class McpExecutorBuilder {
 	 *
 	 * @param stepLogicProvider the provider, or null to disable
 	 */
-	public void setStepLogicProvider(@Nullable StepLogic.StepLogicProvider stepLogicProvider) {
+	public void setStepLogicProvider(StepLogic.@Nullable StepLogicProvider stepLogicProvider) {
 		this.stepLogicProvider = stepLogicProvider;
 	}
 
@@ -228,8 +233,12 @@ public final class McpExecutorBuilder {
 		case "downloadServer" -> ConstantLogic.createOptions(setupContext, () -> minecraftProvider.getMinecraftServerJar().toPath());
 		case "strip" -> StripLogic.createOptions(setupContext);
 		case "listLibraries" -> ListLibrariesLogic.createOptions(setupContext);
-		case "downloadClientMappings" -> DownloadManifestFileLogic.createOptions(setupContext, minecraftProvider.getVersionInfo().download("client_mappings"));
-		case "downloadServerMappings" -> DownloadManifestFileLogic.createOptions(setupContext, minecraftProvider.getVersionInfo().download("server_mappings"));
+		case "downloadClientMappings" -> DownloadManifestFileLogic.createOptions(setupContext,
+				Objects.requireNonNull(minecraftProvider.getVersionInfo().download("client_mappings"),
+						"client_mappings download is not available for this Minecraft version"));
+		case "downloadServerMappings" -> DownloadManifestFileLogic.createOptions(setupContext,
+				Objects.requireNonNull(minecraftProvider.getVersionInfo().download("server_mappings"),
+						"server_mappings download is not available for this Minecraft version"));
 		case "inject" -> InjectLogic.createOptions(setupContext);
 		case "patch" -> PatchLogic.createOptions(setupContext);
 		default -> {

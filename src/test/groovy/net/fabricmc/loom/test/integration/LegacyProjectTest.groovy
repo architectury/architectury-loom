@@ -30,6 +30,7 @@ import java.nio.file.Path
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import net.fabricmc.loom.test.LoomTestVersions
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
 
 import static net.fabricmc.loom.test.LoomTestConstants.PRE_RELEASE_GRADLE
@@ -55,19 +56,12 @@ class LegacyProjectTest extends Specification implements GradleProjectTestTrait 
 	@Unroll
 	def "Unsupported minecraft (minecraft #version)"() {
 		setup:
-		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
 		gradle.buildGradle << """
-				loom {
-                    noIntermediateMappings()
-                }
-
                 dependencies {
                     minecraft "com.mojang:minecraft:${version}"
-                    mappings loom.layered() {
-						// No names
-					}
 
-                    modImplementation "net.fabricmc:fabric-loader:0.12.12"
+                    implementation "${LoomTestVersions.FABRIC_LOADER.mavenNotation()}"
                 }
 			"""
 
@@ -92,20 +86,16 @@ class LegacyProjectTest extends Specification implements GradleProjectTestTrait 
 	@Unroll
 	def "Ancient minecraft (minecraft #version)"() {
 		setup:
-		def gradle = gradleProject(project: "minimalBase", version: PRE_RELEASE_GRADLE)
+		def gradle = gradleProject(project: "minimalBaseNoRemap", version: PRE_RELEASE_GRADLE)
 		gradle.buildGradle << """
 				loom {
-                    noIntermediateMappings()
 					clientOnlyMinecraftJar()
                 }
 
                 dependencies {
                     minecraft "com.mojang:minecraft:${version}"
-                    mappings loom.layered() {
-						// No names
-					}
 
-                    modImplementation "net.fabricmc:fabric-loader:0.12.12"
+                    implementation "${LoomTestVersions.FABRIC_LOADER.mavenNotation()}"
                 }
 			"""
 
@@ -135,7 +125,7 @@ class LegacyProjectTest extends Specification implements GradleProjectTestTrait 
 						// No names
 					}
 
-                    modImplementation "net.fabricmc:fabric-loader:0.15.7"
+                    modImplementation "${LoomTestVersions.FABRIC_LOADER.mavenNotation()}"
                 }
 			"""
 		gradle.buildSrc("legacyMergedIntermediary")
@@ -157,6 +147,7 @@ class LegacyProjectTest extends Specification implements GradleProjectTestTrait 
 		Files.copy(mappings, gradle.projectDir.toPath().resolve('mappings.tiny'))
 		gradle.buildGradle << """
 				loom.noIntermediateMappings()
+				loom.productionNamespace = "official"
 
 				dependencies {
 					minecraft "com.mojang:minecraft:c0.30_01c"
@@ -164,7 +155,7 @@ class LegacyProjectTest extends Specification implements GradleProjectTestTrait 
 						it.mappings file("mappings.tiny")
 					}
 
-					modImplementation "net.fabricmc:fabric-loader:0.15.7"
+					modImplementation "${LoomTestVersions.FABRIC_LOADER.mavenNotation()}"
 				}
 			"""
 		def sourceFile = new File(gradle.projectDir, 'src/main/java/Test.java')

@@ -84,7 +84,15 @@ public class McpConfigProvider extends DependencyProvider {
 		configJson = unpacked.resolve("config.json");
 	}
 
+	public boolean hasMappings() {
+		return data.hasMappings();
+	}
+
 	public Path getMappings() {
+		if (!hasMappings()) {
+			throw new UnsupportedOperationException("MCP config has no mappings (spec 6+ unobfuscated)");
+		}
+
 		return unpacked.resolve(getMappingsPath());
 	}
 

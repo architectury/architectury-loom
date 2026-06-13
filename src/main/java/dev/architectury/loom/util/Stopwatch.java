@@ -3,7 +3,7 @@ package dev.architectury.loom.util;
 import java.time.Duration;
 import java.time.Instant;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class Stopwatch {
 	private @Nullable Instant start;

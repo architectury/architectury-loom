@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -105,11 +106,14 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 
 			task.getOutputs().file(mixinMappings).withPropertyName("mixin-ap-" + sourceSet.getName()).optional();
 
+			String refmapTargetNamespace = IntermediaryNamespaces.replaceMixinIntermediaryNamespace(project, loom.getMixin().getRefmapTargetNamespace().get());
+			String capitalizedTargetNamespace = refmapTargetNamespace.substring(0, 1).toUpperCase(Locale.ROOT) + refmapTargetNamespace.substring(1);
+
 			Map<String, String> args = new HashMap<>() {{
-					put(Constants.MixinArguments.IN_MAP_FILE_NAMED_INTERMEDIARY, mappings.toFile().getCanonicalPath());
-					put(Constants.MixinArguments.OUT_MAP_FILE_NAMED_INTERMEDIARY, mixinMappings.getCanonicalPath());
+					put(Constants.MixinArguments.IN_MAP_FILE_NAMED + capitalizedTargetNamespace, mappings.toFile().getCanonicalPath());
+					put(Constants.MixinArguments.OUT_MAP_FILE_NAMED + capitalizedTargetNamespace, mixinMappings.getCanonicalPath());
 					put(Constants.MixinArguments.OUT_REFMAP_FILE, getRefmapDestination(task, refmapName));
-					put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "named:" + IntermediaryNamespaces.replaceMixinIntermediaryNamespace(project, loom.getMixin().getRefmapTargetNamespace().get()));
+					put(Constants.MixinArguments.DEFAULT_OBFUSCATION_ENV, "named:" + refmapTargetNamespace);
 					put(Constants.MixinArguments.QUIET, "true");
 				}};
 
@@ -140,8 +144,8 @@ public abstract class AnnotationProcessorInvoker<T extends Task> {
 				project.getLogger().info("Adding mixin to classpath of AP config: " + processorConfig.getName());
 				// Pass named MC classpath to mixin AP classpath
 				processorConfig.extendsFrom(
-						configs.getByName(Constants.Configurations.LOADER_DEPENDENCIES),
-						configs.getByName(Constants.Configurations.MAPPINGS_FINAL)
+						configs.named(Constants.Configurations.LOADER_DEPENDENCIES),
+						configs.named(Constants.Configurations.MAPPINGS_FINAL)
 				);
 
 				// Add Mixin and mixin extensions (fabric-mixin-compile-extensions pulls mixin itself too)
