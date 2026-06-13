@@ -41,7 +41,6 @@ import dev.architectury.loom.util.ClassVisitorUtil;
 import dev.architectury.loom.util.PropertyUtil;
 import dev.architectury.loom.util.Version;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -82,9 +81,6 @@ public class ForgeLibrariesProvider {
 	private static final String NEOFORGE_LOADER_FILE = "net/neoforged/fml/loading/FMLLoader.class";
 	private static final String NEOFORGE_GAME_LOCATOR_FILE = "net/neoforged/fml/loading/moddiscovery/locators/GameLocator.class";
 	private static final String NEOFORGE_REQUIRED_SYSTEM_FILES_FILE = "net/neoforged/fml/loading/moddiscovery/locators/RequiredSystemFiles.class";
-
-	private static final String TERMINAL_CONSOLE_APPENDER_GROUP = "net.minecrell";
-	private static final String TERMINAL_CONSOLE_APPENDER_NAME = "terminalconsoleappender";
 
 	public static void provide(MappingConfiguration mappingConfiguration, Project project) throws Exception {
 		LoomGradleExtension extension = LoomGradleExtension.get(project);
@@ -170,20 +166,6 @@ public class ForgeLibrariesProvider {
 					// and an untransformed one on the classpath.
 					md.setTransitive(false);
 				}
-			}
-
-			if (TERMINAL_CONSOLE_APPENDER_GROUP.equals(artifact.getModuleVersion().getId().getGroup())
-					&& TERMINAL_CONSOLE_APPENDER_NAME.equals(artifact.getModuleVersion().getId().getName())) {
-				// From https://github.com/RelativityMC/neo-loom/commit/d3254dcb8805bd6dd1f6a6baf7719b81792c9d86
-				// log4j-util provided minecrell package inside is a shim
-				// forge/neoforge requires full TerminalConsoleAppender feature, will not work without it.
-				Configuration loomDevDeps = project.getConfigurations().getByName(Constants.Configurations.LOOM_DEVELOPMENT_DEPENDENCIES);
-				loomDevDeps.exclude(
-						Map.of(
-								"group", LoomVersions.FABRIC_LOG4J_UTIL.group(),
-								"module", LoomVersions.FABRIC_LOG4J_UTIL.module()
-						)
-				);
 			}
 
 			DependencyProvider.addDependency(project, dep, Constants.Configurations.FORGE_DEPENDENCIES);
