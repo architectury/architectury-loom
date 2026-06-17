@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2023-2026 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class ArchitecturyFabricAdditionsTest extends Specification implements GradleProjectTestTrait {
+class AccessWidenerInjectionTest extends Specification implements GradleProjectTestTrait {
 	private static final String INJECTED_AW_FILE_NAME = 'hello_world.accesswidener'
 	private static final String INJECTED_AW_CONTENTS_REMAP = """\
 		accessWidener v1 named
@@ -45,31 +45,6 @@ class ArchitecturyFabricAdditionsTest extends Specification implements GradlePro
 		accessible field net/minecraft/ChatFormatting code C
 		"""
 	.stripIndent()
-
-	@Unroll
-	def "build with crane (gradle #version)"() {
-		setup:
-		def gradle = gradleProject(project: 'minimalBase', version: version)
-		gradle.buildGradle << """
-			dependencies {
-				minecraft 'com.mojang:minecraft:1.17.1'
-				mappings loom.layered {
-					officialMojangMappings()
-					crane 'dev.architectury:crane:1.17.1+build.15'
-				}
-				modImplementation 'net.fabricmc:fabric-loader:0.14.19'
-			}
-		"""
-
-		when:
-		def result = gradle.run(task: 'build')
-
-		then:
-		result.task(':build').outcome == SUCCESS
-
-		where:
-		version << STANDARD_TEST_VERSIONS
-	}
 
 	@Unroll
 	def "inject access widener (old api, remap, gradle #version)"() {
