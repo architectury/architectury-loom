@@ -485,6 +485,12 @@ abstract class WriteActionsTestMatrix extends DefaultTask {
 	def run() {
 		def testMatrix = []
 
+		// Arch: read tests from subdirs
+		// Subdirectories combined into one test run each
+		def mergedSubdirs = ['architectury', 'neoforge']
+		// Subdirectories where individual tests are added to the matrix (= longer tests)
+		def directSubdirs = ['forge']
+
 		integrationTestDirectory.get().asFile.eachFile {
 			if (it.name.endsWith("Test.groovy")) {
 				if (it.name.endsWith("ReproducibleBuildTest.groovy")) {
@@ -506,6 +512,15 @@ abstract class WriteActionsTestMatrix extends DefaultTask {
 				testMatrix.add("net.fabricmc.loom.test.integration.${className}")
 			} else if (it.name.endsWith("noRemap")) {
 				testMatrix.add("net.fabricmc.loom.test.integration.noRemap.*")
+			} else if (it.isDirectory()) {
+				if (mergedSubdirs.contains(it.name)) {
+					testMatrix.add("net.fabricmc.loom.test.integration.${it.name}.*")
+				} else if (directSubdirs.contains(it.name)) {
+					it.eachFile { child ->
+						def className = child.name.replace(".groovy", "")
+						testMatrix.add("net.fabricmc.loom.test.integration.${it.name}.${className}")
+					}
+				}
 			}
 		}
 
