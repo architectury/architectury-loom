@@ -325,9 +325,18 @@ public class MinecraftPatchedProvider {
 		Files.deleteIfExists(minecraftClientExtra);
 
 		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(minecraftClientExtra, true)) {
+			Path manifestPath = fs.getPath("META-INF", "MANIFEST.MF");
+
 			if (getExtension().isNeoForge()) {
-				Path manifestPath = fs.getPath("META-INF", "MANIFEST.MF");
 				generateNeoForgeDistManifest(serviceFactory, manifestPath);
+			} else if (getExtension().isForge()) {
+				// Generates an empty manifest for forge client-extra jar.
+				// In ForgeGradle, it copies the client manifest when generating client-extra.
+				//
+				// This will let UnionFS read this instead of the merged mapped jar in later launch process. (see ForgeUserdevLaunchHandler#getMinecraftPaths, Forge 1.21.1+)
+				// Otherwise, it reads MANIFEST.MF of the merged minecraft jar which may have 'Automatic-Module-Name',
+				// overriding "minecraft" mod id to it.
+				createEmptyJarManifest(manifestPath);
 			}
 		}
 
@@ -558,7 +567,9 @@ public class MinecraftPatchedProvider {
 		final MappingOption mappingOption = MappingOption.forPlatform(getExtension());
 		final TinyMappingsService mappingsService = getExtension().getMappingConfiguration().getMappingsService(project, serviceFactory, mappingOption);
 		final MappingTree mappings = mappingsService.getMappingTree();
-		CoreModClassRemapper.remapJar(project, getExtension().getPlatform().get(), patchedJar, mappings);
+
+		final boolean isRuntimeMojang = getExtension().getForgeProvider().usesMojangAtRuntime();
+		CoreModClassRemapper.remapJar(project, isRuntimeMojang, patchedJar, mappings);
 	}
 
 	private void patchJars() throws Exception {
@@ -730,6 +741,21 @@ public class MinecraftPatchedProvider {
 			try (OutputStream stream = Files.newOutputStream(manifestPath, StandardOpenOption.CREATE)) {
 				manifest.write(stream);
 			}
+		}
+	}
+
+	private void createEmptyJarManifest(Path manifestPath) throws IOException {
+		if (Files.exists(manifestPath)) {
+			return;
+		}
+
+		Manifest manifest = new Manifest();
+		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+
+		Files.createDirectories(manifestPath.getParent());
+
+		try (OutputStream out = Files.newOutputStream(manifestPath)) {
+			manifest.write(out);
 		}
 	}
 

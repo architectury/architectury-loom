@@ -27,6 +27,7 @@ package net.fabricmc.loom.configuration.ide;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -48,7 +49,8 @@ public class RuntimeLibraries {
 			return Collections.emptyList();
 		}
 
-		final BundleMetadata bundleMetadata = LoomGradleExtension.get(project).getMinecraftProvider().getServerBundleMetadata();
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+		final BundleMetadata bundleMetadata = extension.getMinecraftProvider().getServerBundleMetadata();
 
 		if (bundleMetadata == null) {
 			// Legacy version
@@ -58,6 +60,30 @@ public class RuntimeLibraries {
 		final Set<ResolvedArtifact> clientLibraries = getArtifacts(project, Constants.Configurations.MINECRAFT_CLIENT_RUNTIME_LIBRARIES);
 		final Set<ResolvedArtifact> serverLibraries = getArtifacts(project, Constants.Configurations.MINECRAFT_SERVER_RUNTIME_LIBRARIES);
 		final List<String> clientOnlyLibraries = new ArrayList<>();
+
+		// In Forge versions that use bootstrap-dev, we need to exclude all client libraries,
+		// including natives which is not excluded by default. i.e. lwjgl which has module-info in their natives,
+		// which loading it will cause module related exception since the main lwjgl has been excluded.
+		// https://github.com/architectury/architectury-loom/issues/191#issuecomment-2030567486
+		if (extension.isForge() && extension.getForgeProvider().getVersion().getMajorVersion() >= Constants.Forge.MIN_BOOTSTRAP_DEV_VERSION) {
+			// include all client native jars to be filtered out
+			final Set<ResolvedArtifact> allRuntime = getArtifacts(project, Constants.Configurations.MINECRAFT_RUNTIME_LIBRARIES);
+			final Set<ResolvedArtifact> clientOnlyArtifacts = new HashSet<>();
+
+			for (ResolvedArtifact library : clientLibraries) {
+				if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {
+					clientOnlyArtifacts.add(library);
+				}
+			}
+
+			for (ResolvedArtifact library : allRuntime) {
+				if (containsLibrary(clientOnlyArtifacts, library.getModuleVersion().getId())) {
+					clientOnlyLibraries.add(library.getFile().getAbsolutePath());
+				}
+			}
+
+			return clientOnlyLibraries;
+		}
 
 		for (ResolvedArtifact library : clientLibraries) {
 			if (!containsLibrary(serverLibraries, library.getModuleVersion().getId())) {

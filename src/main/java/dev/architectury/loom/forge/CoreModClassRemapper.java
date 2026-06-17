@@ -47,7 +47,6 @@ import org.gradle.api.logging.Logger;
 
 import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.util.FileSystemUtil;
-import net.fabricmc.loom.util.ModPlatform;
 import net.fabricmc.mappingio.tree.MappingTree;
 
 /**
@@ -57,7 +56,7 @@ public final class CoreModClassRemapper {
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("^(.*')((?:com\\.mojang\\.|net\\.minecraft\\.)[A-Za-z0-9.-_$]+)('.*)$");
 	private static final Pattern REDIRECT_FIELD_TO_METHOD_PATTERN = Pattern.compile("^(.*\\w+\\s*\\.\\s*redirectFieldToMethod\\s*\\(\\s*\\w+\\s*,\\s*')(\\w*)('\\s*,(?:\\s*'(\\w+)'\\s*|.*)\\).*)$");
 
-	public static void remapJar(Project project, ModPlatform platform, Path jar, MappingTree mappings) throws IOException {
+	public static void remapJar(Project project, boolean isRuntimeMojang, Path jar, MappingTree mappings) throws IOException {
 		final Logger logger = project.getLogger();
 		final String sourceNamespace = LoomGradleExtension.get(project).getProductionNamespace().get();
 
@@ -81,7 +80,7 @@ public final class CoreModClassRemapper {
 
 				if (Files.exists(js)) {
 					logger.info(":remapping coremod '" + file + "'");
-					remap(js, platform, mappings, sourceNamespace);
+					remap(js, isRuntimeMojang, mappings, sourceNamespace);
 				} else {
 					logger.warn("Coremod '" + file + "' listed in coremods.json but not found");
 				}
@@ -89,7 +88,7 @@ public final class CoreModClassRemapper {
 		}
 	}
 
-	public static void remap(Path js, ModPlatform platform, MappingTree mappings, String sourceNamespace) throws IOException {
+	public static void remap(Path js, boolean isRuntimeMojang, MappingTree mappings, String sourceNamespace) throws IOException {
 		List<String> lines = Files.readAllLines(js);
 		List<String> output = new ArrayList<>(lines);
 		String lastClassName = null;
@@ -108,7 +107,7 @@ public final class CoreModClassRemapper {
 				if (!className.equals(remapped)) {
 					output.set(i, matcher.group(1) + remapped.replace('/', '.') + matcher.group(3));
 				}
-			} else if (platform == ModPlatform.NEOFORGE && lastClassName != null) {
+			} else if (isRuntimeMojang && lastClassName != null) {
 				matcher = REDIRECT_FIELD_TO_METHOD_PATTERN.matcher(line);
 
 				if (matcher.matches()) {

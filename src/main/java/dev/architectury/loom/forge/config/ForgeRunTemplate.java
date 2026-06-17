@@ -76,13 +76,14 @@ public record ForgeRunTemplate(
 							newMap.put(name, entry.getValue());
 						}
 
-						// Iterate through all templates and fill in empty names.
-						// The NeoForge format doesn't include the name property, so we'll use the map keys
+						// Iterate through all templates and fill in empty or mismatching names.
+						// If it's empty: The NeoForge format doesn't include the name property, so we'll use the map keys
 						// as a replacement.
+						// If it doesn't match: We've replaced the name above.
 						for (Map.Entry<String, ForgeRunTemplate> entry : newMap.entrySet()) {
 							final ForgeRunTemplate template = entry.getValue();
 
-							if (template.name.isEmpty()) {
+							if (!entry.getKey().equals(template.name)) {
 								final ForgeRunTemplate completed = new ForgeRunTemplate(
 										entry.getKey(),
 										template.main,
