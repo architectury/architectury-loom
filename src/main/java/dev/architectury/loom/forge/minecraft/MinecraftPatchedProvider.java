@@ -329,9 +329,7 @@ public class MinecraftPatchedProvider {
 
 			if (getExtension().isNeoForge()) {
 				generateNeoForgeDistManifest(serviceFactory, manifestPath);
-			}
-
-			if (getExtension().isForge()) {
+			} else if (getExtension().isForge()) {
 				// Generates an empty manifest for forge client-extra jar.
 				// In ForgeGradle, it copies the client manifest when generating client-extra.
 				//
