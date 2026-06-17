@@ -1,7 +1,7 @@
 /*
  * This file is part of fabric-loom, licensed under the MIT License (MIT).
  *
- * Copyright (c) 2025 FabricMC
+ * Copyright (c) 2026 FabricMC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
+import net.fabricmc.loom.util.Checksum
 
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
@@ -52,6 +53,7 @@ class NeoForge261Test extends Specification implements GradleProjectTestTrait {
 		then:
 		result.task(":build").outcome == SUCCESS
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expectedAt
+		Checksum.of(gradle.getOutputFile("fabric-example-mod-1.0.0.jar")).md5().hex() == 'f583b1d0fc1e054568c799d7c3959d73'
 
 		where:
 		mcVersion            | neoforgeVersion
