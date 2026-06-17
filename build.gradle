@@ -236,7 +236,7 @@ spotless {
 		targetExclude(
 				// These files use a @MAPPINGS@ token which is not valid Groovy
 				'**/projects/forge/simple/build.gradle',
-				'**/projects/neoforge/simple/build.gradle'
+				'**/projects/neoforge/1202/build.gradle'
 				)
 	}
 
