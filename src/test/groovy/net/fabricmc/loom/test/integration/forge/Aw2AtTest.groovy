@@ -28,6 +28,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
+import net.fabricmc.loom.util.Checksum
 
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static net.fabricmc.loom.test.LoomTestConstants.STANDARD_TEST_VERSIONS
@@ -47,6 +48,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 		then:
 		result.task(":build").outcome == SUCCESS
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
+		hash(gradle.getOutputFile("fabric-example-mod-1.0.0.jar")) == '2c35db7629e0bda5e79001615751e99c'
 
 		where:
 		apiVariant | code
@@ -66,6 +68,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 		then:
 		result.task(":build").outcome == SUCCESS
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
+		hash(gradle.getOutputFile("fabric-example-mod-1.0.0.jar")) == '714f7823923fc90d06bb601f32955458'
 
 		where:
 		version << STANDARD_TEST_VERSIONS
@@ -83,6 +86,7 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 		then:
 		result.task(":build").outcome == SUCCESS
 		gradle.getOutputZipEntry("fabric-example-mod-1.0.0.jar", "META-INF/accesstransformer.cfg") == expected(gradle).replaceAll('\r', '')
+		hash(gradle.getOutputFile("fabric-example-mod-1.0.0.jar")) == '714f7823923fc90d06bb601f32955458'
 
 		where:
 		version << STANDARD_TEST_VERSIONS
@@ -90,5 +94,9 @@ class Aw2AtTest extends Specification implements GradleProjectTestTrait {
 
 	private static String expected(GradleProject gradle) {
 		return new File(gradle.projectDir, "expected.accesstransformer.cfg").text
+	}
+
+	private static String hash(File file) {
+		return Checksum.of(file).md5().hex()
 	}
 }

@@ -3,6 +3,7 @@ package dev.architectury.loom.extensions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ import net.fabricmc.loom.LoomGradleExtension;
 import net.fabricmc.loom.task.service.MappingsService;
 import net.fabricmc.loom.util.Constants;
 import net.fabricmc.loom.util.FileSystemUtil;
+import net.fabricmc.loom.util.ZipReprocessorUtil;
 import net.fabricmc.loom.util.service.ServiceFactory;
 
 public final class ModBuildExtensions {
@@ -96,17 +98,22 @@ public final class ModBuildExtensions {
 
 				Files.delete(awPath);
 			}
-
-			// Remap the AT if mappings are provided
-			if (mappingOptions.isPresent()) {
-				MappingsService service = serviceFactory.get(mappingOptions);
-				at = at.remap(service.getMemoryMappingTree(), service.getFrom(), service.getTo());
-			}
-
-			// Write out the merged and possibly remapped AT
-			try (Writer writer = new LfWriter(Files.newBufferedWriter(atPath))) {
-				AccessTransformFormats.FML.write(writer, at);
-			}
 		}
+
+		// Remap the AT if mappings are provided
+		if (mappingOptions.isPresent()) {
+			MappingsService service = serviceFactory.get(mappingOptions);
+			at = at.remap(service.getMemoryMappingTree(), service.getFrom(), service.getTo());
+		}
+
+		// Write out the merged and possibly remapped AT
+		var stringWriter = new StringWriter();
+
+		try (Writer writer = new LfWriter(stringWriter)) {
+			AccessTransformFormats.FML.write(writer, at);
+		}
+
+		byte[] atBytes = stringWriter.toString().getBytes(StandardCharsets.UTF_8);
+		ZipReprocessorUtil.appendZipEntry(outputFile, Constants.Forge.ACCESS_TRANSFORMER_PATH, atBytes);
 	}
 }
