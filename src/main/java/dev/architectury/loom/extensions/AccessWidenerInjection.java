@@ -60,7 +60,7 @@ public final class AccessWidenerInjection {
 		});
 	}
 
-	public static abstract class InjectAccessWidenerAction implements Action<Task> {
+	public abstract static class InjectAccessWidenerAction implements Action<Task> {
 		@InputFile
 		@PathSensitive(PathSensitivity.NAME_ONLY)
 		public abstract RegularFileProperty getAccessWidener();
