@@ -462,4 +462,46 @@ public interface LoomGradleExtensionAPI {
 	NeoForgeExtensionAPI getNeoForge();
 
 	void neoForge(Action<NeoForgeExtensionAPI> action);
+
+	/**
+	 * Injects the {@linkplain #getAccessWidenerPath() project access widener or class tweaker file} into the specified jar and adds it to the mod metadata file.
+	 *
+	 * <p>Only the access widener file name is considered; it will be placed top-level in the mod jar.
+	 *
+	 * <p>Only one injected access widener or class tweaker is supported per jar task.
+	 * When using this API with obfuscated Minecraft versions, the target task must be a {@link net.fabricmc.loom.task.RemapJarTask}
+	 * so that the access widener gets remapped properly.
+	 *
+	 * <p>This method only works in Fabric and Quilt mods.
+	 *
+	 * <p>Code example:
+	 * {@snippet : lang=groovy
+	 * loom.injectAccessWidener(tasks.named('jar'))
+	 * }
+	 *
+	 * @param jarTask the task to inject to
+	 * @see net.fabricmc.loom.task.RemapJarTask#getInjectAccessWidener()
+	 */
+	@ApiStatus.Experimental
+	default void injectAccessWidener(TaskProvider<? extends Jar> jarTask) {
+		injectAccessWidener(jarTask, getAccessWidenerPath());
+	}
+
+	/**
+	 * Injects an access widener or class tweaker file into the specified jar and adds it to the mod metadata file.
+	 *
+	 * <p>Only the access widener file name is considered; it will be placed top-level in the mod jar.
+	 *
+	 * <p>Only one injected access widener or class tweaker is supported per jar task.
+	 * When using this API with obfuscated Minecraft versions, the target task must be a {@link net.fabricmc.loom.task.RemapJarTask}
+	 * so that the access widener gets remapped properly.
+	 *
+	 * <p>This method only works in Fabric and Quilt mods.
+	 *
+	 * @param jarTask           the task to inject to
+	 * @param accessWidenerFile the access widener file, resolved as per {@link org.gradle.api.Project#file(Object)}
+	 * @see net.fabricmc.loom.task.RemapJarTask#getInjectAccessWidener()
+	 */
+	@ApiStatus.Experimental
+	void injectAccessWidener(TaskProvider<? extends Jar> jarTask, Object accessWidenerFile);
 }

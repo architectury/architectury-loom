@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import dev.architectury.loom.extensions.AccessWidenerInjection;
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.NamedDomainObjectList;
@@ -705,6 +706,11 @@ public abstract class LoomGradleExtensionApiImpl implements LoomGradleExtensionA
 	@Override
 	public void neoForge(Action<NeoForgeExtensionAPI> action) {
 		action.execute(getNeoForge());
+	}
+
+	@Override
+	public void injectAccessWidener(TaskProvider<? extends Jar> jarTask, Object accessWidenerFile) {
+		AccessWidenerInjection.addToTask(jarTask, accessWidenerFile, getPlatform().get());
 	}
 
 	private static String computeDefaultProductionNamespace(Project project) {
