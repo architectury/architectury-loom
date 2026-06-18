@@ -61,7 +61,7 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 				.readLines()
 				.stream()
 				.map { it.split('\t') }
-				.collect(Collectors.toMap({ it[0] }, { it[1] }))
+				.collect(Collectors.toMap({ it[0] }) { it[1] })
 
 		then:
 		result.task(":build").outcome == SUCCESS
