@@ -24,6 +24,8 @@
 
 package net.fabricmc.loom.test.integration.forge
 
+import java.util.stream.Collectors
+
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -44,24 +46,26 @@ class ForgeRunConfigTest extends Specification implements GradleProjectTestTrait
 				.replace('@PACKAGE@', 'net.minecraftforge:forge')
 				.replace('@JAVA_VERSION@', javaVersion)
 		gradle.buildGradle << """
-		tasks.register('verifyRunConfigs') {
-			doLast {
-				loom.runs.each {
-					def expected = '$mainClass'
-					def found = it.mainClass.get()
-					if (expected != found) {
-						throw new AssertionError("\$it.name: found main class \$found, expected \$expected")
-					}
-				}
+		afterEvaluate {
+			loom.runs.each {
+				def finalised = net.fabricmc.loom.configuration.ide.DefaultRunConfigurationSettings.finialise(it, project)
+				def mainClass = finalised.mainClass.get()
+				file('main_classes.txt') << "\$it.name\\t\$mainClass\\n"
 			}
 		}
 		""".stripIndent()
 
 		when:
-		def result = gradle.run(task: "verifyRunConfigs", configurationCache: false)
+		def result = gradle.run(task: "build")
+		def mainClasses = new File(gradle.projectDir, 'main_classes.txt')
+				.readLines()
+				.stream()
+				.map { it.split('\t') }
+				.collect(Collectors.toMap({ it[0] }, { it[1] }))
 
 		then:
-		result.task(":verifyRunConfigs").outcome == SUCCESS
+		result.task(":build").outcome == SUCCESS
+		mainClasses == [client: mainClass, server: mainClass]
 
 		where:
 		mcVersion | forgeVersion | javaVersion | mainClass
