@@ -285,6 +285,7 @@ public class MinecraftPatchedProvider {
 		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
 			builder.enqueue("preProcessJar");
+			builder.enqueue("patch");
 			McpExecutor executor = serviceFactory.get(builder.build());
 			Path output = executor.execute();
 			Files.copy(output, minecraftIntermediateJar, StandardCopyOption.REPLACE_EXISTING);
