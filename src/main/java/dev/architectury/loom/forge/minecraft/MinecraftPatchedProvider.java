@@ -257,6 +257,11 @@ public class MinecraftPatchedProvider {
 		Files.deleteIfExists(mcOutput);
 		Files.copy(minecraftPatchedIntermediateAtJar, mcOutput);
 
+		// No manifest available to reuse here (mergetool's output has none, Forge's own jar is signed).
+		try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(mcOutput, false)) {
+			createEmptyJarManifest(fs.getPath("META-INF", "MANIFEST.MF"));
+		}
+
 		copyUserdevFiles(forgeUserdevJar, mcOutput);
 		applyLoomPatchVersion(mcOutput);
 	}
@@ -285,7 +290,7 @@ public class MinecraftPatchedProvider {
 		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
 			builder.enqueue("preProcessJar");
-			builder.enqueue("patch");
+			builder.enqueue("merge");
 			McpExecutor executor = serviceFactory.get(builder.build());
 			Path output = executor.execute();
 			Files.copy(output, minecraftIntermediateJar, StandardCopyOption.REPLACE_EXISTING);
