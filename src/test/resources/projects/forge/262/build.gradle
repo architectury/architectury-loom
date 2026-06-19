@@ -1,0 +1,46 @@
+plugins {
+	id 'dev.architectury.loom-no-remap'
+	id 'maven-publish'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+base {
+	archivesName = project.archives_base_name
+}
+
+version = project.mod_version
+group = project.maven_group
+
+def mcVersion = "@MCVERSION@"
+def forgeVersion = "@FORGEVERSION@"
+
+dependencies {
+	minecraft "com.mojang:minecraft:$mcVersion"
+	forge "net.minecraftforge:forge:$mcVersion-$forgeVersion"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${project.archivesBaseName}"}
+	}
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+}
