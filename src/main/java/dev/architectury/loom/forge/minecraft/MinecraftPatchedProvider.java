@@ -289,8 +289,7 @@ public class MinecraftPatchedProvider {
 	private void createUnobfuscatedPrePatchJar() throws IOException {
 		try (var tempFiles = new TempFiles(); var serviceFactory = new ScopedServiceFactory()) {
 			McpExecutorBuilder builder = createMcpExecutor(tempFiles.directory("loom-mcp"));
-			builder.enqueue("preProcessJar");
-			builder.enqueue("merge");
+			builder.enqueue(getExtension().isNeoForge() ? "preProcessJar" : "merge");
 			McpExecutor executor = serviceFactory.get(builder.build());
 			Path output = executor.execute();
 			Files.copy(output, minecraftIntermediateJar, StandardCopyOption.REPLACE_EXISTING);
