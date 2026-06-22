@@ -32,11 +32,11 @@ import net.fabricmc.loom.test.util.GradleProjectTestTrait
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-class SimpleNeoForgeTest extends Specification implements GradleProjectTestTrait {
+class NeoForge1202Test extends Specification implements GradleProjectTestTrait {
 	@Unroll
 	def "build #mcVersion #neoforgeVersion #mappings"() {
 		setup:
-		def gradle = gradleProject(project: "neoforge/simple", version: DEFAULT_GRADLE)
+		def gradle = gradleProject(project: "neoforge/1202", version: DEFAULT_GRADLE)
 		gradle.buildGradle.text = gradle.buildGradle.text.replace('@MCVERSION@', mcVersion)
 				.replace('@NEOFORGEVERSION@', neoforgeVersion)
 				.replace('@MAPPINGS@', mappings)

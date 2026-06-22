@@ -221,7 +221,6 @@ public class Constants {
 	}
 
 	public static final class Forge {
-		public static final String UNDETERMINED_MAIN_CLASS = "[Forge] Main class has not been determined yet!";
 		public static final String ACCESS_TRANSFORMER_PATH = "META-INF/accesstransformer.cfg";
 		public static final String MIXIN_CONFIGS_MANIFEST_KEY = "MixinConfigs";
 
