@@ -24,10 +24,14 @@
 
 package net.fabricmc.loom.test.integration.forge
 
+import java.util.jar.Manifest
+
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import net.fabricmc.loom.test.util.GradleProjectTestTrait
+import net.fabricmc.loom.util.Constants
+import net.fabricmc.loom.util.ZipUtils
 
 import static net.fabricmc.loom.test.LoomTestConstants.DEFAULT_GRADLE
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
@@ -50,6 +54,10 @@ class Forge261Test extends Specification implements GradleProjectTestTrait {
 
 		then:
 		result.task(":build").outcome == SUCCESS
+
+		def main = gradle.getOutputFile("fabric-example-mod-1.0.0.jar").toPath()
+		def manifest = new Manifest(new ByteArrayInputStream(ZipUtils.unpack(main, "META-INF/MANIFEST.MF")))
+		manifest.getMainAttributes().getValue(Constants.Forge.MIXIN_CONFIGS_MANIFEST_KEY) == "test.mixins.json"
 
 		where:
 		mcVersion | forgeVersion

@@ -83,15 +83,17 @@ public class NonRemappedJarTaskConfiguration {
 
 		extension.getUnmappedModCollection().from(project.getTasks().named(JavaPlugin.JAR_TASK_NAME));
 
-		if (extension.isForge()) {
-			if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-				extension.getForge().convertAccessWideners(project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class), settings -> {
-					settings.getAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(project));
-				});
-			}
+		project.afterEvaluate(p -> {
+			if (extension.isForge()) {
+				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
+					extension.getForge().convertAccessWideners(project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class), settings -> {
+						settings.getAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(project));
+					});
+				}
 
-			ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
-		}
+				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
+			}
+		});
 	}
 
 	private List<String> getClientOnlyEntries() {
