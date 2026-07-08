@@ -44,6 +44,7 @@ import net.fabricmc.loom.configuration.providers.minecraft.MinecraftSourceSets;
 import net.fabricmc.loom.task.service.ClientEntriesService;
 import net.fabricmc.loom.task.service.JarManifestService;
 import net.fabricmc.loom.util.Constants;
+import net.fabricmc.loom.util.gradle.GradleUtils;
 import net.fabricmc.loom.util.gradle.SourceSetHelper;
 import net.fabricmc.loom.util.service.ScopedServiceFactory;
 
@@ -83,15 +84,17 @@ public class NonRemappedJarTaskConfiguration {
 
 		extension.getUnmappedModCollection().from(project.getTasks().named(JavaPlugin.JAR_TASK_NAME));
 
-		if (extension.isForge()) {
-			if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
-				extension.getForge().convertAccessWideners(project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class), settings -> {
-					settings.getAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(project));
-				});
-			}
+		GradleUtils.afterSuccessfulEvaluation(project, () -> {
+			if (extension.isForge()) {
+				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
+					extension.getForge().convertAccessWideners(project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class), settings -> {
+						settings.getAccessWideners().addAll(Aw2At.getForgeAtAccessWideners(project));
+					});
+				}
 
-			ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
-		}
+				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(project);
+			}
+		});
 	}
 
 	private List<String> getClientOnlyEntries() {

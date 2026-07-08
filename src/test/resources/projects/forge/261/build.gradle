@@ -18,6 +18,12 @@ group = project.maven_group
 def mcVersion = "@MCVERSION@"
 def forgeVersion = "@FORGEVERSION@"
 
+loom {
+	forge {
+		mixinConfigs "test.mixins.json"
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:$mcVersion"
 	forge "net.minecraftforge:forge:$mcVersion-$forgeVersion"
