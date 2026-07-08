@@ -112,7 +112,7 @@ public abstract class RemapTaskConfiguration implements Runnable {
 
 		trySetupSourceRemapping();
 
-		getProject().afterEvaluate(p -> {
+		GradleUtils.afterSuccessfulEvaluation(getProject(), () -> {
 			if (extension.isForge()) {
 				if (PropertyUtil.getAndFinalize(extension.getForge().getConvertAccessWideners())) {
 					getTasks().named(REMAP_JAR_TASK_NAME, RemapJarTask.class, task -> {
@@ -120,7 +120,7 @@ public abstract class RemapTaskConfiguration implements Runnable {
 					});
 				}
 
-				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(p);
+				ModBuildExtensions.addMixinConfigsToDefaultJarManifest(getProject());
 			}
 		});
 
