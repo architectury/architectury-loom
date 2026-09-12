@@ -177,8 +177,8 @@ public abstract class LoomConfigurations implements Runnable {
 			// TODO: Can we get rid of javax annotations on modern versions?
 			getDependencies().add(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME, LoomVersions.JAVAX_ANNOTATIONS.mavenNotation());
 
-			// Add Forge-only dev-time dependencies
-			if (extension.isForge()) {
+			// Add Forge-only dev-time dependencies for obfuscated version
+			if (extension.isForge() && !extension.disableObfuscation()) {
 				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.NAMING_SERVICE.mavenNotation());
 				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.MIXIN_REMAPPER_SERVICE.mavenNotation());
 				getDependencies().add(Constants.Configurations.FORGE_EXTRA, LoomVersions.MCP_ANNOTATIONS.mavenNotation());

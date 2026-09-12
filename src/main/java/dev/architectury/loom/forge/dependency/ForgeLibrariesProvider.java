@@ -159,6 +159,14 @@ public class ForgeLibrariesProvider {
 				} catch (IOException e) {
 					throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not remap FML", e);
 				}
+			} else if (isFML) {
+				try {
+					project.getLogger().info(":remapping FML loader (non-obfuscated)");
+					// non-obfuscated FML still need to be transformed to fix UnionFS related crash in dev
+					dep = transformFmlLoader(project, artifact);
+				} catch (IOException e) {
+					throw ExceptionUtil.createDescriptiveWrapper(RuntimeException::new, "Could not remap FML", e);
+				}
 			} else {
 				dep = project.getDependencies().create(getDependencyNotation(artifact));
 
@@ -246,6 +254,39 @@ public class ForgeLibrariesProvider {
 
 				if (sourcesJar != null) {
 					mavenHelper.copyToMaven(sourcesJar, "sources");
+				}
+			}
+		}
+
+		return mavenHelper.getNotation();
+	}
+
+	// Returns a Gradle dependency notation. (unobfuscated versions)
+	private static Object transformFmlLoader(Project project, ResolvedArtifact artifact) throws IOException {
+		final LoomGradleExtension extension = LoomGradleExtension.get(project);
+
+		// use the same prefix, since there is no mapping involved
+		final String postfix = "transformed" + FML_PATCH_VERSION;
+
+		// Resolve the inputs and outputs.
+		final ModuleVersionIdentifier id = artifact.getModuleVersion().getId();
+		final LocalMavenHelper mavenHelper = new LocalMavenHelper(
+				id.getGroup() + "." + postfix,
+				id.getName(),
+				id.getVersion(),
+				artifact.getClassifier(),
+				extension.getFiles().getForgeDependencyRepo().toPath()
+		);
+		final Path inputJar = artifact.getFile().toPath();
+		final Path outputJar = mavenHelper.getOutputFile(null);
+
+		// Modify jar.
+		if (!Files.exists(outputJar) || extension.refreshDeps()) {
+			mavenHelper.copyToMaven(inputJar, null);
+
+			try (FileSystemUtil.Delegate fs = FileSystemUtil.getJarFileSystem(outputJar, false)) {
+				if (Files.exists(fs.getPath(FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE))) {
+					ClassVisitorUtil.rewriteClassFile(fs.getPath(FORGE_MOD_DIR_TRANSFORMER_DISCOVERER_FILE), true, ModDirTransformerDiscovererPatch::new);
 				}
 			}
 		}
