@@ -82,7 +82,7 @@ public class JarNester {
 			nestedJarPaths.keySet().forEach(path -> LOGGER.debug("Nested {} into {}", path, modJar.getName()));
 
 			if (platform.isForgeLike()) {
-				handleForgeJarJar(jars, modJar);
+				handleForgeJarJar(sortedJars, modJar);
 				return;
 			} else if (platform == ModPlatform.QUILT) {
 				ZipReprocessorUtil.transformZipEntry(modJar.toPath(), "quilt.mod.json", bytes -> {
