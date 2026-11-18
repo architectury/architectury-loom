@@ -64,7 +64,7 @@ class MultiMcVersionTest extends Specification implements GradleProjectTestTrait
 
 		then:
 		versions.forEach {
-			result.task(":$it:build").outcome == SUCCESS
+			assert result.task(":$it:build").outcome == SUCCESS
 		}
 
 		where:
